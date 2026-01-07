@@ -1,0 +1,13 @@
+/target
+/Cargo.lock
+
+.zed
+.vscode
+
+# Ignore build artifacts
+
+*/build/linker
+*/build/linker/**
+
+*/object
+*/object/**
