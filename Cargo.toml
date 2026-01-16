@@ -1,0 +1,58 @@
+[workspace]
+resolver = "3"
+
+members = [
+  "aal/agnostic",
+  "aal/arch",
+  "aal/cache",
+  "aal/critical",
+  "aal/feature",
+  "aal/hotpatch",
+  "aal/interrupt",
+  "aal/isolate",
+  "aal/local",
+  "aal/signal",
+  "boot/nekor-boot",
+  "boot/nekor-multiboot2",
+  "boot/nekor-uefi",
+  "nekor",
+  "nekor-aal",
+  "nekor-backoff",
+  "nekor-bitwise",
+  "nekor-build",
+  "nekor-cpu",
+  "nekor-domain",
+  "nekor-executor",
+  "nekor-hal",
+  "nekor-platform",
+  "nekor-primitive",
+  "nekor-project",
+  "nekor-project/nekor-project-core",
+  "nekor-project/nekor-project-derive",
+  "nekor-register",
+  "nekor-socal",
+  "nekor-structure",
+  "nekor-sync",
+]
+
+exclude = [
+  "nekor-bitwise/nekor-bitwise-extract",
+  "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-8",
+  "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-16",
+  "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-32",
+  "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64",
+  "nekor-bitwise/nekor-bitwise-size",
+]
+
+[workspace.package]
+edition = "2024"
+
+[workspace.dependencies]
+tokel = "0.2.4"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(usermode)"] }
+
+# NOTE: This is required to specify the top-level Nekor Manifest for the build system.
+[workspace.metadata.nekor]
+manifest = "nekor.toml"
