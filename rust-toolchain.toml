@@ -1,0 +1,4 @@
+[toolchain]
+# NOTE: This is required for building `core` and `alloc` for our set of architectural targets. No unstable language features are in use.
+channel = "nightly"
+components = ["rust-analyzer", "rust-src", "clippy", "rustfmt"]
