@@ -1,0 +1,3 @@
+[alias]
+# NOTE: The internal alias for the integrated build system.
+nekor = "run -p nekor-build --quiet --"

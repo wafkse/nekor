@@ -1,0 +1,6 @@
+include = [
+    { path = "config.alias.toml", optional = false },
+
+    { path = "../platform/x86_64/usermode/config.toml", optional = true },
+    { path = "../platform/x86_64/base/config.alias.toml", optional = true },
+]
