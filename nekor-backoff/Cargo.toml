@@ -1,0 +1,12 @@
+[package]
+name = "nekor-backoff"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+usermode = []
+
+[dependencies]
+
+[lints]
+workspace = true
