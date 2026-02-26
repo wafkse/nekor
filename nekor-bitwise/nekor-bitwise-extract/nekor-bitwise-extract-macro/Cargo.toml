@@ -1,0 +1,12 @@
+[package]
+name = "nekor-bitwise-extract-macro"
+version = "0.0.0"
+edition.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+nekor-bitwise-extract-macro-impl = { version = "*", path = "../nekor-bitwise-extract-macro-impl" }
+proc-macro2 = "1.0.103"
+syn = "2.0.108"
