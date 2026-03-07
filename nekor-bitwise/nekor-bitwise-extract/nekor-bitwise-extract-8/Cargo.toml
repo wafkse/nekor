@@ -1,0 +1,9 @@
+[package]
+name = "nekor-bitwise-extract-8"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+nekor-bitwise-extract-8-8 = { version = "*", path = "../nekor-bitwise-extract-8-8" }
+
+nekor-bitwise-extract-core = { path = "../nekor-bitwise-extract-core" }
