@@ -1,0 +1,14 @@
+[package]
+name = "nekor-bitwise-extract"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+nekor-primitive = { version = "*", path = "../../nekor-primitive" }
+nekor-bitwise-size = { version = "*", path = "../nekor-bitwise-size" }
+nekor-bitwise-extract-core = { version = "*", path = "nekor-bitwise-extract-core" }
+nekor-bitwise-extract-8 = { version = "*", path = "nekor-bitwise-extract-8" }
+nekor-bitwise-extract-16 = { version = "*", path = "nekor-bitwise-extract-16" }
+nekor-bitwise-extract-32 = { version = "*", path = "nekor-bitwise-extract-32" }
+nekor-bitwise-extract-64 = { version = "*", path = "nekor-bitwise-extract-64" }
+nekor-bitwise-extract-128 = { version = "*", path = "nekor-bitwise-extract-128" }
