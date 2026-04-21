@@ -1,0 +1,15 @@
+[package]
+name = "nekor-aal-local"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+
+[dependencies]
+
+[dependencies.nekor-aal-arch]
+version = "*"
+path = "../arch"
+
+[lints]
+workspace = true
