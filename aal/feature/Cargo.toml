@@ -1,0 +1,20 @@
+[package]
+name = "nekor-aal-feature"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+
+[dependencies]
+nekor-bitwise = { version = "0.1.0", path = "../../nekor-bitwise" }
+nekor-domain = { version = "0.1.0", path = "../../nekor-domain" }
+nekor-primitive = { version = "0.1.0", path = "../../nekor-primitive" }
+
+tokel = { workspace = true }
+
+[dependencies.nekor-aal-arch]
+version = "*"
+path = "../arch"
+
+[lints]
+workspace = true
