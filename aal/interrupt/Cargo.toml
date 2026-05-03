@@ -1,0 +1,15 @@
+[package]
+name = "nekor-aal-interrupt"
+version = "0.1.0"
+edition.workspace = true
+
+
+[features]
+
+[dependencies]
+nekor-aal-agnostic = { version = "*", path = "../agnostic" }
+nekor-aal-arch = { version = "*", path = "../arch" }
+nekor-bitwise = { version = "*", path = "../../nekor-bitwise" }
+
+[lints]
+workspace = true
