@@ -1,0 +1,16 @@
+[package]
+name = "nekor-sync"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+
+[dependencies]
+nekor-aal-signal = { version = "*", path = "../aal/signal" }
+nekor-aal-cache = { version = "*", path = "../aal/cache" }
+nekor-primitive = { version = "*", path = "../nekor-primitive" }
+nekor-bitwise = { version = "*", path = "../nekor-bitwise" }
+nekor-backoff = { version = "*", path = "../nekor-backoff" }
+
+[lints]
+workspace = true
