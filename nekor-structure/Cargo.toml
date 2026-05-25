@@ -1,0 +1,14 @@
+[package]
+name = "nekor-structure"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+
+[dependencies]
+nekor-aal = { version = "*", path = "../nekor-aal" }
+nekor-sync = { version = "*", path = "../nekor-sync" }
+nekor-backoff = { version = "*", path = "../nekor-backoff" }
+
+[lints]
+workspace = true
