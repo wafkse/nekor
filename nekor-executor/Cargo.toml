@@ -1,0 +1,36 @@
+[package]
+name = "nekor-executor"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["task-queue-size-8"]
+
+task-queue-size-65536 = []
+task-queue-size-32768 = []
+task-queue-size-16384 = []
+task-queue-size-8192 = []
+task-queue-size-4096 = []
+task-queue-size-2048 = []
+task-queue-size-1024 = []
+task-queue-size-512 = []
+task-queue-size-256 = []
+task-queue-size-128 = []
+task-queue-size-64 = []
+task-queue-size-32 = []
+task-queue-size-16 = []
+task-queue-size-8 = []
+task-queue-size-4 = []
+task-queue-size-2 = []
+task-queue-size-1 = []
+
+[dependencies]
+nekor-structure = { version = "*", path = "../nekor-structure" }
+nekor-sync = { version = "*", path = "../nekor-sync" }
+nekor-domain = { version = "*", path = "../nekor-domain" }
+nekor-aal = { version = "*", path = "../nekor-aal" }
+
+tokel = { workspace = true }
+
+[lints]
+workspace = true
