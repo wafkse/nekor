@@ -1,0 +1,32 @@
+[package]
+name = "nekor-cpu"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["maximum-core-count-16"]
+
+maximum-core-count-1 = []
+maximum-core-count-2 = []
+maximum-core-count-4 = []
+maximum-core-count-8 = []
+maximum-core-count-16 = []
+maximum-core-count-32 = []
+maximum-core-count-64 = []
+maximum-core-count-128 = []
+maximum-core-count-256 = []
+maximum-core-count-512 = []
+maximum-core-count-1024 = []
+maximum-core-count-2048 = []
+maximum-core-count-4096 = []
+maximum-core-count-8192 = []
+
+[dependencies]
+nekor-aal = { version = "*", path = "../nekor-aal" }
+nekor-domain = { version = "*", path = "../nekor-domain" }
+nekor-structure = { version = "*", path = "../nekor-structure" }
+
+tokel = { workspace = true }
+
+[lints]
+workspace = true
