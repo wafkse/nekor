@@ -1,0 +1,11 @@
+[package]
+name = "nekor-platform"
+version = "0.1.0"
+edition.workspace = true
+
+build = "build.rs"
+
+[dependencies]
+
+[lints]
+workspace = true
