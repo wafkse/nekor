@@ -1,0 +1,37 @@
+{# Freestanding target for `x86_64` Nekor kernels. -#}
+{
+  "arch": "x86_64",
+  "cpu": "x86-64",
+  "os": "none",
+  "llvm-target": "x86_64-unknown-none-elf",
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+  "disable-redzone": true,
+  "linker": "rust-lld",
+  "linker-flavor": "ld.lld",
+  "max-atomic-width": 64,
+  "panic-strategy": "abort",
+  "eh-frame-header": false,
+  {#
+    Use inline stack probes.
+
+    This can be combined with workspace-wide `forbid(clippy::large_stack_frames)` and `forbid(large_futures)` to avoid
+    blowing up the stack.
+  -#}
+  "stack-probes": {
+      "kind": "inline"
+  },
+  "target-pointer-width": 64,
+  "code-model": "{{ layout["code-model"] }}",
+  "relocation-model": "{{ layout["relocation-model"] }}",
+  "position-independent-executables": true,
+  "static-position-independent-executables": true,
+  "dynamic-linking": false,
+  {# This is required for making every symbol local by-default. -#}
+  "default-visibility": "hidden",
+  {# The kernel handles `relro` itself, this is `none` to prevent the linker from interference. -#}
+  "relro-level": "none",
+  {# There should be no Procedure Linkage Table. -#}
+  "plt-by-default": false,
+  {# Frame pointers are required for unwinding the kernel stack and for the Isolate system. -#}
+  "frame-pointer": {% if unwind["frame-pointer"] %}"always"{% else %}"none"{% endif %}
+}

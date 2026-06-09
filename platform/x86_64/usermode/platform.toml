@@ -1,0 +1,19 @@
+[platform]
+base = "x86_64"
+
+[build]
+scopes = ["arch", "layout", "boot", "kernel", "mitigate", "unwind", "linkage", "debug"]
+
+[scope.layout]
+# NOTE: For usermode builds, there is no virtual or physical base, we allow the (host) kernel
+# to provide ASLR for the binary.
+# This is set to zero to synchronize both the virtual and the load memory addresses. (VMA = LMA).
+base = 0
+physical_base = 0
+
+[scope.debug]
+# State that the target is in usermode.
+usermode = true
+
+# Whether usermode-based test functionality should be enabled.
+test = true

@@ -1,0 +1,75 @@
+{#
+  NOTE:
+
+  This is a close target-spec-json for `x86_64` userspace Linux within a GNU ecosystem.
+
+  This was automatically generated via `rustc --target="x86_64-unknown-linux-gnu" --print target-spec-json -Z unstable-options > nekor-x86_64-usermode.json.tera`.
+
+  The goal of this script is to forcefully remove the dependency on the prebuilt `std` and `alloc` crates, the default panic strategy
+  is `panic=abort`, and unwinding is done via mandatory frame pointers.
+
+  This is also required to force Cargo to treat userspace kernel compilation as a regular cross compile, as `config.toml` configuration applies to all crates built for the host
+  when targeting a built-in target triple. This makes sure that we only force the userspace kernel version to use our custom build configuration, rather than all crates built for the host.
+-#}
+{
+  "arch": "x86_64",
+  "cpu": "x86-64",
+  "crt-static-respected": true,
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+  {# NOTE: Disable unwind tables. -#}
+  "default-uwtable": false,
+  {# NOTE: Disable Exception Handling Frame header -#}
+  "eh-frame-header": false,
+  {# NOTE: Default symbol visibility is hidden. -#}
+  "default-visibility": "hidden",
+  {# NOTE: Disable dynamic linkage for usermode kernels. #}
+  "dynamic-linking": false,
+  "env": "gnu",
+  "has-rpath": true,
+  "has-thread-local": true,
+  "link-self-contained": {
+    "components": [
+      "linker"
+    ]
+  },
+  "linker-flavor": "gnu-lld-cc",
+  "llvm-target": "x86_64-unknown-linux-gnu",
+  "max-atomic-width": 64,
+  "os": "linux",
+  "plt-by-default": false,
+  "position-independent-executables": true,
+  "pre-link-args": {
+    "gnu-cc": [
+      "-m64"
+    ],
+    "gnu-lld-cc": [
+      "-m64"
+    ]
+  },
+  "relro-level": "full",
+  "stack-probes": {
+    "kind": "inline"
+  },
+  "static-position-independent-executables": true,
+  "supported-sanitizers": [
+    "address",
+    "leak",
+    "memory",
+    "thread",
+    "cfi",
+    "kcfi",
+    "safestack",
+    "dataflow",
+    "realtime"
+  ],
+  "supported-split-debuginfo": [
+    "packed",
+    "unpacked",
+    "off"
+  ],
+  "supports-xray": true,
+  "target-family": [
+    "unix"
+  ],
+  "target-pointer-width": 64
+}

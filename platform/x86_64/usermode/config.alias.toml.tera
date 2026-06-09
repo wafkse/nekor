@@ -1,0 +1,3 @@
+[alias]
+usermode-x86_64 = "build -p nekor --config {{ platform() }}/config.build.toml --target {{ platform() }}/nekor-x86_64-usermode.json -Zjson-target-spec"
+test-x86_64 = "test --config {{ platform() }}/config.build.toml --target {{ platform() }}/nekor-x86_64-usermode.json -Zjson-target-spec"

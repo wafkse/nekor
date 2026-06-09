@@ -1,0 +1,438 @@
+/*
+    Linker Script for the `x86_64` architecture for the Nekor kernel.
+
+    Nekor largely deviates from standard section names. This is largely to maintain control over what exactly
+    is emitted to the final kernel binary.
+*/
+
+OUTPUT_ARCH(i386:x86-64)
+
+OUTPUT_FORMAT(elf64-x86-64)
+
+ENTRY(_start)
+
+PHDRS {
+  /*
+    An internal segment to the program headers.
+  */
+  program-header  PT_PHDR PHDRS;
+
+  /*
+    The normal executable segment.
+
+    This is where all normal (as in, non-specialized) kernel code resides.
+  */
+  code-normal PT_LOAD FILEHDR PHDRS FLAGS(5); /* RX */
+
+  /*
+    The patchable executable segment.
+
+    This is where code that can be cross-modified resides.
+
+    This is defined as a Read-Write-Execute program segment to avoid deduplication into the regular
+    `core-normal` program segment.
+  */
+  code-patchsite PT_LOAD FLAGS(7); /* RWX -> RX (W^X enforced post-boot) */
+
+  /*
+    The read-write data segment.
+
+    This is used for statically allocated kernel data, such as static variables and domain-allocated variables.
+  */
+  data-readwrite PT_LOAD FLAGS(6); /* RW */
+
+  /* NOTE: These program segments are isolated as they are subject to page reclamation. */
+  /*
+    The program segment dedicated to the boot protocol request and response block.
+  */
+  bootloader-segment  PT_LOAD FLAGS(6); /* RW */
+
+  /*
+    The interpreter segment.
+
+    In non-`usermode` builds, this serves as a list of mandated bootloader protocols that a loader
+    must support, in `userspace` builds, this is the dynamic interpreter that must be used for regular
+    userspace execution.
+  */
+  interpreter-segment PT_INTERP FLAGS(6); /* RW */
+
+  /*
+    The segment dedicated to program linkage.
+
+    This is used for load-time KASLR and to isolate the memory required for dynamic linkage.
+  */
+  linkage-segment   PT_DYNAMIC FLAGS(4); /* R */
+
+  /*
+    The read-only data segment.
+
+    This is used for statically allocated kernel data that is not mutated at runtime.
+  */
+  data-readonly  PT_LOAD FLAGS(4); /* R */
+
+  /*
+    The local segment.
+
+    This is used for per-cpu template sections and standard thread-local storage for `usermode` builds.
+  */
+  local-segment PT_TLS FLAGS(4); /* R */
+}
+
+/* NOTE: Declare bootloader-related symbols as external. This is required to avoid stripping of static bootloader data. */
+EXTERN("{{ boot.symbol }}")
+EXTERN("{{ boot.feature.symbol }}")
+
+SECTIONS {
+  /*
+    NOTE: The virtual base address.
+  */
+  . = {{ layout.base }};
+
+  /* NOTE: This is required to have our program headers reside in an isolated segment. */
+  . += SIZEOF_HEADERS;
+
+  /* NOTE: Start of code sections. */
+
+  {{ kernel.schedule.interrupt.code.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.schedule.interrupt.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.schedule.interrupt.code.symbol.start }} = .;
+
+      KEEP(*({{ kernel.schedule.interrupt.code.section_name }} {{ kernel.schedule.interrupt.code.section_name }}.*))
+
+      /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+      . = ALIGN({{ arch.cache.size }});
+      {{ kernel.schedule.interrupt.code.symbol.end }} = .;
+  } :code-normal
+  {{ kernel.hot.code.section_name }}
+  ALIGN({{ arch.cache.size }}) :
+  AT(ADDR({{ kernel.hot.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.hot.code.symbol.start }} = .;
+
+      /*
+        NOTE: The symbols here sorted by alignment to preserve highly-aligned function symbols close in memory.
+
+        Function symbols may over-align to prevent split inclusion into unrelated cachelines
+        (e.g., functions may be 16-byte aligned, but can be over-aligned to a 64-byte boundary).
+      */
+
+      /* NOTE: Include code specified as "hot" explicitly by the kernel. */
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT({{ kernel.hot.code.section_name }} {{ kernel.hot.code.section_name }}.*)))
+
+      /* NOTE: Include any other hot code possibly residing in `.text.hot{,.*}` sections. */
+      INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT(.text.hot .text.hot.*))
+
+      /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+      . = ALIGN({{ arch.cache.size }});
+      {{ kernel.hot.code.symbol.end }} = .;
+  } :code-normal
+
+  /* NOTE: This is regular kernel code, isolated to its own page for iTLB isolation of hot code. */
+  {{ kernel.code.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.code.symbol.start }} = .;
+
+      /* NOTE: Trap all legacy GNU text sections here */
+      /* NOTE: Make sure only executable code is included. */
+      INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_NAME(.text .text.*))
+
+      /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
+      . = ALIGN({{ arch.page.size.normal }});
+      {{ kernel.code.symbol.end }} = .;
+  } :code-normal
+
+  /*
+    NOTE: The kernel-wide patchable code section.
+
+    This requires being isolated to its own set of pages to avoid extra interference or protection changes to irrelevant pages.
+  */
+  {{ kernel.patch.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.patch.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.patch.symbol.start }} = .;
+
+      /* NOTE: Make sure only executable code is included. */
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *({{ kernel.patch.section_name }} {{ kernel.patch.section_name }}.*))
+
+      /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
+      . = ALIGN({{ arch.page.size.normal }});
+      {{ kernel.patch.symbol.end }} = .;
+  } :code-patchsite :code-normal
+
+  /* NOTE: End of code sections. */
+
+  /* NOTE: Start of read-write data sections. */
+
+  {{ kernel.schedule.interrupt.data.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.schedule.interrupt.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.schedule.interrupt.data.symbol.start }} = .;
+
+    KEEP(*({{ kernel.schedule.interrupt.data.section_name }} {{ kernel.schedule.interrupt.data.section_name }}.*))
+
+    /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+    . = ALIGN({{ arch.cache.size }});
+    {{ kernel.schedule.interrupt.data.symbol.end }} = .;
+  } :data-readwrite
+
+  {{ kernel.schedule.queue.section_name }}
+  ALIGN({{ arch.cache.size }}) :
+  AT(ADDR({{ kernel.schedule.queue.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.schedule.queue.symbol.start }} = .;
+
+    /* NOTE: Include all scheduler queue sections. */
+    KEEP(*({{ kernel.schedule.queue.section_name }} {{ kernel.schedule.queue.section_name }}.*))
+
+    /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+    . = ALIGN({{ arch.cache.size }});
+    {{ kernel.schedule.queue.symbol.end }} = .;
+  } :data-readwrite
+  {{ kernel.schedule.isolate.section_name }}
+  ALIGN({{ arch.cache.size }}) :
+  AT(ADDR({{ kernel.schedule.isolate.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.schedule.isolate.symbol.start }} = .;
+
+    KEEP(*({{ kernel.schedule.isolate.section_name }} {{ kernel.schedule.isolate.section_name }}.*))
+
+    /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+    . = ALIGN({{ arch.cache.size }});
+    {{ kernel.schedule.isolate.symbol.end }} = .;
+  } :data-readwrite
+  {{ kernel.hot.data.section_name }}
+  ALIGN({{ arch.cache.size }}) :
+  AT(ADDR({{ kernel.hot.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.hot.data.symbol.start }} = .;
+
+    KEEP(*({{ kernel.hot.data.section_name }} {{ kernel.hot.data.section_name }}.*))
+
+    /* NOTE: Include any other hot data possibly residing in `.data.hot{,.*}` sections. */
+    *(.data.hot .data.hot.*)
+
+    /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+    . = ALIGN({{ arch.cache.size }});
+    {{ kernel.hot.data.symbol.end }} = .;
+  } :data-readwrite
+
+  /* NOTE: This is regular kernel data, it is page-alinged to isolate TLB entries. */
+  {{ kernel.data.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.data.symbol.start }} = .;
+
+    /* Include standard `.data` sections. */
+    *(.data .data.*)
+
+    /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
+    . = ALIGN({{ arch.cache.size }});
+    {{ kernel.data.symbol.end }} = .;
+  } :data-readwrite
+
+  /*
+    NOTE: The domain-storage section.
+
+    There is no guarantee at the linker-level that the section will ever be emitted with a
+    nonzero size, so page alignment is preserved for both the domain-storage and zero-initialize
+    data section.
+  */
+  {{ kernel.domain.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.domain.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    /* Include `nekor-domain`-allocated per-type top-level section. */
+    KEEP(*({{ kernel.domain.section_name }}))
+    /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
+    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain.section_name }}.typename.*))))
+  }
+
+  /* NOTE: This zeroed section is page-aligned to allow for lazy page allocation. */
+  {{ kernel.data.zeroed.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.data.zeroed.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ kernel.data.zeroed.symbol.start }} = .;
+
+    *(.bss .bss.*)
+    *(COMMON)
+
+    /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
+    . = ALIGN({{ arch.page.size.normal }});
+    {{ kernel.data.zeroed.symbol.end }} = .;
+  } :data-readwrite
+
+  /*
+    NOTE: Start of program linkage sections.
+
+    The `PT_DYNAMIC` program segment is placed in a way that it partially overlaps with
+    the `data-readwrite` (`PT_LOAD`) and the `data-readonly` (`PT_LOAD`) program
+    segments, placing it in the exact spot to have both a read-write and a read-only portion
+    for the program segment.
+  */
+  /* NOTE: Page-aligned to be reclaimed later by the kernel. */
+  {{ linkage.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    {{ linkage.symbol.start }} = .;
+
+    /* NOTE: Include the de-facto dynamic section. */
+    *(.dynamic)
+
+    /*
+      NOTE: Make sure that the boundaries of the section are fully page-aligned.
+
+      This will not be interpreted as bogus `DT_*` entries as the included `.dynamic` section should end
+      with an appropiate `DT_NULL` entry to finalize the array. As a remark, this also includes any other
+      content that resides inside an overlap `PT_DYNAMIC` program section.
+    */
+    . = ALIGN({{ arch.page.size.normal }});
+    {{ linkage.symbol.end }} = .;
+  } :data-readwrite :linkage-segment
+  /* NOTE: End of read-write data sections. */
+
+  /* NOTE: Start of read-only data sections. */
+  {{ linkage.relocate.section_name }}.implicit
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.relocate.section_name }}.implicit) - {{ layout.base - layout.physical_base }}) {
+    /* NOTE: Include the de-facto dynamic relocations with an implicit addend. */
+    *(.rel .rel.*)
+  } :data-readonly :linkage-segment
+  {{ linkage.relocate.section_name }}.explicit
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.relocate.section_name }}.explicit) - {{ layout.base - layout.physical_base }}) {
+    /* NOTE: Include the de-facto dynamic relocations with an explicit addend. */
+    *(.rela .rela.*)
+  } :data-readonly :linkage-segment
+
+  /*
+    NOTE: Dynamically-loaded symbols.
+
+    This is handled now to possibly support supplemental bootloader-provided libraries in the future.
+  */
+  {{ linkage.table.string.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.table.string.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    *(SORT_BY_NAME(.dynstr))
+  } :data-readonly :linkage-segment
+  {{ linkage.table.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.table.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    *(SORT_BY_NAME(.dynsym))
+  } :data-readonly :linkage-segment
+
+  /* NOTE: The symbol hash table sections. */
+  {{ linkage.hash.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.hash.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    /* NOTE: Include the de-facto System V symbol hash table. */
+    *(SORT_BY_NAME(.hash))
+  } :data-readonly :linkage-segment
+  {{ linkage.hash.gnu.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.hash.gnu.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    /* NOTE: Include the de-facto GNU symbol hash table. */
+    *(SORT_BY_NAME(.gnu.hash))
+  } :data-readonly :linkage-segment
+
+  /* NOTE: End of linkage program sections. */
+
+  {{ kernel.local.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.local.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.local.symbol.start }} = .;
+
+      /*
+        NOTE: The symbols defined in the `local` section serve as a template and can have no direct references.
+
+        These symbols are sorted by name to prevent drift of in-memory layout.
+      */
+      KEEP(*(SORT_BY_NAME({{ kernel.local.section_name }})))
+
+      {{ kernel.local.symbol.end }} = .;
+
+      /* NOTE: Force this to be page aligned. */
+      . = ALIGN({{ arch.page.size.normal }});
+  } :local-segment :data-readonly
+
+  {{ kernel.data.readonly.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.data.readonly.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      {{ kernel.data.readonly.symbol.start }} = .;
+
+      *(SORT_BY_NAME(.rodata .rodata.*))
+
+      /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
+      . = ALIGN({{ arch.page.size.normal }});
+      {{ kernel.data.readonly.symbol.end }} = .;
+  } :data-readonly
+
+  /* NOTE: End of read-only data sections. */
+
+  /* NOTE: Start of bootloader-only sections. */
+
+  {{ boot.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ boot.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      PROVIDE("{{ boot.symbol }}" = .);
+
+      /* NOTE: This is the anchor point for bootloaders. */
+      KEEP(*({{ boot.section_name }}))
+  } :bootloader-segment
+
+  {{ boot.request.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ boot.request.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      PROVIDE("{{ boot.request.symbol }}" = .);
+
+      /* NOTE: Each bootloader request is assigned to the specified section. */
+      /* NOTE: No explicit `KEEP` here to not forcefully include unused request types. */
+      *(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ boot.request.section_name }} {{ boot.request.section_name }}.*)))
+  } :bootloader-segment
+
+  /*
+    NOTE: Indicate the dynamic program interpreter.
+
+    See the documentation attached to the `interpreter-segment` program segment for further information.
+  */
+  {{ boot.feature.section_name }}
+  ALIGN({{ arch.cache.size }}) :
+  AT(ADDR({{ boot.feature.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    PROVIDE("{{ boot.feature.symbol }}" = .);
+
+    KEEP(*({{ boot.feature.section_name }}))
+  } :data-readonly :interpreter-segment
+
+  /* NOTE: End of bootloader-only sections. */
+
+  /* NOTE: Define our section string table. */
+  {{ linkage.table.section.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ linkage.table.section.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      *(SORT_BY_NAME(.shstrtab))
+  } :NONE
+
+  /* NOTE: Start of debug sections. */
+  {{ debug.symbol.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ debug.symbol.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      *(SORT_BY_NAME(.symtab))
+  } :NONE
+  {{ debug.symbol.string.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ debug.symbol.string.section_name }}) - {{ layout.base - layout.physical_base }}) {
+      *(SORT_BY_NAME(.strtab))
+  } :NONE
+
+{# NOTE: Here we emit all the whitelisted debuginfo sections, keeping them in the final binary. #}
+{% for whitelisted_name in debug.info %}
+  {{ whitelisted_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ whitelisted_name }}) - {{ layout.base - layout.physical_base }}) {
+      *({{ whitelisted_name }})
+  } :NONE
+{% endfor %}
+
+  /* NOTE: End of debug sections. */
+
+  /* NOTE: Discard everything not explicitly kept. */
+  /DISCARD/ : {
+       *(*)
+   }
+}

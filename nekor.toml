@@ -1,0 +1,12 @@
+[build]
+default = "x86_64"
+
+[[platform]]
+name = "x86_64"
+path = "platform/x86_64/base/platform.toml"
+description = "baseline target for all x86_64 processors"
+
+[[platform]]
+name = "x86_64/usermode"
+path = "platform/x86_64/usermode/platform.toml"
+description = "usermode platform for baseline x86_64"

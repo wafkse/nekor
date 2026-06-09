@@ -1,0 +1,29 @@
+/*
+  An ad-hoc linker script to support Nekor Kernel subsystems.
+*/
+
+/* WARNING: The linker can be a bit moronic and include pure data sections in non-corresponding program
+   segments with completely wrong protection flags. This usually happens with a non-pinned `nightly` rustc. */
+
+/* NOTE: This is the ad-hoc section command for all read-write data. */
+SECTIONS {
+  /*
+    NOTE: The domain-storage section.
+
+    Since this section command is placed after the regular `.data` section, and is emitted with a
+    `SHT_PROGBITS` section type and a set of `SHF_ALLOC + SHF_WRITE` section flags, it should reside
+    in the same program segment as the regular `.data` section.
+  */
+  {{ kernel.domain.section_name }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.domain.section_name }}) - {{ layout.base - layout.physical_base }}) {
+    /* Include `nekor-domain`-allocated per-type top-level section. */
+    KEEP(*({{ kernel.domain.section_name }}))
+    /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
+    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain.section_name }}.typename.*))))
+  }
+
+
+} INSERT AFTER .data
+
+/* TODO: Finish this */

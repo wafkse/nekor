@@ -1,0 +1,4 @@
+# Build the kernel and the bootloader crate. This requires overriding the default usermode `build-std` config.
+[alias]
+kernel-x86_64 = "build -p nekor --config {{ platform() }}/config.build.toml --config {{ platform() }}/config.toml --target {{ platform() }}/nekor-x86_64-kernel.json -Zjson-target-spec"
+boot-x86_64 = "build -p nekor-boot --config {{ platform() }}/config.build.toml --config {{ platform() }}/config.toml --target {{ platform() }}/nekor-x86_64-bootloader.json -Zjson-target-spec"
