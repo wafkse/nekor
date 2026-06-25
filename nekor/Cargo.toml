@@ -1,0 +1,10 @@
+[package]
+name = "nekor"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+nekor-boot = { version = "0.1.0", path = "../boot/nekor-boot", features = ["kernel"] }
+
+[lints]
+workspace = true
