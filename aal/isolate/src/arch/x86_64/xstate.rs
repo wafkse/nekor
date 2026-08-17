@@ -1,9 +1,6 @@
 //! Extended Processor State management.
 
-use nekor_aal_feature::{
-    arch::x86::{CpuidReg, Edx},
-    prelude::Feature,
-};
+use nekor_aal_feature::prelude::Feature;
 
 /// A marker trait to describe an architectural extended state.
 ///
@@ -18,8 +15,6 @@ pub unsafe trait XState {
     /// The feature bitmap indice for this extended state.
     const INDICE: u32;
 }
-
-type ValidXCr0High32 = CpuidReg<Edx, 1>;
 
 // TODO: Pick out the states from XCR0 and define them here.
 //

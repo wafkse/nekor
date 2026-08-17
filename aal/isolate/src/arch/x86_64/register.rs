@@ -41,6 +41,7 @@ pub struct Gpr(u64);
 impl Gpr {
     /// Determine the lower 8 bits of this general-purpose register.
     #[inline]
+    #[must_use]
     pub const fn low8(&self) -> GprLow8<'_> {
         let Self(target_value) = self;
 
@@ -49,6 +50,7 @@ impl Gpr {
 
     /// Determine the higher 8 bits of this general-purpose register.
     #[inline]
+    #[must_use]
     pub const fn high8(&self) -> GprHigh8<'_> {
         let Self(target_value) = self;
 
@@ -57,6 +59,7 @@ impl Gpr {
 
     /// Determine the lower 16 bits of this general-purpose register.
     #[inline]
+    #[must_use]
     pub const fn val16(&self) -> GprVal16<'_> {
         let Self(target_value) = self;
 
@@ -65,6 +68,7 @@ impl Gpr {
 
     /// Determine the lower 32 bits of this general-purpose register.
     #[inline]
+    #[must_use]
     pub const fn val32(&self) -> GprVal32<'_> {
         let Self(target_value) = self;
 
@@ -73,6 +77,7 @@ impl Gpr {
 
     /// Determine the full 64 bits of this general-purpose register.
     #[inline]
+    #[must_use]
     pub const fn val64(&self) -> GprVal64<'_> {
         let Self(target_value) = self;
 
@@ -163,6 +168,7 @@ pub struct Base(u64);
 impl Base {
     /// Determine the lower 8 bits of this extended segment register base.
     #[inline]
+    #[must_use]
     pub const fn low8(&self) -> BaseLow8<'_> {
         let Self(target_value) = self;
 
@@ -171,6 +177,7 @@ impl Base {
 
     /// Determine the higher 8 bits of this extended segment register base.
     #[inline]
+    #[must_use]
     pub const fn high8(&self) -> BaseHigh8<'_> {
         let Self(target_value) = self;
 
@@ -179,6 +186,7 @@ impl Base {
 
     /// Determine the lower 16 bits of this extended segment register base.
     #[inline]
+    #[must_use]
     pub const fn val16(&self) -> BaseVal16<'_> {
         let Self(target_value) = self;
 
@@ -187,6 +195,7 @@ impl Base {
 
     /// Determine the lower 32 bits of this extended segment register base.
     #[inline]
+    #[must_use]
     pub const fn val32(&self) -> BaseVal32<'_> {
         let Self(target_value) = self;
 
@@ -195,6 +204,7 @@ impl Base {
 
     /// Determine the full 64 bits of this extended segment register base.
     #[inline]
+    #[must_use]
     pub const fn val64(&self) -> BaseVal64<'_> {
         let Self(target_value) = self;
 
@@ -357,6 +367,7 @@ pub struct Rflags(u64);
 impl Rflags {
     /// Determine the "Carry Flag" (CF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_cf(&self) -> FlagCf<'_> {
         let Self(target_value) = self;
 
@@ -365,6 +376,7 @@ impl Rflags {
 
     /// Determine the "Parity Flag" (PF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_pf(&self) -> FlagPf<'_> {
         let Self(target_value) = self;
 
@@ -373,6 +385,7 @@ impl Rflags {
 
     /// Determine the "Auxiliary Carry Flag" (AF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_af(&self) -> FlagAf<'_> {
         let Self(target_value) = self;
 
@@ -381,6 +394,7 @@ impl Rflags {
 
     /// Determine the "Zero Flag" (ZF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_zf(&self) -> FlagZf<'_> {
         let Self(target_value) = self;
 
@@ -389,6 +403,7 @@ impl Rflags {
 
     /// Determine the "Sign Flag" (SF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_sf(&self) -> FlagSf<'_> {
         let Self(target_value) = self;
 
@@ -397,6 +412,7 @@ impl Rflags {
 
     /// Determine the "Trap Flag" (TF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_tf(&self) -> FlagTf<'_> {
         let Self(target_value) = self;
 
@@ -405,6 +421,7 @@ impl Rflags {
 
     /// Determine the "Interrupt Enable Flag" (IF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_if(&self) -> FlagIf<'_> {
         let Self(target_value) = self;
 
@@ -413,6 +430,7 @@ impl Rflags {
 
     /// Determine the "Direction Flag" (DF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_df(&self) -> FlagDf<'_> {
         let Self(target_value) = self;
 
@@ -421,6 +439,7 @@ impl Rflags {
 
     /// Determine the "Overflow Flag" (OF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_of(&self) -> FlagOf<'_> {
         let Self(target_value) = self;
 
@@ -429,6 +448,7 @@ impl Rflags {
 
     /// Determine the "I/O Privilege Level" (IOPL) field.
     #[inline]
+    #[must_use]
     pub const fn field_iopl(&self) -> FieldIopl<'_> {
         let Self(target_value) = self;
 
@@ -437,6 +457,7 @@ impl Rflags {
 
     /// Determine the "Nested Task Flag" (NT) state.
     #[inline]
+    #[must_use]
     pub const fn flag_nt(&self) -> FlagNt<'_> {
         let Self(target_value) = self;
 
@@ -445,6 +466,7 @@ impl Rflags {
 
     /// Determine the "Resume Flag" (RF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_rf(&self) -> FlagRf<'_> {
         let Self(target_value) = self;
 
@@ -453,6 +475,7 @@ impl Rflags {
 
     /// Determine the "Virtual-8086 Mode Flag" (VM) state.
     #[inline]
+    #[must_use]
     pub const fn flag_vm(&self) -> FlagVm<'_> {
         let Self(target_value) = self;
 
@@ -461,6 +484,7 @@ impl Rflags {
 
     /// Determine the "Alignment Check Flag" (AC) state.
     #[inline]
+    #[must_use]
     pub const fn flag_ac(&self) -> FlagAc<'_> {
         let Self(target_value) = self;
 
@@ -469,6 +493,7 @@ impl Rflags {
 
     /// Determine the "Virtual Interrupt Flag" (VIF) state.
     #[inline]
+    #[must_use]
     pub const fn flag_vif(&self) -> FlagVif<'_> {
         let Self(target_value) = self;
 
@@ -477,6 +502,7 @@ impl Rflags {
 
     /// Determine the "Virtual Interrupt Pending Flag" (VIP) state.
     #[inline]
+    #[must_use]
     pub const fn flag_vip(&self) -> FlagVip<'_> {
         let Self(target_value) = self;
 
@@ -485,6 +511,7 @@ impl Rflags {
 
     /// Determine the "ID Flag" (ID) state.
     #[inline]
+    #[must_use]
     pub const fn flag_id(&self) -> FlagId<'_> {
         let Self(target_value) = self;
 

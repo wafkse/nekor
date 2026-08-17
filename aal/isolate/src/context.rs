@@ -1,6 +1,6 @@
 //! Self-contained processor state management.
 
-use core::{arch, cell::UnsafeCell, num::NonZero};
+use core::{cell::UnsafeCell, num::NonZero};
 
 use nekor_domain::{
     domain::arbitrary::Tiable,
@@ -57,6 +57,7 @@ impl StackArea {
     /// The created [`StackArea`] must be used in a sound and thread-safe
     /// manner.
     #[inline]
+    #[must_use]
     pub unsafe fn new<const N: usize, T>() -> Self
     where
         T: Tiable,

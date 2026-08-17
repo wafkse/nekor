@@ -109,8 +109,9 @@ pub struct IRetFrame {
 impl IRetFrame {
     /// The 64-bit extended "ip" register.
     #[inline]
+    #[must_use]
     pub const fn rip(&self) -> &Gpr {
-        let IRetFrame { rip, .. } = self;
+        let Self { rip, .. } = self;
 
         rip
     }
@@ -118,15 +119,16 @@ impl IRetFrame {
     /// Resolve a mutable reference to the 64-bit extended "ip" register.
     #[inline]
     pub const fn rip_mut(&mut self) -> &mut Gpr {
-        let IRetFrame { rip, .. } = self;
+        let Self { rip, .. } = self;
 
         rip
     }
 
     /// The "cs" segment selector.
     #[inline]
+    #[must_use]
     pub const fn cs(&self) -> &RawCodeSegment {
-        let IRetFrame { cs, .. } = self;
+        let Self { cs, .. } = self;
 
         cs
     }
@@ -134,15 +136,16 @@ impl IRetFrame {
     /// Resolve a mutable reference to the "cs" segment selector.
     #[inline]
     pub const fn cs_mut(&mut self) -> &mut RawCodeSegment {
-        let IRetFrame { cs, .. } = self;
+        let Self { cs, .. } = self;
 
         cs
     }
 
     /// The architectural flags register.
     #[inline]
+    #[must_use]
     pub const fn rflags(&self) -> &Rflags {
-        let IRetFrame { rflags, .. } = self;
+        let Self { rflags, .. } = self;
 
         rflags
     }
@@ -150,15 +153,16 @@ impl IRetFrame {
     /// Resolve a mutable reference to the architectural flags register.
     #[inline]
     pub const fn rflags_mut(&mut self) -> &mut Rflags {
-        let IRetFrame { rflags, .. } = self;
+        let Self { rflags, .. } = self;
 
         rflags
     }
 
     /// The 64-bit extended "sp" register.
     #[inline]
+    #[must_use]
     pub const fn rsp(&self) -> &Gpr {
-        let IRetFrame { rsp, .. } = self;
+        let Self { rsp, .. } = self;
 
         rsp
     }
@@ -166,15 +170,16 @@ impl IRetFrame {
     /// Resolve a mutable reference to the 64-bit extended "sp" register.
     #[inline]
     pub const fn rsp_mut(&mut self) -> &mut Gpr {
-        let IRetFrame { rsp, .. } = self;
+        let Self { rsp, .. } = self;
 
         rsp
     }
 
     /// The "ss" segment selector.
     #[inline]
+    #[must_use]
     pub const fn ss(&self) -> &RawDataSegment {
-        let IRetFrame { ss, .. } = self;
+        let Self { ss, .. } = self;
 
         ss
     }
@@ -182,7 +187,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the "ss" segment selector.
     #[inline]
     pub const fn ss_mut(&mut self) -> &mut RawDataSegment {
-        let IRetFrame { ss, .. } = self;
+        let Self { ss, .. } = self;
 
         ss
     }
@@ -249,6 +254,7 @@ impl Context {
     /// Determine the "%gs.base" extended segment register base of this trap
     /// context.
     #[inline]
+    #[must_use]
     pub const fn gsbase(&self) -> &Base {
         let Self { gsbase, .. } = self;
 
@@ -267,6 +273,7 @@ impl Context {
     /// Determine the "%fs.base" extended segment register base of this trap
     /// context.
     #[inline]
+    #[must_use]
     pub const fn fsbase(&self) -> &Base {
         let Self { fsbase, .. } = self;
 
@@ -284,6 +291,7 @@ impl Context {
 
     /// The 64-bit extended "ax" register.
     #[inline]
+    #[must_use]
     pub const fn rax(&self) -> &Gpr {
         let Self { rax, .. } = self;
 
@@ -300,6 +308,7 @@ impl Context {
 
     /// The 64-bit extended "bx" register.
     #[inline]
+    #[must_use]
     pub const fn rbx(&self) -> &Gpr {
         let Self { rbx, .. } = self;
 
@@ -316,6 +325,7 @@ impl Context {
 
     /// The 64-bit extended "cx" register.
     #[inline]
+    #[must_use]
     pub const fn rcx(&self) -> &Gpr {
         let Self { rcx, .. } = self;
 
@@ -332,6 +342,7 @@ impl Context {
 
     /// The 64-bit extended "dx" register.
     #[inline]
+    #[must_use]
     pub const fn rdx(&self) -> &Gpr {
         let Self { rdx, .. } = self;
 
@@ -348,6 +359,7 @@ impl Context {
 
     /// The 64-bit extended "si" register.
     #[inline]
+    #[must_use]
     pub const fn rsi(&self) -> &Gpr {
         let Self { rsi, .. } = self;
 
@@ -364,6 +376,7 @@ impl Context {
 
     /// The 64-bit extended "di" register.
     #[inline]
+    #[must_use]
     pub const fn rdi(&self) -> &Gpr {
         let Self { rdi, .. } = self;
 
@@ -380,6 +393,7 @@ impl Context {
 
     /// The 64-bit extended "bp" register.
     #[inline]
+    #[must_use]
     pub const fn rbp(&self) -> &Gpr {
         let Self { rbp, .. } = self;
 
@@ -396,6 +410,7 @@ impl Context {
 
     /// The 64-bit extended "8" register.
     #[inline]
+    #[must_use]
     pub const fn r8(&self) -> &Gpr {
         let Self { r8, .. } = self;
 
@@ -412,6 +427,7 @@ impl Context {
 
     /// The 64-bit extended "9" register.
     #[inline]
+    #[must_use]
     pub const fn r9(&self) -> &Gpr {
         let Self { r9, .. } = self;
 
@@ -428,6 +444,7 @@ impl Context {
 
     /// The 64-bit extended "10" register.
     #[inline]
+    #[must_use]
     pub const fn r10(&self) -> &Gpr {
         let Self { r10, .. } = self;
 
@@ -444,6 +461,7 @@ impl Context {
 
     /// The 64-bit extended "11" register.
     #[inline]
+    #[must_use]
     pub const fn r11(&self) -> &Gpr {
         let Self { r11, .. } = self;
 
@@ -460,6 +478,7 @@ impl Context {
 
     /// The 64-bit extended "12" register.
     #[inline]
+    #[must_use]
     pub const fn r12(&self) -> &Gpr {
         let Self { r12, .. } = self;
 
@@ -476,6 +495,7 @@ impl Context {
 
     /// The 64-bit extended "13" register.
     #[inline]
+    #[must_use]
     pub const fn r13(&self) -> &Gpr {
         let Self { r13, .. } = self;
 
@@ -492,6 +512,7 @@ impl Context {
 
     /// The 64-bit extended "14" register.
     #[inline]
+    #[must_use]
     pub const fn r14(&self) -> &Gpr {
         let Self { r14, .. } = self;
 
@@ -508,6 +529,7 @@ impl Context {
 
     /// The 64-bit extended "15" register.
     #[inline]
+    #[must_use]
     pub const fn r15(&self) -> &Gpr {
         let Self { r15, .. } = self;
 
@@ -524,6 +546,7 @@ impl Context {
 
     /// The 64-bit extended "ip" register.
     #[inline]
+    #[must_use]
     pub const fn rip(&self) -> &Gpr {
         let Self {
             interrupt_frame, ..
@@ -544,6 +567,7 @@ impl Context {
 
     /// The "cs" segment selector.
     #[inline]
+    #[must_use]
     pub const fn cs(&self) -> &RawCodeSegment {
         let Self {
             interrupt_frame, ..
@@ -564,6 +588,7 @@ impl Context {
 
     /// The architectural flags register.
     #[inline]
+    #[must_use]
     pub const fn rflags(&self) -> &Rflags {
         let Self {
             interrupt_frame, ..
@@ -584,6 +609,7 @@ impl Context {
 
     /// The 64-bit extended "sp" register.
     #[inline]
+    #[must_use]
     pub const fn rsp(&self) -> &Gpr {
         let Self {
             interrupt_frame, ..
@@ -604,6 +630,7 @@ impl Context {
 
     /// The "ss" segment selector.
     #[inline]
+    #[must_use]
     pub const fn ss(&self) -> &RawDataSegment {
         let Self {
             interrupt_frame, ..
@@ -624,6 +651,7 @@ impl Context {
 
     /// Determine the Interrupt Return Frame contained within this trap context.
     #[inline]
+    #[must_use]
     pub const fn interrupt_frame(&self) -> &IRetFrame {
         let Self {
             interrupt_frame, ..
@@ -649,6 +677,12 @@ impl Context {
 pub struct ErrorCode(u32);
 
 /// A trait that describes an enter point to a *Context Switch*.
+///
+/// # Safety
+///
+/// Implementors are called from low-level entry code with live saved processor
+/// state. They must not unwind, retain the supplied references, or invalidate
+/// state that will be restored after the handler completes.
 pub unsafe trait Switch {
     /// The context-switch handler associated function.
     fn context(target_pair: (&mut Context, Option<&ErrorCode>), target_area: &mut XsaveArea);
@@ -662,8 +696,8 @@ pub unsafe trait Switch {
         target_context: &mut Context,
         target_code: Option<&ErrorCode>,
         target_area: &mut XsaveArea,
-    ) -> () {
-        Self::context((target_context, target_code), target_area)
+    ) {
+        Self::context((target_context, target_code), target_area);
     }
 
     // TODO: Define the baseline segment descriptor indices. We need to define
