@@ -46,7 +46,7 @@ use core::{
     ptr::NonNull,
 };
 
-#[cfg(not(any(usermode, test, miri)))]
+#[cfg(all(target_os = "none", not(any(usermode, test, miri))))]
 use crate::arch;
 
 /// A new-type that monitors memory accesses to the underlying value.
@@ -95,17 +95,27 @@ impl<T> Monitor<T> {
 
     /// Engage the monitor on the value.
     #[inline]
+    #[allow(
+        clippy::missing_const_for_fn,
+        reason = "bare-metal builds execute a runtime architecture instruction"
+    )]
     pub fn engage(&self) -> Monitored<'_, T> {
         let target_pointer = NonNull::from_ref(self);
 
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86")]
+        #[cfg(all(
+            target_os = "none",
+            target_arch = "x86",
+            not(any(usermode, test, miri))
+        ))]
         unsafe {
             arch::x86::monitor(target_pointer);
         };
 
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(all(
+            target_os = "none",
+            target_arch = "x86_64",
+            not(any(usermode, test, miri))
+        ))]
         unsafe {
             arch::x86_64::monitor(target_pointer);
         };
@@ -153,15 +163,25 @@ impl<T> Monitored<'_, T> {
     /// is present, this is effectively an entry to an
     /// architecture-dependent optimized state.
     #[inline]
+    #[allow(
+        clippy::missing_const_for_fn,
+        reason = "bare-metal builds execute a runtime architecture instruction"
+    )]
     pub fn wait(self) {
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86")]
+        #[cfg(all(
+            target_os = "none",
+            target_arch = "x86",
+            not(any(usermode, test, miri))
+        ))]
         unsafe {
             arch::x86::mwait();
         };
 
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(all(
+            target_os = "none",
+            target_arch = "x86_64",
+            not(any(usermode, test, miri))
+        ))]
         unsafe {
             arch::x86_64::mwait();
         };
@@ -189,6 +209,7 @@ impl<T> MonitorGuard<'_, T> {
 
     /// Access a reference to the monitor-guarded type.
     #[inline]
+    #[must_use]
     pub const fn as_ref(&self) -> &'_ T {
         let Self(target_value) = self;
 

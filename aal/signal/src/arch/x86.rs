@@ -134,17 +134,17 @@ pub type TscDeadlineEdxMut<'a> = <TscDeadlineEdx<'a> as Counterpart>::Mut;
 ///
 /// [`Waitpkg`]: nekor_aal_feature::arch::x86::qualified::Waitpkg
 #[inline]
-pub unsafe fn tpause(wait_state: Cstate, ref target_deadline: u64) {
+pub unsafe fn tpause(wait_state: Cstate, target_deadline: u64) {
     type TpauseCState<'a> = BitMut<'a, u32, 0>;
 
     type TpauseCStateReserved<'a> = FieldMut<'a, 1, 31, u32>;
 
-    let edx = TscDeadlineEdx::wrap(target_deadline).value();
-    let eax = TscDeadlineEax::wrap(target_deadline).value();
+    let edx = TscDeadlineEdx::wrap(&target_deadline).value();
+    let eax = TscDeadlineEax::wrap(&target_deadline).value();
 
     let mut ecx = u32::MIN;
 
-    TpauseCState::wrap(&mut ecx).set(if let Cstate::C0_1 = wait_state {
+    TpauseCState::wrap(&mut ecx).set(if wait_state == Cstate::C0_1 {
         State::Set
     } else {
         State::Cleared

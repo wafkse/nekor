@@ -2,12 +2,12 @@
 #![forbid(
     clippy::all,
     clippy::perf,
-    clippy::nursery,
     clippy::unwrap_used,
     clippy::panic,
     clippy::pedantic,
     rustdoc::all
 )]
+#![deny(clippy::nursery)]
 //! Architecture-level interprocessor signaling.
 
 pub mod arch;
