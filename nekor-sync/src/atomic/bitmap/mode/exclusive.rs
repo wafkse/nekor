@@ -95,7 +95,7 @@ unsafe impl Mode for Exclusive {
 
                 let bit_handle = BitDyn::wrap(&state_snapshot, bit_indice);
 
-                if let State::Set = bit_handle.state() {
+                if bit_handle.state() == State::Set {
                     match target_atomic.compare_exchange(
                         state_snapshot,
                         bit_handle.cleared(),
@@ -127,7 +127,7 @@ unsafe impl Mode for Exclusive {
 
                 let bit_handle = BitDyn::wrap(&state_snapshot, bit_indice);
 
-                if let State::Cleared = bit_handle.state() {
+                if bit_handle.state() == State::Cleared {
                     match target_atomic.compare_exchange(
                         state_snapshot,
                         bit_handle.enabled(),

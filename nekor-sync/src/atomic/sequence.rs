@@ -22,6 +22,7 @@ impl AtomicSequence {
     /// Constructs a brand-new atomic sequence-counter, initialized at
     /// [`usize::MIN`].
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         Self(Monitor::new(AtomicUsize::new(usize::MIN)))
     }
@@ -36,6 +37,13 @@ impl AtomicSequence {
         let target_snapshot = target_guard.load(SeqCst);
 
         Sequence(target_guard, target_snapshot)
+    }
+}
+
+impl Default for AtomicSequence {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -59,7 +67,7 @@ impl AtomicSequence {
 #[derive(Debug)]
 pub struct Sequence<'a>(MonitorGuard<'a, AtomicUsize>, usize);
 
-impl<'a> Sequence<'a> {
+impl Sequence<'_> {
     /// Determines whether the atomic sequence has changed in respect to the
     /// sequence.
     ///

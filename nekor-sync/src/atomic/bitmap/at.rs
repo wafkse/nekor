@@ -68,9 +68,9 @@ impl<'a> At<'a> {
     #[inline]
     #[must_use]
     pub const fn left(self) -> Option<Self> {
-        let Self(target_value, state_snapshot, bit_index) = self;
-
         const USIZE_BITS: u32 = usize::BITS;
+
+        let Self(target_value, state_snapshot, bit_index) = self;
 
         match bit_index + 1 {
             USIZE_BITS.. => None,

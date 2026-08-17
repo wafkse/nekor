@@ -116,7 +116,7 @@ impl<'a, T> Guard<'a, T> {
     }
 }
 
-impl<'a, T> Guard<'a, T> {
+impl<T> Guard<'_, T> {
     /// Retrieve the guarded `T` value as an immutable reference.
     ///
     /// This is required in cases where one desires to prevent [`Deref`]'s

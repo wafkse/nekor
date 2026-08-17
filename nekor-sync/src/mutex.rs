@@ -51,8 +51,8 @@ impl<T> Mutex<T> {
         let lock_state = CachePadded::new(LockState::desolate());
 
         Self {
-            target_value,
             lock_state,
+            target_value,
         }
     }
 
@@ -133,7 +133,7 @@ mod tests {
         assert_eq!(*mutex.lock(), 100);
     }
 
-    /// Test get_mut provides mutable access without locking
+    /// Test `get_mut` provides mutable access without locking
     #[test]
     fn get_mut_access() {
         let mut mutex = Mutex::new(10);
@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(*mutex.lock(), 20);
     }
 
-    /// Test into_inner consumes mutex and returns value
+    /// Test `into_inner` consumes mutex and returns value
     #[test]
     fn into_inner_consumes() {
         let mutex = Mutex::new(String::from("test"));
@@ -185,7 +185,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -213,7 +213,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -250,7 +250,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
     }
 
@@ -273,7 +273,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -328,7 +328,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -354,7 +354,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -382,7 +382,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -435,7 +435,7 @@ mod tests {
         }
     }
 
-    /// Test that exceeding usize::BITS contenders still works
+    /// Test that exceeding `usize::BITS` contenders still works
     #[test]
     fn exceeding_bit_limit_contenders() {
         let mutex = Arc::new(Mutex::new(0));
@@ -451,7 +451,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -469,7 +469,7 @@ mod tests {
     fn panic_while_holding_lock() {
         let mutex = Mutex::new(0);
         let _guard = mutex.lock();
-        panic!("intentional panic");
+        assert!(std::hint::black_box(false), "intentional panic");
     }
 
     /// Test Send + Sync bounds are correct
@@ -486,7 +486,7 @@ mod tests {
     #[test]
     fn debug_implementation() {
         let mutex = Mutex::new(42);
-        let debug_str = format!("{:?}", mutex);
+        let debug_str = format!("{mutex:?}");
         assert!(debug_str.contains("Mutex"));
     }
 
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(&*guard, "hello");
     }
 
-    /// Test guard deref_mut operations
+    /// Test guard `deref_mut` operations
     #[test]
     fn guard_deref_mut_operations() {
         let mutex = Mutex::new(String::from("hello"));
@@ -539,7 +539,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -568,7 +568,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -576,7 +576,7 @@ mod tests {
         assert_eq!(*mutex.lock(), 100);
     }
 
-    /// Test that guard value() method works
+    /// Test that guard `value()` method works
     #[test]
     fn guard_value_method() {
         let mutex = Mutex::new(String::from("test"));
@@ -585,7 +585,7 @@ mod tests {
         assert_eq!(value_ref, "test");
     }
 
-    /// Test that guard value_mut() method works
+    /// Test that guard `value_mut()` method works
     #[test]
     fn guard_value_mut_method() {
         let mutex = Mutex::new(String::from("test"));
@@ -595,7 +595,7 @@ mod tests {
         assert_eq!(value_ref, "testing");
     }
 
-    /// Test concurrent access with HashMap
+    /// Test concurrent access with `HashMap`
     #[test]
     fn concurrent_hashmap_operations() {
         use std::collections::HashMap;
@@ -612,7 +612,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);

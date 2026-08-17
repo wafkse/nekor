@@ -78,7 +78,7 @@ mod tests {
     use crate::atomic::bitmap::AtomicBitmap;
     use core::sync::atomic::{Ordering, fence};
 
-    /// Test that one() actually sets a bit from 0 to 1
+    /// Test that `one()` actually sets a bit from 0 to 1
     #[test]
     fn one_sets_bit() {
         let bitmap = AtomicBitmap::zeroed();
@@ -88,7 +88,7 @@ mod tests {
         assert_eq!(bitmap.snapshot() & (1 << 5), 1 << 5, "bit 5 should be set");
     }
 
-    /// Test that zero() actually clears a bit from 1 to 0
+    /// Test that `zero()` actually clears a bit from 1 to 0
     #[test]
     fn zero_clears_bit() {
         let bitmap = AtomicBitmap::zeroed();
@@ -156,7 +156,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure we see all writes before snapshot (for Miri)
@@ -195,7 +195,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure we see all writes before snapshot (for Miri)
@@ -231,7 +231,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure we see all writes before snapshot (for Miri)

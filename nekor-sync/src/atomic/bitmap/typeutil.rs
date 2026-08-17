@@ -3,7 +3,8 @@
 
 mod detail {
     //! Implementation details for the [`InBound`] trait.
-    /// [`InBound`]: super::InBound
+    //!
+    //! [`InBound`]: super::InBound
 
     /// A trait to act as a supertrait seal for the [`InBound`] marker trait.
     ///

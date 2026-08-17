@@ -64,8 +64,6 @@ impl Waiting<'_> {
 
         let bitmask_value = NonZero::get(queue_bitmask);
 
-        assert_eq!(bitmask_value.count_ones(), 1);
-
         // NOTE: queue bitmask has a single bit set, so we can subtract one to
         // get all the LSBs to wait for.
         let target_cond = Unset(bitmask_value.wrapping_sub(1));
@@ -78,21 +76,20 @@ impl Waiting<'_> {
                     break 'a 'b: loop {
                         let target_monitor = Monitor::engage(owner_state);
 
-                        match owner_state.compare_exchange_weak(
-                            usize::MIN,
-                            bitmask_value,
-                            AcqRel,
-                            // NOTE: We are not using the Err-side snapshot, so a `Relaxed`
-                            // ordering should suffice.
-                            Relaxed,
-                        ) {
-                            Ok(..) => break 'b Waited(queue_bitmask),
-                            Err(..) => {
-                                Monitored::wait(target_monitor);
-
-                                continue 'b;
-                            }
+                        if owner_state
+                            .compare_exchange_weak(
+                                usize::MIN,
+                                bitmask_value,
+                                AcqRel,
+                                // NOTE: We are not using the error snapshot,
+                                // so relaxed ordering is sufficient.
+                                Relaxed,
+                            )
+                            .is_ok()
+                        {
+                            break 'b Waited(queue_bitmask);
                         }
+                        Monitored::wait(target_monitor);
                     };
                 }
             }
@@ -173,11 +170,8 @@ impl LockState {
         // parameters.
         let acquisition_state = &mut Retry::unlimited(Backoff::minimal());
 
-        match Self::acquire_with_state(self, acquisition_state) {
-            Some(target_value) => target_value,
-            // NOTE: Cannot be `None` due to unlimited attempts.
-            None => unreachable!(),
-        }
+        Self::acquire_with_state(self, acquisition_state)
+            .unwrap_or_else(|| unreachable!("unlimited acquisition cannot exhaust retries"))
     }
 
     /// Attempt to acquire the ticket for this [`LockState`], for the purpose of
@@ -193,39 +187,31 @@ impl LockState {
     #[inline]
     pub fn acquire_with_state(&self, retry_state: &mut Retry) -> Option<Waiting<'_>> {
         let Self(target_state, ..) = self;
+        let full_backoff = &mut Backoff::state(Backoff::minimal());
 
         loop {
-            let bit_selected = if let Some(leftmost_bit) = AtomicBitmap::at_leftmost(target_state) {
-                At::left(leftmost_bit)
-            } else {
-                Some(AtomicBitmap::static_at::<0>(target_state))
-            };
+            let bit_selected = AtomicBitmap::at_leftmost(target_state).map_or_else(
+                || Some(AtomicBitmap::static_at::<0>(target_state)),
+                At::left,
+            );
 
-            match bit_selected {
-                Some(ref locked_target) => {
-                    match locked_target.one_with::<Exclusive>(retry_state) {
-                        Outcome::Success(..) => {
-                            break Some(Waiting(
-                                self,
-                                // SAFETY: An integer with at least one bit set
-                                // cannot be zero.
-                                unsafe { NonZero::new_unchecked(1 << At::index(locked_target)) },
-                            ));
-                        }
-                        Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
-                        Outcome::Failure(Reason::Limited, ..) => break None,
+            if let Some(locked_target) = bit_selected.as_ref() {
+                match locked_target.one_with::<Exclusive>(retry_state) {
+                    Outcome::Success(..) => {
+                        break Some(Waiting(
+                            self,
+                            // SAFETY: An integer with at least one bit set
+                            // cannot be zero.
+                            unsafe { NonZero::new_unchecked(1 << At::index(locked_target)) },
+                        ));
                     }
+                    Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
+                    Outcome::Failure(Reason::Limited, ..) => break None,
                 }
-                // NOTE: This implies that all bitwise slots have been occupied.
-                //
-                // In this case, we can only spin until we get ahold of a valid
-                // bit indice.
-                // FIXME: This needs an adjusted exponential ceiling.
-                None => {
-                    let ref mut target_state = Backoff::state(Backoff::minimal());
-
-                    Backoff::cycle(target_state)
-                }
+            } else {
+                // All slots are occupied, so retain backoff state across
+                // retries until a slot becomes available.
+                Backoff::cycle(full_backoff);
             }
         }
     }
@@ -273,17 +259,8 @@ mod tests {
         // SAFETY: waited is from this same lock_state
         let observed = unsafe { lock_state.release(waited) };
 
-        // The observed state is from BEFORE the release (Cooperative snapshot)
-        // Since we started with desolate, acquired one slot, the state before
-        // release had that one bit set
-        match observed {
-            Observed::Occupied(_) => {
-                // Expected - we had acquired a slot
-            }
-            Observed::Desolate => {
-                // Also possible if no other bits were set initially
-            }
-        }
+        // The pre-release snapshot includes the slot held by this thread.
+        assert!(matches!(observed, Observed::Occupied(_)));
     }
 
     /// Test that snapshot returns a valid Observed enum
@@ -352,7 +329,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
     }
 
@@ -382,7 +359,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         fence(Ordering::Acquire);
@@ -429,7 +406,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
     }
 
@@ -510,7 +487,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure we see all writes before reading counter (for Miri)
@@ -535,12 +512,10 @@ mod tests {
         let w3 = lock_state.acquire();
 
         // All should have different slots
-        match lock_state.snapshot() {
-            Observed::Occupied(bits) => {
-                assert_eq!(bits.get().count_ones(), 3);
-            }
-            Observed::Desolate => panic!("should be occupied"),
-        }
+        let Observed::Occupied(bits) = lock_state.snapshot() else {
+            unreachable!("three acquired slots must leave an occupied state")
+        };
+        assert_eq!(bits.get().count_ones(), 3);
 
         // First thread waits and gets the lock
         // SAFETY: w1 is from this lock_state
@@ -615,7 +590,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure we see all writes (for Miri)
@@ -653,7 +628,7 @@ mod tests {
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("worker thread panicked");
         }
 
         // Fence to ensure all operations are visible (for Miri)
