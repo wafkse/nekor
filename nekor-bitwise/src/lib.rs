@@ -15,11 +15,14 @@ pub mod field;
 
 pub mod bit;
 
+pub mod endian;
+
 pub mod prelude {
     //! The prelude module for the `nekor-bitwise` crate.
 
     pub use crate::{
         bit::{BitAt, state::State},
+        endian::{Be, Le},
         field::{
             counterpart::Counterpart,
             dynamic::{
