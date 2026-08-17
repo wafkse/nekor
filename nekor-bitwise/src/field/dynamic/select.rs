@@ -91,7 +91,9 @@ where
     #[inline]
     #[must_use]
     pub const fn new(range_start: u32, range_end: u32) -> Option<Self> {
-        if let Some(..) = Selected::<B>::try_new(range_end) {
+        if let Some(..) = Selected::<B>::try_new(range_end)
+            && range_end > range_start
+        {
             Some(Self((range_start, range_end), marker::PhantomData))
         } else {
             None

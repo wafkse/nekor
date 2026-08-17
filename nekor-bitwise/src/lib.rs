@@ -26,6 +26,7 @@ pub mod prelude {
         field::{
             counterpart::Counterpart,
             dynamic::{
+                multi::{FieldDyn, FieldDynMut},
                 select::{Interval, Selected},
                 single::{BitDyn, BitDynMut},
             },

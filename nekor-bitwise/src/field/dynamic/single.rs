@@ -163,5 +163,3 @@ where
         <B as BitOp>::toggle(target_value, target_indice)
     }
 }
-
-impl<'a, B> BitDynMut<'a, B> where B: BitOp {}
