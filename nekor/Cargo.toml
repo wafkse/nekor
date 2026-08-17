@@ -1,10 +1,33 @@
 [package]
 name = "nekor"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+kernel = ["nekor-boot/kernel"]
+
 [dependencies]
-nekor-boot = { version = "0.1.0", path = "../boot/nekor-boot", features = ["kernel"] }
+nekor-aal = { workspace = true }
+nekor-backoff = { workspace = true }
+nekor-bitwise = { workspace = true }
+nekor-boot = { workspace = true }
+nekor-cpu = { workspace = true }
+nekor-domain = { workspace = true }
+nekor-executor = { workspace = true }
+nekor-hal = { workspace = true }
+nekor-platform = { workspace = true }
+nekor-primitive = { workspace = true }
+nekor-project = { workspace = true }
+nekor-register = { workspace = true }
+nekor-socal = { workspace = true }
+nekor-structure = { workspace = true }
+nekor-sync = { workspace = true }
+
+[[bin]]
+name = "nekor"
+path = "src/main.rs"
+required-features = ["kernel"]
 
 [lints]
 workspace = true
