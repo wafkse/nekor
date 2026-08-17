@@ -1,262 +1,185 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt,
-    fs::{self, remove_file},
-    io,
-};
+use std::{collections::BTreeMap, fmt, fs, io};
 
+use cargo_metadata::camino::{Utf8Path, Utf8PathBuf};
 use clap::Subcommand;
-
 use fack::prelude::Error;
-
+use minijinja::{Environment, UndefinedBehavior};
 use serde::Serialize;
-use tera::Tera;
 
 use crate::{
     invoke::InvokeContext,
     manifest::PlatformDesc,
     orchestrate::command::{Execute, Output, OutputOptions, OutputStructured},
-    platform::PlatformSpec,
+    platform::{Platform, PlatformFileError},
 };
 
+/// A platform template command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum PlatformTemplateCommand {
-    /// Build the associated templates for the platform.
-    Build {
-        /// Whether to include the default build scopes in the expansion.
-        #[arg(long, default_value_t = false)]
-        no_default_scope: bool,
+    /// Build the templates associated with the platform.
+    Build,
 
-        /// The scopes to include for the build.
-        #[arg(long, short)]
-        scope: Vec<String>,
-    },
-
-    /// Clean all associated template output files.
+    /// Clean generated template output files.
     Clean,
 }
 
 impl Execute for PlatformTemplateCommand {
-    type Data<'a> = (
-        &'a PlatformSpec,
-        &'a PlatformDesc,
-        Option<(&'a PlatformDesc, PlatformSpec)>,
-    );
-
+    type Data<'a> = (&'a Platform, &'a PlatformDesc);
     type Output<'a> = PlatformTemplateOutput;
-
     type Error = PlatformTemplateError;
 
     fn command<'a>(
         self,
         context: &'a InvokeContext,
-        (spec, desc, base): Self::Data<'a>,
+        (platform, _): Self::Data<'a>,
     ) -> Result<Self::Output<'a>, Self::Error> {
         match self {
-            PlatformTemplateCommand::Build {
-                no_default_scope,
-                scope,
-            } => {
-                let parent_dir = context.root().join(
-                    desc.path()
-                        .parent()
-                        .expect("cannot find parent for existing file"),
-                );
-
-                let mut tera_state = Tera::new(parent_dir.join("**/*.tera").as_str())
-                    .map_err(PlatformTemplateError::TeraError)?;
-
-                let mut tera_context = tera::Context::new();
-
-                let mut include_scope = Vec::<String>::new();
-
-                include_scope.extend(scope);
-
-                if !no_default_scope {
-                    include_scope.extend(spec.build().scopes().map(str::to_string));
-                }
-
-                let scope_tree = {
-                    fn merge_value(a: &mut tera::Value, b: tera::Value) {
-                        match (a, b) {
-                            (tera::Value::Object(a_map), tera::Value::Object(b_map)) => {
-                                for (k, v) in b_map {
-                                    match a_map.get_mut(&k) {
-                                        Some(a_val) => merge_value(a_val, v),
-                                        None => _ = a_map.insert(k, v),
-                                    }
-                                }
-                            }
-                            (a_slot, b) => *a_slot = b,
-                        }
-                    }
-
-                    let mut base_tree = if let Some((.., base_spec)) = &base {
-                        base_spec.scope().to_owned()
-                    } else {
-                        BTreeMap::new()
-                    };
-
-                    let mut scope_map = spec.scope().to_owned();
-
-                    for (k, v) in base_tree.iter_mut() {
-                        if let Some(existing) = scope_map.remove(k) {
-                            merge_value(v, existing);
-                        }
-                    }
-
-                    for (k, v) in scope_map.into_iter() {
-                        base_tree.insert(k, v);
-                    }
-
-                    base_tree
-                };
-
-                for (scope_name, scope_value) in include_scope
-                    .iter()
-                    .map(|scope_name| (scope_name, scope_tree.get(scope_name)))
-                {
-                    if let Some(scope_value) = scope_value {
-                        tera_context.insert(scope_name, scope_value);
-                    } else {
-                        eprintln!("scope not found: {scope_name}");
-                    }
-                }
-
-                // NOTE: We aren't rendering HTML, so disable auto-escape functionality.
-                tera_state.autoescape_on(Vec::<&'static str>::new());
-
-                let mut processed_template = BTreeMap::new();
-
-                // NOTE: Standard functions provided to each template.
-                {
-                    /// A *Tera* function that returns a stored string,
-                    /// irrespective of provided arguments.
-                    struct StaticStringFn(String);
-
-                    impl tera::Function for StaticStringFn {
-                        fn call(
-                            &self,
-                            args: &HashMap<String, tera::Value>,
-                        ) -> tera::Result<tera::Value> {
-                            let Self(target_value) = self;
-
-                            if args.len() > 0 {
-                                return Err(tera::Error::msg("this takes no arguments"));
-                            }
-
-                            Ok(tera::Value::String(target_value.clone()))
-                        }
-                    }
-
-                    // NOTE: The workspace base root path.
-                    tera_state.register_function(
-                        "workspace",
-                        StaticStringFn(
-                            context
-                                .root()
-                                .as_std_path()
-                                .to_path_buf()
-                                .to_string_lossy()
-                                .to_string(),
-                        ),
-                    );
-
-                    // NOTE: The platform base path.
-                    tera_state.register_function(
-                        "platform",
-                        StaticStringFn(
-                            parent_dir
-                                .as_std_path()
-                                .to_path_buf()
-                                .to_string_lossy()
-                                .to_string(),
-                        ),
-                    );
-                }
-
-                for template_name in tera_state.get_template_names() {
-                    let mut filename = parent_dir.join(template_name);
-
-                    // NOTE: This always has a `tera` extension, so remove it.
-                    assert!(filename.set_extension(""));
-
-                    fs::write(
-                        filename.as_std_path(),
-                        tera_state
-                            .render(template_name, &mut tera_context)
-                            .map_err(PlatformTemplateError::TeraError)?,
-                    )
-                    .map_err(PlatformTemplateError::Io)?;
-
-                    processed_template.insert(template_name.to_string(), filename.into_string());
-                }
-
-                Ok(PlatformTemplateOutput::Build {
-                    template: processed_template,
-                })
-            }
-            PlatformTemplateCommand::Clean => {
-                let parent_dir = context.root().join(
-                    desc.path()
-                        .parent()
-                        .expect("cannot find parent for existing file"),
-                );
-
-                let tera_state = Tera::new(parent_dir.join("**/*.tera").as_str())
-                    .map_err(PlatformTemplateError::TeraError)?;
-
-                let mut cleaned_files = Vec::new();
-
-                for template_name in tera_state.get_template_names() {
-                    let mut path = parent_dir.join(template_name);
-
-                    // NOTE: This always has a `tera` extension, so remove it.
-                    assert!(path.set_extension(""));
-
-                    let path_str = path.to_string();
-
-                    if let Ok(..) = remove_file(path) {
-                        cleaned_files.push(path_str);
-                    }
-                }
-
-                Ok(PlatformTemplateOutput::Clean {
-                    files: cleaned_files,
-                })
-            }
+            Self::Build => Self::build(context, platform),
+            Self::Clean => Self::clean(platform),
         }
     }
 }
 
-/// An error relevant to the `platform show` command.
-#[derive(Debug, Error)]
-pub enum PlatformTemplateError {
-    #[error(transparent(0))]
-    TeraError(tera::Error),
+impl PlatformTemplateCommand {
+    /// Render every MiniJinja template belonging to the selected platform.
+    fn build(
+        context: &InvokeContext,
+        platform: &Platform,
+    ) -> Result<PlatformTemplateOutput, PlatformTemplateError> {
+        let mut environment = Environment::new();
+        let workspace = context.root().to_string();
+        let platform_root = platform.root().to_string();
 
-    #[error("input-output error: {_0}")]
-    Io(io::Error),
+        environment.set_undefined_behavior(UndefinedBehavior::Strict);
+        environment.set_keep_trailing_newline(true);
+        environment.add_function("workspace", move || workspace.clone());
+        environment.add_function("platform", move || platform_root.clone());
+
+        let sources = platform.template_files()?;
+
+        for path in &sources {
+            let name = Self::template_name(platform.root(), path.as_path())?;
+            let source = fs::read_to_string(path.as_std_path()).map_err(|error| {
+                PlatformTemplateError::Io {
+                    path: path.clone(),
+                    error,
+                }
+            })?;
+
+            environment.add_template_owned(name, source)?;
+        }
+
+        let mut processed = BTreeMap::new();
+
+        for path in sources {
+            let name = Self::template_name(platform.root(), path.as_path())?;
+            let template = environment.get_template(name.as_str())?;
+            let rendered = template.render(platform.document())?;
+            let output = Self::output_path(path.as_path());
+
+            fs::write(output.as_std_path(), rendered).map_err(|error| {
+                PlatformTemplateError::Io {
+                    path: output.clone(),
+                    error,
+                }
+            })?;
+
+            _ = processed.insert(name, output.to_string());
+        }
+
+        Ok(PlatformTemplateOutput::Build {
+            template: processed,
+        })
+    }
+
+    /// Remove generated outputs corresponding to platform templates.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when template discovery fails. Individual missing
+    /// generated files are ignored so cleaning remains idempotent.
+    fn clean(platform: &Platform) -> Result<PlatformTemplateOutput, PlatformTemplateError> {
+        let sources = platform.template_files()?;
+        let mut files = Vec::new();
+
+        for source in sources {
+            let output = Self::output_path(source.as_path());
+
+            if fs::remove_file(output.as_std_path()).is_ok() {
+                files.push(output.to_string());
+            }
+        }
+
+        Ok(PlatformTemplateOutput::Clean { files })
+    }
+
+    /// Determine the MiniJinja template name relative to a platform root.
+    fn template_name(root: &Utf8Path, path: &Utf8Path) -> Result<String, PlatformTemplateError> {
+        path.strip_prefix(root)
+            .map(Utf8Path::to_string)
+            .map_err(|_| PlatformTemplateError::TemplatePath {
+                root: root.to_path_buf(),
+                path: path.to_path_buf(),
+            })
+    }
+
+    /// Determine the generated output path for a template source.
+    fn output_path(source: &Utf8Path) -> Utf8PathBuf {
+        let mut output = source.to_path_buf();
+        _ = output.set_extension("");
+        output
+    }
 }
 
-/// The structured output of the `platform show` command.
+/// An error relevant to the platform template command.
+#[derive(Debug, Error)]
+pub enum PlatformTemplateError {
+    /// Platform template discovery failed.
+    #[error(transparent(0))]
+    File(PlatformFileError),
+
+    /// MiniJinja failed to parse or render a template.
+    #[error(transparent(0))]
+    MiniJinja(minijinja::Error),
+
+    /// A template path cannot be made relative to the platform root.
+    #[error("template `{path}` is outside platform root `{root}`")]
+    TemplatePath {
+        /// The platform root.
+        root: Utf8PathBuf,
+
+        /// The template path.
+        path: Utf8PathBuf,
+    },
+    /// A platform template file operation failed.
+    #[error("template file operation failed for `{path}` with {error}")]
+    Io {
+        /// The template or generated output path.
+        path: Utf8PathBuf,
+
+        /// The underlying filesystem failure.
+        error: io::Error,
+    },
+}
+
+/// The structured output of the platform template command.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PlatformTemplateOutput {
-    /// The output of the build subcommand.
+    /// Output from building platform templates.
     Build {
-        /// The map of the processed templates to the generated ones.
+        /// Template names mapped to generated output paths.
         template: BTreeMap<String, String>,
     },
 
-    /// The output of the clean subcommand.
+    /// Output from cleaning generated platform files.
     Clean {
-        /// The list of files that were removed.
+        /// Generated files that were removed.
         files: Vec<String>,
     },
 }
 
-impl<'a> Output for PlatformTemplateOutput {
+impl Output for PlatformTemplateOutput {
     fn output<W>(
         self,
         writer: &mut W,
@@ -269,35 +192,23 @@ impl<'a> Output for PlatformTemplateOutput {
         W: fmt::Write,
     {
         match structured {
-            Some(structured_format) => {
-                let ref value_tree =
-                    serde_json::to_value(self).expect("cannot convert to value tree");
-
-                let serialize_sink = match structured_format {
-                    OutputStructured::Json => {
-                        serde_json::to_string(value_tree).expect("could not serialize")
-                    }
-                };
-
-                writer.write_str(serialize_sink.as_str())
+            Some(OutputStructured::Json) => {
+                let value = serde_json::to_string(&self).expect("could not serialize output");
+                writer.write_str(value.as_str())
             }
             None => match self {
-                PlatformTemplateOutput::Build {
-                    template: processed,
-                } => {
+                Self::Build { template } => {
                     if verbose {
-                        for (template, output) in processed {
-                            writeln!(writer, "built {template} -> {output}")?;
+                        for (source, output) in template {
+                            writeln!(writer, "built {source} -> {output}")?;
                         }
                     }
 
                     Ok(())
                 }
-                PlatformTemplateOutput::Clean {
-                    files: cleaned_files,
-                } => {
+                Self::Clean { files } => {
                     if verbose {
-                        for file in cleaned_files {
+                        for file in files {
                             writeln!(writer, "deleted `{file}`")?;
                         }
                     }
@@ -306,5 +217,17 @@ impl<'a> Output for PlatformTemplateOutput {
                 }
             },
         }
+    }
+}
+
+impl From<PlatformFileError> for PlatformTemplateError {
+    fn from(error: PlatformFileError) -> Self {
+        Self::File(error)
+    }
+}
+
+impl From<minijinja::Error> for PlatformTemplateError {
+    fn from(error: minijinja::Error) -> Self {
+        Self::MiniJinja(error)
     }
 }

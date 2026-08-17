@@ -14,13 +14,13 @@ SECTIONS {
     `SHT_PROGBITS` section type and a set of `SHF_ALLOC + SHF_WRITE` section flags, it should reside
     in the same program segment as the regular `.data` section.
   */
-  {{ kernel.domain.section_name }}
+  {{ kernel.domain["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.domain.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.domain["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     /* Include `nekor-domain`-allocated per-type top-level section. */
-    KEEP(*({{ kernel.domain.section_name }}))
+    KEEP(*({{ kernel.domain["section-name"] }}))
     /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
-    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain.section_name }}.typename.*))))
+    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain["section-name"] }}.typename.*))))
   }
 
 

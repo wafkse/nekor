@@ -1,0 +1,62 @@
+{% if not debug.usermode %}
+
+# NOTE: Per-target compiler flags for the kernel target triple.
+[target.'nekor-x86_64-kernel']
+rustflags = [
+    "-C", "link-arg=-T{{ platform() }}/linker.ld",
+    "-C", "code-model={{ layout["code-model"] }}",
+    "-C", "relocation-model={{ layout["relocation-model"] }}",
+    "-C", "force-frame-pointers={% if unwind["frame-pointer"] %}yes{% else %}no{% endif %}",
+    "-C", "force-unwind-tables={% if unwind["unwind-table"] %}yes{% else %}no{% endif %}",
+
+{% if debug.verbose -%}
+    "-C", "link-arg=-Map=target/nekor-x86_64-kernel/linker-input.map",
+    "-C", "link-arg=--verbose",
+{% endif -%}
+]
+
+# NOTE: Per-target compiler flags for the bootloder target triple.
+[target.'nekor-x86_64-bootloader']
+
+{% else %}
+
+[target.'nekor-x86_64-usermode']
+rustflags = [
+    "--cfg", "usermode",
+    "-C", "link-arg=-T{{ platform() }}/linker.ld",
+    "-C", "code-model={{ layout["code-model"] }}",
+    "-C", "relocation-model={{ layout["relocation-model"] }}",
+    "-C", "force-frame-pointers={% if unwind["frame-pointer"] %}yes{% else %}no{% endif %}",
+    "-C", "force-unwind-tables={% if unwind["unwind-table"] %}yes{% else %}no{% endif %}",
+# NOTE: Usermode builds require an explicit `panic=abort`.
+    "-C", "panic=abort",
+    {% if debug.test %}
+# NOTE: Test harness requires this for tests to be ran per-process.
+    "-Z", "panic_abort_tests",
+    {% endif %}
+
+{% if debug.verbose %}
+# NOTE: Emit a linker input section map and pass the `--verbose` flag to the linker.
+    "-C", "link-arg=-Map=target/nekor-x86_64-kernel/linker-input.map",
+    "-C", "link-arg=--verbose",
+{% endif %}
+]
+
+{% endif %}
+
+# NOTE: Build the core (and `alloc` + `std` where applicable) library.
+# This is required to avoid DWARF-based unwinding in `core` (and `std` where applicable) in usermode builds and to provide the `core` library for freestanding targets.
+[unstable]
+build-std = [
+    "core",
+{% if debug.usermode -%}
+# NOTE: These are required for usermode targets.
+    "alloc", "std", "panic_abort",
+{% endif -%}
+]
+# NOTE: `compiler-builtins-mem` is used to provide the `mem*` family of functions, as we do not have a libc.
+#
+# Distinct architecture levels may in turn use faster architectural extensions.
+build-std-features = [
+    "compiler-builtins-mem"
+]

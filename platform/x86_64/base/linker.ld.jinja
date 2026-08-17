@@ -93,20 +93,20 @@ SECTIONS {
 
   /* NOTE: Start of code sections. */
 
-  {{ kernel.schedule.interrupt.code.section_name }}
+  {{ kernel.schedule.interrupt.code["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.schedule.interrupt.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.schedule.interrupt.code["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.schedule.interrupt.code.symbol.start }} = .;
 
-      KEEP(*({{ kernel.schedule.interrupt.code.section_name }} {{ kernel.schedule.interrupt.code.section_name }}.*))
+      KEEP(*({{ kernel.schedule.interrupt.code["section-name"] }} {{ kernel.schedule.interrupt.code["section-name"] }}.*))
 
       /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
       . = ALIGN({{ arch.cache.size }});
       {{ kernel.schedule.interrupt.code.symbol.end }} = .;
   } :code-normal
-  {{ kernel.hot.code.section_name }}
+  {{ kernel.hot.code["section-name"] }}
   ALIGN({{ arch.cache.size }}) :
-  AT(ADDR({{ kernel.hot.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.hot.code["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.hot.code.symbol.start }} = .;
 
       /*
@@ -117,7 +117,7 @@ SECTIONS {
       */
 
       /* NOTE: Include code specified as "hot" explicitly by the kernel. */
-      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT({{ kernel.hot.code.section_name }} {{ kernel.hot.code.section_name }}.*)))
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT({{ kernel.hot.code["section-name"] }} {{ kernel.hot.code["section-name"] }}.*)))
 
       /* NOTE: Include any other hot code possibly residing in `.text.hot{,.*}` sections. */
       INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT(.text.hot .text.hot.*))
@@ -128,9 +128,9 @@ SECTIONS {
   } :code-normal
 
   /* NOTE: This is regular kernel code, isolated to its own page for iTLB isolation of hot code. */
-  {{ kernel.code.section_name }}
+  {{ kernel.code["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.code.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.code["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.code.symbol.start }} = .;
 
       /* NOTE: Trap all legacy GNU text sections here */
@@ -147,13 +147,13 @@ SECTIONS {
 
     This requires being isolated to its own set of pages to avoid extra interference or protection changes to irrelevant pages.
   */
-  {{ kernel.patch.section_name }}
+  {{ kernel.patch["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.patch.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.patch["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.patch.symbol.start }} = .;
 
       /* NOTE: Make sure only executable code is included. */
-      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *({{ kernel.patch.section_name }} {{ kernel.patch.section_name }}.*))
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*))
 
       /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
       . = ALIGN({{ arch.page.size.normal }});
@@ -164,47 +164,47 @@ SECTIONS {
 
   /* NOTE: Start of read-write data sections. */
 
-  {{ kernel.schedule.interrupt.data.section_name }}
+  {{ kernel.schedule.interrupt.data["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.schedule.interrupt.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.schedule.interrupt.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.schedule.interrupt.data.symbol.start }} = .;
 
-    KEEP(*({{ kernel.schedule.interrupt.data.section_name }} {{ kernel.schedule.interrupt.data.section_name }}.*))
+    KEEP(*({{ kernel.schedule.interrupt.data["section-name"] }} {{ kernel.schedule.interrupt.data["section-name"] }}.*))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
     {{ kernel.schedule.interrupt.data.symbol.end }} = .;
   } :data-readwrite
 
-  {{ kernel.schedule.queue.section_name }}
+  {{ kernel.schedule.queue["section-name"] }}
   ALIGN({{ arch.cache.size }}) :
-  AT(ADDR({{ kernel.schedule.queue.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.schedule.queue["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.schedule.queue.symbol.start }} = .;
 
     /* NOTE: Include all scheduler queue sections. */
-    KEEP(*({{ kernel.schedule.queue.section_name }} {{ kernel.schedule.queue.section_name }}.*))
+    KEEP(*({{ kernel.schedule.queue["section-name"] }} {{ kernel.schedule.queue["section-name"] }}.*))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
     {{ kernel.schedule.queue.symbol.end }} = .;
   } :data-readwrite
-  {{ kernel.schedule.isolate.section_name }}
+  {{ kernel.schedule.isolate["section-name"] }}
   ALIGN({{ arch.cache.size }}) :
-  AT(ADDR({{ kernel.schedule.isolate.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.schedule.isolate["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.schedule.isolate.symbol.start }} = .;
 
-    KEEP(*({{ kernel.schedule.isolate.section_name }} {{ kernel.schedule.isolate.section_name }}.*))
+    KEEP(*({{ kernel.schedule.isolate["section-name"] }} {{ kernel.schedule.isolate["section-name"] }}.*))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
     {{ kernel.schedule.isolate.symbol.end }} = .;
   } :data-readwrite
-  {{ kernel.hot.data.section_name }}
+  {{ kernel.hot.data["section-name"] }}
   ALIGN({{ arch.cache.size }}) :
-  AT(ADDR({{ kernel.hot.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.hot.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.hot.data.symbol.start }} = .;
 
-    KEEP(*({{ kernel.hot.data.section_name }} {{ kernel.hot.data.section_name }}.*))
+    KEEP(*({{ kernel.hot.data["section-name"] }} {{ kernel.hot.data["section-name"] }}.*))
 
     /* NOTE: Include any other hot data possibly residing in `.data.hot{,.*}` sections. */
     *(.data.hot .data.hot.*)
@@ -215,9 +215,9 @@ SECTIONS {
   } :data-readwrite
 
   /* NOTE: This is regular kernel data, it is page-alinged to isolate TLB entries. */
-  {{ kernel.data.section_name }}
+  {{ kernel.data["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.data.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.data.symbol.start }} = .;
 
     /* Include standard `.data` sections. */
@@ -235,19 +235,19 @@ SECTIONS {
     nonzero size, so page alignment is preserved for both the domain-storage and zero-initialize
     data section.
   */
-  {{ kernel.domain.section_name }}
+  {{ kernel.domain["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.domain.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.domain["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     /* Include `nekor-domain`-allocated per-type top-level section. */
-    KEEP(*({{ kernel.domain.section_name }}))
+    KEEP(*({{ kernel.domain["section-name"] }}))
     /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
-    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain.section_name }}.typename.*))))
+    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain["section-name"] }}.typename.*))))
   }
 
   /* NOTE: This zeroed section is page-aligned to allow for lazy page allocation. */
-  {{ kernel.data.zeroed.section_name }}
+  {{ kernel.data.zeroed["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.data.zeroed.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.data.zeroed["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.data.zeroed.symbol.start }} = .;
 
     *(.bss .bss.*)
@@ -267,9 +267,9 @@ SECTIONS {
     for the program segment.
   */
   /* NOTE: Page-aligned to be reclaimed later by the kernel. */
-  {{ linkage.section_name }}
+  {{ linkage["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ linkage.symbol.start }} = .;
 
     /* NOTE: Include the de-facto dynamic section. */
@@ -288,15 +288,15 @@ SECTIONS {
   /* NOTE: End of read-write data sections. */
 
   /* NOTE: Start of read-only data sections. */
-  {{ linkage.relocate.section_name }}.implicit
+  {{ linkage.relocate["section-name"] }}.implicit
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.relocate.section_name }}.implicit) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.relocate["section-name"] }}.implicit) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto dynamic relocations with an implicit addend. */
     *(.rel .rel.*)
   } :data-readonly :linkage-segment
-  {{ linkage.relocate.section_name }}.explicit
+  {{ linkage.relocate["section-name"] }}.explicit
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.relocate.section_name }}.explicit) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.relocate["section-name"] }}.explicit) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto dynamic relocations with an explicit addend. */
     *(.rela .rela.*)
   } :data-readonly :linkage-segment
@@ -306,36 +306,36 @@ SECTIONS {
 
     This is handled now to possibly support supplemental bootloader-provided libraries in the future.
   */
-  {{ linkage.table.string.section_name }}
+  {{ linkage.table.string["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.table.string.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.table.string["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     *(SORT_BY_NAME(.dynstr))
   } :data-readonly :linkage-segment
-  {{ linkage.table.section_name }}
+  {{ linkage.table["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.table.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.table["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     *(SORT_BY_NAME(.dynsym))
   } :data-readonly :linkage-segment
 
   /* NOTE: The symbol hash table sections. */
-  {{ linkage.hash.section_name }}
+  {{ linkage.hash["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.hash.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.hash["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto System V symbol hash table. */
     *(SORT_BY_NAME(.hash))
   } :data-readonly :linkage-segment
-  {{ linkage.hash.gnu.section_name }}
+  {{ linkage.hash.gnu["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.hash.gnu.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.hash.gnu["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto GNU symbol hash table. */
     *(SORT_BY_NAME(.gnu.hash))
   } :data-readonly :linkage-segment
 
   /* NOTE: End of linkage program sections. */
 
-  {{ kernel.local.section_name }}
+  {{ kernel.local["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.local.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.local["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.local.symbol.start }} = .;
 
       /*
@@ -343,7 +343,7 @@ SECTIONS {
 
         These symbols are sorted by name to prevent drift of in-memory layout.
       */
-      KEEP(*(SORT_BY_NAME({{ kernel.local.section_name }})))
+      KEEP(*(SORT_BY_NAME({{ kernel.local["section-name"] }})))
 
       {{ kernel.local.symbol.end }} = .;
 
@@ -351,9 +351,9 @@ SECTIONS {
       . = ALIGN({{ arch.page.size.normal }});
   } :local-segment :data-readonly
 
-  {{ kernel.data.readonly.section_name }}
+  {{ kernel.data.readonly["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ kernel.data.readonly.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ kernel.data.readonly["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.data.readonly.symbol.start }} = .;
 
       *(SORT_BY_NAME(.rodata .rodata.*))
@@ -367,23 +367,23 @@ SECTIONS {
 
   /* NOTE: Start of bootloader-only sections. */
 
-  {{ boot.section_name }}
+  {{ boot["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ boot.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ boot["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       PROVIDE("{{ boot.symbol }}" = .);
 
       /* NOTE: This is the anchor point for bootloaders. */
-      KEEP(*({{ boot.section_name }}))
+      KEEP(*({{ boot["section-name"] }}))
   } :bootloader-segment
 
-  {{ boot.request.section_name }}
+  {{ boot.request["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ boot.request.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ boot.request["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       PROVIDE("{{ boot.request.symbol }}" = .);
 
       /* NOTE: Each bootloader request is assigned to the specified section. */
       /* NOTE: No explicit `KEEP` here to not forcefully include unused request types. */
-      *(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ boot.request.section_name }} {{ boot.request.section_name }}.*)))
+      *(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ boot.request["section-name"] }} {{ boot.request["section-name"] }}.*)))
   } :bootloader-segment
 
   /*
@@ -391,32 +391,32 @@ SECTIONS {
 
     See the documentation attached to the `interpreter-segment` program segment for further information.
   */
-  {{ boot.feature.section_name }}
+  {{ boot.feature["section-name"] }}
   ALIGN({{ arch.cache.size }}) :
-  AT(ADDR({{ boot.feature.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ boot.feature["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     PROVIDE("{{ boot.feature.symbol }}" = .);
 
-    KEEP(*({{ boot.feature.section_name }}))
+    KEEP(*({{ boot.feature["section-name"] }}))
   } :data-readonly :interpreter-segment
 
   /* NOTE: End of bootloader-only sections. */
 
   /* NOTE: Define our section string table. */
-  {{ linkage.table.section.section_name }}
+  {{ linkage.table.section["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ linkage.table.section.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ linkage.table.section["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       *(SORT_BY_NAME(.shstrtab))
   } :NONE
 
   /* NOTE: Start of debug sections. */
-  {{ debug.symbol.section_name }}
+  {{ debug.symbol["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ debug.symbol.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ debug.symbol["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       *(SORT_BY_NAME(.symtab))
   } :NONE
-  {{ debug.symbol.string.section_name }}
+  {{ debug.symbol.string["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ debug.symbol.string.section_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ debug.symbol.string["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       *(SORT_BY_NAME(.strtab))
   } :NONE
 
@@ -424,7 +424,7 @@ SECTIONS {
 {% for whitelisted_name in debug.info %}
   {{ whitelisted_name }}
   ALIGN({{ arch.page.size.normal }}) :
-  AT(ADDR({{ whitelisted_name }}) - {{ layout.base - layout.physical_base }}) {
+  AT(ADDR({{ whitelisted_name }}) - {{ layout.base - layout["physical-base"] }}) {
       *({{ whitelisted_name }})
   } :NONE
 {% endfor %}
