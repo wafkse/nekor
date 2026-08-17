@@ -101,7 +101,7 @@ feature!(
     ///
     /// This is only available on *AMD processors*.
     #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]
-    pub MonitorX in Ecx for (0x80000001) use 29
+    pub MonitorX in Ecx for (0x8000_0001) use 29
 );
 
 feature!(
@@ -299,7 +299,7 @@ feature!(
 feature!(
     /// A marker type to indicate support for the `LZCNT` instruction by the processor.
     #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]
-    pub Lzcnt in Ecx for (0x80000001) use 5 (feature = "lzcnt")
+    pub Lzcnt in Ecx for (0x8000_0001) use 5 (feature = "lzcnt")
 );
 
 feature!(
@@ -389,7 +389,7 @@ feature!(
 feature!(
     /// A marker type to indicate support for the `SSE4A` architectural extension by the processor.
     #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]
-    pub Sse4a in Ecx for (0x80000001) use 6 (feature = "sse4a")
+    pub Sse4a in Ecx for (0x8000_0001) use 6 (feature = "sse4a")
 );
 
 feature!(
@@ -401,7 +401,7 @@ feature!(
 feature!(
     /// A marker type to indicate support for the `TBM` architectural extension by the processor.
     #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]
-    pub Tbm in Ecx for (0x80000001) use 21 (feature = "tbm")
+    pub Tbm in Ecx for (0x8000_0001) use 21 (feature = "tbm")
 );
 
 feature!(

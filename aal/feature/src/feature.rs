@@ -18,25 +18,25 @@ pub enum Signal {
 impl Signal {
     /// Force a signal state at compile-time.
     #[inline]
+    #[must_use]
     pub const fn forced<const S: bool>() -> Self {
-        let target_state = match S {
-            true => Present::Yes,
-            false => Present::No,
-        };
+        let target_state = if S { Present::Yes } else { Present::No };
 
         Self::Guaranteed(target_state)
     }
 
     /// The availability of the feature is unknown.
     #[inline]
+    #[must_use]
     pub const fn unknown() -> Self {
         Self::Detected(Present::No)
     }
 
     /// Determine a [`Signal`] from a bitwise [`State`].
     #[inline]
+    #[must_use]
     pub const fn state(target_state: State) -> Self {
-        let target_state = if let State::Set = target_state {
+        let target_state = if matches!(target_state, State::Set) {
             Present::Yes
         } else {
             Present::No
@@ -48,14 +48,17 @@ impl Signal {
     /// Require that an extraneous [`Signal`] must be present on top of the
     /// current one.
     #[inline]
+    #[must_use]
     pub const fn and(&self, target_signal: Self) -> Self {
         match (self, target_signal) {
-            (&Signal::Guaranteed(ref present_left), Signal::Guaranteed(present_right)) => {
+            (Self::Guaranteed(present_left), Self::Guaranteed(present_right)) => {
                 Self::Guaranteed(Present::and(present_left, present_right))
             }
-            (&Signal::Guaranteed(ref present_left), Signal::Detected(present_right))
-            | (&Signal::Detected(ref present_left), Signal::Guaranteed(present_right))
-            | (&Signal::Detected(ref present_left), Signal::Detected(present_right)) => {
+            (
+                &Self::Guaranteed(ref present_left) | &Self::Detected(ref present_left),
+                Self::Detected(present_right),
+            )
+            | (&Self::Detected(ref present_left), Self::Guaranteed(present_right)) => {
                 Self::Detected(Present::and(present_left, present_right))
             }
         }
@@ -66,6 +69,7 @@ impl Signal {
     /// Determine whether this [`Signal`] indicates a target [`Present`] state,
     /// regardless of signal source.
     #[inline]
+    #[must_use]
     pub const fn is(&self, present_left: Present) -> bool {
         let (&Self::Guaranteed(present_right) | &Self::Detected(present_right)) = self;
 
@@ -91,10 +95,11 @@ impl Present {
     /// Require that both [`Present`] enumerations be [`Present::Yes`] in
     /// unison.
     #[inline]
+    #[must_use]
     pub const fn and(&self, target_right: Self) -> Self {
         match (self, target_right) {
-            (Present::Yes, Present::Yes) => Self::Yes,
-            (..) => Present::No,
+            (Self::Yes, Self::Yes) => Self::Yes,
+            (..) => Self::No,
         }
     }
 }
@@ -116,6 +121,7 @@ pub trait Feature {
     /// Determine whether the feature is supported by the current processor
     /// core, or a *Feature Baseline* is present.
     #[inline]
+    #[must_use]
     fn supported() -> Signal {
         Self::PREDETERMINED.unwrap_or(Signal::unknown())
     }

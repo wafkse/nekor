@@ -75,7 +75,7 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cached for Cpuid<LEAF, SUBLEAF> {
 
     #[inline]
     fn cached() -> Option<Self> {
-        if let InitializationStage::Initialized = Static::raw_stage::<Self>() {
+        if Static::raw_stage::<Self>() == InitializationStage::Initialized {
             Some(*Static::value_with::<Self, _>(|| unreachable!()))
         } else {
             None
@@ -172,7 +172,7 @@ where
     fn unconditional() -> Self::Output {
         let CpuidReg(ref target_value, ..) = CpuidReg::<R, LEAF, SUBLEAF>::unconditional();
 
-        let ref target_field = Field::wrap(target_value);
+        let target_field = &Field::wrap(target_value);
 
         Field::value(target_field)
     }
@@ -181,7 +181,7 @@ where
     fn lazy() -> Self::Output {
         let CpuidReg(ref target_value, ..) = CpuidReg::<R, LEAF, SUBLEAF>::lazy();
 
-        let ref target_field = Field::wrap(target_value);
+        let target_field = &Field::wrap(target_value);
 
         Field::value(target_field)
     }
@@ -189,7 +189,7 @@ where
     #[inline]
     fn cached() -> Option<Self::Output> {
         if let Some(CpuidReg(ref target_value, ..)) = CpuidReg::<R, LEAF, SUBLEAF>::cached() {
-            let ref target_field = Field::wrap(target_value);
+            let target_field = &Field::wrap(target_value);
 
             Some(Field::value(target_field))
         } else {
