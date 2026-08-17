@@ -41,7 +41,7 @@ where
     }
 }
 
-impl<'a, B> BitDyn<'a, B>
+impl<B> BitDyn<'_, B>
 where
     B: BitOp,
 {
@@ -108,7 +108,7 @@ where
     }
 }
 
-impl<'a, B> BitDynMut<'a, B>
+impl<B> BitDynMut<'_, B>
 where
     B: BitOp,
 {
@@ -116,9 +116,9 @@ where
     #[inline]
     #[must_use]
     pub fn state(&self) -> State {
-        let &Self(ref target_value, target_indice) = self;
+        let Self(target_value, target_indice) = self;
 
-        <B as BitOp>::get(target_value, target_indice)
+        <B as BitOp>::get(*target_value, *target_indice)
     }
     /// Determine whether the current bit [`State`] is the one provided.
     #[inline]
@@ -131,18 +131,18 @@ where
     #[inline]
     #[must_use]
     pub fn cleared(&self) -> B {
-        let &Self(ref target_value, target_indice) = self;
+        let Self(target_value, target_indice) = self;
 
-        <B as BitOp>::cleared(target_value, target_indice)
+        <B as BitOp>::cleared(*target_value, *target_indice)
     }
 
     /// Make a copy of the underlying integer `B` with the target bit set.
     #[inline]
     #[must_use]
     pub fn enabled(&self) -> B {
-        let &Self(ref target_value, target_indice) = self;
+        let Self(target_value, target_indice) = self;
 
-        <B as BitOp>::enabled(target_value, target_indice)
+        <B as BitOp>::enabled(*target_value, *target_indice)
     }
 
     /// Set the state of the bit that this handle is for.

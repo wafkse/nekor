@@ -115,9 +115,7 @@ impl Metadata {
     #[inline]
     #[must_use]
     pub const fn output(&self) -> &Primitive {
-        let &Self {
-            ref output_type, ..
-        } = self;
+        let Self { output_type, .. } = self;
 
         output_type
     }
@@ -126,7 +124,7 @@ impl Metadata {
     #[inline]
     #[must_use]
     pub const fn name(&self) -> &Ident {
-        let &Self { ref trait_name, .. } = self;
+        let Self { trait_name, .. } = self;
 
         trait_name
     }

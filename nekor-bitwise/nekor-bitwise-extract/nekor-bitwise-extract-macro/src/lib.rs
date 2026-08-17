@@ -40,13 +40,13 @@ use proc_macro::TokenStream;
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// metadata!(become for u16 -> u8 as MetadataU16U8);
 /// ```
 ///
 /// This generates a trait with associated constants for extraction metadata:
 ///
-/// ```rust,no_run
+/// ```text
 /// pub trait MetadataU16U8<const N: usize, const M: usize>: detail::Sealed {
 ///     const BITSET_WIDTH: usize;
 ///     const BITSET_MASK: Self;
@@ -89,13 +89,13 @@ pub fn metadata(input: TokenStream) -> TokenStream {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// implement!(for u16 -> u8 as MetadataU16U8);
 /// ```
 ///
 /// This generates implementations for all valid bit ranges:
 ///
-/// ```rust,no_run
+/// ```text
 /// impl MetadataU16U8<0, 1> for u16 {
 ///     const BITSET_WIDTH: usize = 2;
 ///     const BITSET_MASK: Self = Self::MAX >> (Self::BITS as usize - 2);
@@ -143,7 +143,7 @@ pub fn implement(input: TokenStream) -> TokenStream {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// delegate!(become u16 as MetadataU16 for [
 ///     u8 become MetadataU16U8,
 ///     u16 become MetadataU16U16,
@@ -152,7 +152,7 @@ pub fn implement(input: TokenStream) -> TokenStream {
 ///
 /// This generates a trait with a generic output type parameter:
 ///
-/// ```rust,no_run
+/// ```text
 /// pub trait MetadataU16<const N: usize, const M: usize, O> {
 ///     const BITSET_WIDTH: usize;
 ///     const BITSET_MASK: Self;
@@ -208,7 +208,7 @@ pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
 ///
 /// # Example (Split-off)
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// extract!(MyExtractTrait for [
 ///     u16 use MetadataU16 become [u8, u16],
 ///     u32 use MetadataU32 become [u8, u16, u32],
@@ -220,13 +220,13 @@ pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
 ///
 /// # Example (Direct)
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// extract!(trait MyExtractTrait for u16 use MetadataU16 become [u8, u16]);
 /// ```
 ///
 /// This directly generates implementations without creating separate modules:
 ///
-/// ```rust,no_run
+/// ```text
 /// impl MyExtractTrait<0, 1, u8> for u16 {
 ///     const BITSET_WIDTH: usize = <u16 as MetadataU16<0, 1, u8>>::BITSET_WIDTH;
 ///     // ... other forwarded constants

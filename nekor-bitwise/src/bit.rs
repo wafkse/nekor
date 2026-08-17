@@ -42,6 +42,7 @@ pub trait BitOp: Bitwise {
 
     /// Copy this value, but with the target bit toggled.
     #[inline]
+    #[must_use]
     fn toggled(&self, target_indice: Selected<Self>) -> Self {
         let mut target_copy = *self;
 
@@ -52,6 +53,7 @@ pub trait BitOp: Bitwise {
 
     /// Copy this value, but with the target bit cleared.
     #[inline]
+    #[must_use]
     fn cleared(&self, target_indice: Selected<Self>) -> Self {
         let mut target_copy = *self;
 
@@ -62,6 +64,7 @@ pub trait BitOp: Bitwise {
 
     /// Copy this value, but with the target bit set.
     #[inline]
+    #[must_use]
     fn enabled(&self, target_indice: Selected<Self>) -> Self {
         let mut target_copy = *self;
 
@@ -100,6 +103,7 @@ pub trait BitAt<const N: usize>: Bitwise {
 
     /// Copy this value, but with the target bit toggled.
     #[inline]
+    #[must_use]
     fn toggled(&self) -> Self {
         let mut target_copy = *self;
 
@@ -110,6 +114,7 @@ pub trait BitAt<const N: usize>: Bitwise {
 
     /// Copy this value, but with the target bit cleared.
     #[inline]
+    #[must_use]
     fn cleared(&self) -> Self {
         let mut target_copy = *self;
 
@@ -120,6 +125,7 @@ pub trait BitAt<const N: usize>: Bitwise {
 
     /// Copy this value, but with the target bit set.
     #[inline]
+    #[must_use]
     fn enabled(&self) -> Self {
         let mut target_copy = *self;
 
@@ -161,11 +167,11 @@ macro_rules! bits {
 
                 match target_state {
                     State::Set => {
-                        *self = (*self | <Self as BitOp>::single(target_indice));
+                        *self |= <Self as BitOp>::single(target_indice);
                     }
 
                     State::Cleared => {
-                        *self = (*self & !<Self as BitOp>::single(target_indice));
+                        *self &= !<Self as BitOp>::single(target_indice);
                     }
                 }
 
@@ -201,11 +207,11 @@ macro_rules! bits {
 
                 match target_state {
                     State::Set => {
-                        *target_value = (*target_value | Self::TARGET_MASK);
+                        *target_value |= Self::TARGET_MASK;
                     }
 
                     State::Cleared => {
-                        *target_value = (*target_value & !Self::TARGET_MASK);
+                        *target_value &= !Self::TARGET_MASK;
                     }
                 }
 
@@ -226,9 +232,9 @@ macro_rules! bits {
             /// A const-fn version of the [`Bits::toggle`] associated function.
             #[inline]
             pub const fn toggle(target_value: &mut $target_type) -> State {
-                let ref target_state = Self::get(target_value);
+                let target_state = Self::get(target_value);
 
-                Self::set(target_value, State::complement(target_state))
+                Self::set(target_value, State::complement(&target_state))
             }
         }
 

@@ -5,10 +5,11 @@
     clippy::nursery,
     clippy::unwrap_used,
     clippy::panic,
-    clippy::pedantic,
     unsafe_code,
     rustdoc::all
 )]
+// Primitive narrowing is an explicit part of the bit extraction contract.
+#![deny(clippy::pedantic)]
 #![doc = include_str!("../../README.md")]
 
 #[doc(inline)]
@@ -30,10 +31,12 @@ pub trait As<O>: Scalar + detail::Sealed
 where
     O: Scalar,
 {
-    /// Convert the target type to the current one.
+    /// Widen the output scalar into the input scalar.
     fn input(target_output: O) -> Self;
 
-    /// Convert the current type to the target one.
+    /// Narrow the input scalar to the output width.
+    ///
+    /// High bits outside the output width are discarded.
     fn output(self) -> O;
 }
 
@@ -45,10 +48,11 @@ macro_rules! cast {
             impl As<$target_out> for $target_in {
                 #[inline]
                 fn input(target_output: $target_out) -> Self {
-                    target_output as $target_in
+                    Self::from(target_output)
                 }
 
                 #[inline]
+                #[allow(clippy::cast_possible_truncation)]
                 fn output(self) -> $target_out {
                     self as $target_out
                 }

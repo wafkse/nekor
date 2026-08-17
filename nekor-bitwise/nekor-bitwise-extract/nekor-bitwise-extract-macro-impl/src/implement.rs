@@ -246,7 +246,7 @@ impl Implement {
     #[inline]
     #[must_use]
     pub const fn input(&self) -> &Primitive {
-        let &Self { ref input_type, .. } = self;
+        let Self { input_type, .. } = self;
 
         input_type
     }
@@ -255,9 +255,7 @@ impl Implement {
     #[inline]
     #[must_use]
     pub const fn output(&self) -> &Primitive {
-        let &Self {
-            ref output_type, ..
-        } = self;
+        let Self { output_type, .. } = self;
 
         output_type
     }
@@ -266,7 +264,7 @@ impl Implement {
     #[inline]
     #[must_use]
     pub const fn name(&self) -> &Ident {
-        let &Self { ref trait_name, .. } = self;
+        let Self { trait_name, .. } = self;
 
         trait_name
     }

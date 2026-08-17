@@ -104,9 +104,9 @@ where
     #[inline]
     #[must_use]
     pub fn cleared(&self) -> I {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
-        BitAt::<N>::cleared(target_value)
+        BitAt::<N>::cleared(*target_value)
     }
 
     /// Instantiate a new copy of the underlying register but with the target
@@ -114,9 +114,9 @@ where
     #[inline]
     #[must_use]
     pub fn enabled(&self) -> I {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
-        BitAt::<N>::enabled(target_value)
+        BitAt::<N>::enabled(*target_value)
     }
 
     /// Override the [`State`] of this [`BitMut`].
