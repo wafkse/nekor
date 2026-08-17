@@ -315,14 +315,14 @@ impl Run {
         // hand-written contents. (see note [1])
         let pointer_offset = unsafe { ptr::read_unaligned(queue_storage) };
 
-        let queue_pointer = queue_storage
-            .cast::<u8>()
-            .wrapping_add(pointer_offset)
-            .cast::<Self>();
-
-        // SAFETY: Guaranteed to be non-null, reference is valid as the
-        // structure is initialized properly. (see note [2..3])
-        unsafe { NonNull::<Self>::new_unchecked(queue_pointer.cast_mut()).as_ref() }
+        // SAFETY: The function pointer is non-null. The encoded offset reaches
+        // storage aligned for `Run` and initialized by the linker template.
+        unsafe {
+            NonNull::new_unchecked(queue_storage.cast_mut().cast::<u8>())
+                .byte_add(pointer_offset)
+                .cast::<Self>()
+                .as_ref()
+        }
     }
 
     /// Determine the global runqueue list, which is a static slice of all

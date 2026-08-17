@@ -29,7 +29,7 @@ use crate::{
         raw::RawTask,
         state::{StateDescriptor, TaskStatus},
     },
-    wake::{self, list::WakeNode},
+    wake,
 };
 
 pub mod state;
@@ -73,7 +73,7 @@ pub struct Task {
     /// [`TaskStatus`] for further information.
     ///
     /// Not largely contested, hence why not cacheline-isolated.
-    task_status: TaskStatus,
+    status: TaskStatus,
 
     /// The runqueue native to this task.
     ///
@@ -85,13 +85,8 @@ pub struct Task {
     /// [`Run`]: super::run_queue::Run
     schedule_queue: Erased<TaskQueue>,
 
-    /// The [`WakeNode`] the [`Task`] uses for runqueue backpressure.
-    /// TODO: This is not related to Wakers at all. Move the whole `WakeQueue`
-    /// to a generic list implementation.
-    runqueue_wait_node: WakeNode,
-
     /// The raw task handle to the underlying [`Future`].
-    raw_task: UnsafeCell<RawTask>,
+    raw: UnsafeCell<RawTask>,
 }
 
 impl Task {
@@ -119,16 +114,12 @@ impl Task {
     /// information.
     #[inline]
     pub fn acquire(target_task: &'static Self) -> Option<Acquired> {
-        let Self {
-            task_status,
-            raw_task,
-            ..
-        } = target_task;
+        let Self { status, raw, .. } = target_task;
 
-        match TaskStatus::determine(task_status) {
+        match TaskStatus::determine(status) {
             StateDescriptor::Dormant(target_state) => {
                 if target_state.pending().is_some() {
-                    let raw_ptr = raw_task.get();
+                    let raw_ptr = raw.get();
 
                     // SAFETY: Cannot be null, as the pointer has been sourced
                     // from an `UnsafeCell`.

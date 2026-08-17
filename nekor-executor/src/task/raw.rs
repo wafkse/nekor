@@ -50,40 +50,40 @@ impl<F> Schedulable for F where F: Future<Output = Finalize> + Store + ?Sized {}
 /// trait object.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Erased<'a>(&'a &'static mut dyn Schedulable);
+pub struct Erased<'a>(&'a dyn Schedulable);
 
 impl Deref for Erased<'_> {
-    type Target = &'static mut dyn Schedulable;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        let &Self(target_value) = self;
-
-        target_value
-    }
-}
-
-/// An access handle provided by [`RawTask`].
-#[repr(transparent)]
-pub struct ErasedMut<'a>(&'a mut &'static mut dyn Schedulable);
-
-impl Deref for ErasedMut<'_> {
-    type Target = &'static mut dyn Schedulable;
+    type Target = dyn Schedulable;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
         let Self(target_value) = self;
 
-        target_value
+        *target_value
+    }
+}
+
+/// An access handle provided by [`RawTask`].
+#[repr(transparent)]
+pub struct ErasedMut<'a>(&'a mut dyn Schedulable);
+
+impl Deref for ErasedMut<'_> {
+    type Target = dyn Schedulable;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        let Self(target_value) = self;
+
+        &**target_value
     }
 }
 
 impl DerefMut for ErasedMut<'_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let &mut Self(ref mut target_value) = self;
+        let Self(target_value) = self;
 
-        target_value
+        &mut **target_value
     }
 }
 
@@ -104,9 +104,9 @@ impl RawTask {
     #[inline]
     #[must_use]
     pub const unsafe fn access(&self) -> Erased<'_> {
-        let &Self(ref target_schedulable) = self;
+        let Self(target_value) = self;
 
-        Erased(target_schedulable)
+        Erased(&**target_value)
     }
 
     /// Access the underlying [`Schedulable`] trait object in an mutable manner.
@@ -117,9 +117,9 @@ impl RawTask {
     /// [`RawTask::access`].
     #[inline]
     pub const unsafe fn access_mut(&mut self) -> ErasedMut<'_> {
-        let &mut Self(ref mut target_schedulable) = self;
+        let Self(target_value) = self;
 
-        ErasedMut(target_schedulable)
+        ErasedMut(&mut **target_value)
     }
 }
 

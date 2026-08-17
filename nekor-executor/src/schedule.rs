@@ -18,9 +18,8 @@ impl Scheduler {
     #[must_use]
     pub fn cycle() -> Option<Acquired> {
         for target_queue in Run::list() {
-            match target_queue.dequeue() {
-                Some(target_task) => return Task::acquire(target_task),
-                None => (),
+            if let Some(target_task) = target_queue.dequeue() {
+                return Task::acquire(target_task);
             }
         }
 
@@ -29,7 +28,7 @@ impl Scheduler {
 
     /// Attempt to schedule the target [`Task`].
     ///
-    /// # Failure
+    /// # Errors
     ///
     /// This will fail if the runqueue is full.
     #[inline]

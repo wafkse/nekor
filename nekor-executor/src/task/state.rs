@@ -274,13 +274,13 @@ impl TaskStatus {
     /// Determine the status of the associated task.
     #[inline]
     pub fn determine(Self(target_state): &Self) -> StateDescriptor<'_> {
-        // NOTE(invariant): This satisfies the `Acquire` invariant inside the
-        // distinct `State{Dormant,Pending,Executing}` types.
-        let target_value = target_state.load(Ordering::Acquire);
-
         const DORMANT_STATE: usize = TaskState::Dormant as usize;
         const PENDING_STATE: usize = TaskState::Pending as usize;
         const EXECUTING_STATE: usize = TaskState::Executing as usize;
+
+        // NOTE(invariant): This satisfies the `Acquire` invariant inside the
+        // distinct `State{Dormant,Pending,Executing}` types.
+        let target_value = target_state.load(Ordering::Acquire);
 
         match target_value {
             DORMANT_STATE => StateDescriptor::Dormant(StateDormant(target_state)),
