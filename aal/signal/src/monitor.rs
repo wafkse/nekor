@@ -210,7 +210,7 @@ impl<T> Deref for MonitorGuard<'_, T> {
 impl<T> Drop for MonitorGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
-        // TODO: Add ARM `sev` here.
+        // TODO: This `drop` is for signal-based monitoring only.
     }
 }
 
@@ -241,16 +241,6 @@ impl<T> DerefMut for MonitorGuardMut<'_, T> {
 impl<T> Drop for MonitorGuardMut<'_, T> {
     #[inline]
     fn drop(&mut self) {
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86")]
-        unsafe {
-            arch::x86::mwait();
-        };
-
-        #[cfg(not(any(usermode, test, miri)))]
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            arch::x86_64::mwait();
-        };
+        // TODO: This `drop` is for signal-based monitoring only.
     }
 }
