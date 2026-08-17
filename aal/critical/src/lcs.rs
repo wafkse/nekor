@@ -165,7 +165,7 @@ impl Lcs {
 #[derive(Debug)]
 pub struct LcsToken(
     // NOTE(invariant): Do not implement `Send` or `Sync` for this type.
-    marker::PhantomData<fn() -> *mut Self>,
+    marker::PhantomData<*mut Self>,
 );
 
 impl LcsToken {
