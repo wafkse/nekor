@@ -61,7 +61,11 @@ pub mod raw;
 // join
 
 /// A single task for an executor to drive to completion.
+// NOTE(invariant): Task addresses reserve their three least-significant bits for
+// wake-class tagging. Construction and storage preserve the explicit eight-byte
+// alignment while every task remains statically allocated and pinned.
 #[derive(Debug)]
+#[repr(align(8))]
 pub struct Task {
     /// The status of the task.
     ///

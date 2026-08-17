@@ -2,260 +2,343 @@
 //!
 //! # Terminology
 //!
-//! - *wake source*: an external wakeup trigger, which has access to *one or
-//!   more* [`Waker`] instances of the same [`Future`].
-//! - *wake sink*: the target [`Future`] that a wakeup trigger affects.
-//! - *sleeper*: a [`Future`] who has *at least one* [`Waker`] directly
-//!   accessible to an active *wake source*.
-//! - *waker*: a driving entity for actuating *wake source*s
+//! - A *wake source* is an external trigger that can make one or more tasks
+//!   runnable.
+//! - A *wake sink* is the task affected by a wake source.
+//! - A *sleeper* is a task with an active registration in a wake source.
+//! - A *wake target* is a validated static data pointer paired with one of the
+//!   executor's supported wake classes.
 //!
-//! # Executor Assumptions
+//! # Executor assumptions
 //!
-//! The executor assumes that a [`Future`]:
+//! Tasks are statically allocated and intrinsically pinned. Their wake targets
+//! therefore require no allocation or reference counting. Each supported wake
+//! class has a static [`RawWakerVTable`] with trivial clone and drop behavior.
 //!
-//! - May be waiting for potentially `N` distinct wake sources.
+//! # Tagged wake targets
 //!
-//! The executor assumes that a *waker*:
+//! [`WakeTarget`] stores a wake-class tag in the unused low bits of an aligned
+//! data pointer. The class selects one table from a closed kernel-defined set.
+//! Unknown tables and insufficiently aligned data pointers are rejected before
+//! a target can be constructed.
 //!
-//! - May potentially wake up `M` distinct *sleeper*s.
+//! [`AtomicWaker`] stores either null or one tagged target in a single atomic
+//! pointer. Null represents an inactive registration. An atomic exchange arms,
+//! cancels, or claims a registration without a separate state word.
 //!
-//! Furthermore, the executor guarantees that each [`Waker`] actuation will
-//! result in a respective [`Future::poll`] invocation.
+//! # Multi-sleeper lists
 //!
-//! ## Waker Structure
+//! [`WakeList`] is an append-only intrusive list of [`WakeNode`] values. Each
+//! node has permanent static membership and one atomic wake slot. Immutable
+//! topology avoids physical removal, memory reclamation, and list ABA.
 //!
-//! A [`Waker`] to the executor is a simple pointer to a `'static`,
-//! intrinsically-pinned [`Task`].
+//! # Interrupt safety
 //!
-//! Because of this, there is no waker-related:
+//! Wake-slot operations use single atomic exchanges and list traversal never
+//! waits on list state owned by an interrupted execution context. Supported
+//! wake classes must be safe for concurrent and interrupt-context invocation.
+//! Hardware atomics and callbacks may still have target-dependent latency.
+//! Wake-all remains linear in the number of permanently linked nodes, so users
+//! must bound list length where interrupt latency matters.
 //!
-//! - External memory allocation, all [`Waker`] instances are completely
-//!   self-contained.
-//! - Reference counting, as the [`Task`] is statically allocated and thus does
-//!   not require deallocation management.
-//! - Distinction, as all [`Waker`] instances to the same [`Task`] are
-//!   guaranteed to be identical.
-//!
-//! ### Wakeup Behaviour
-//!
-//! Wake-ups are performed as a single constant-time complexity (otherwise
-//! `O(1)`) per-sleeper operation. En masse wake-ups are assumed to have
-//! linear-time (`O(n)`) complexity.
-//!
-//! # A Multi-Sleeper, Multi-Waker Model
-//!
-//! To achieve a seamless async executor model, one must allow a particular
-//! [`Future`] to:
-//!
-//! - Await a selection of distinct naturally asynchronous conditions ([^1])
-//!   (and possibly hardware-dependant).
-//!
-//! Finally, one must also permit a *wake source* to recollect an arbitrary
-//! number of *sleeper* tasks.
-//!
-//! ## A Multi-Sleeper List
-//!
-//! With these basic goals in mind, one way we introduce a multi-sleeper model
-//! is through the use of an atomic (hence lock-free) singly-linked circular
-//! linked list.
-//!
-//! This linked list will be embedded inside each (hand-rolled) [`Future`] (and,
-//! of course, stored as part of a "wake me up later" operation).
-//!
-//! This model is implemented as the [`WaitQueue`] structure.
-//! [`WaitQueue`] allow a single [`Future`] to register a [`Waker`] collectively
-//! with other [`Future`]s in the list.
-//!
-//! ## Concurrency Management
-//!
-//! [`WaitQueue`] permits simultaneous lock-free operation between multiple
-//! logical threads of execution.
-//!
-//! Furthermore, the linked list has no risk of suffering from the *ABA
-//! Problem*, as:
-//!
-//! 1. Every [`Task`] is valid for `'static` and pinned in-place.
-//! 2. [`Task`] storage is re-used between different tasks of the same type.
-//!
-//! ## Time Complexity
-//!
-//! Due to the excellent time complexity of singly-linked circular linked lists,
-//! wake-ups and other [`Waker`]-related operations are quite fast.
-//!
-//! Particularly, this allows:
-//!
-//! - Constant-time (`O(1)`) [`Future`] wake-up scheduling.
-//! - Linear-time (`O(n)`) [`Future`] wait-queue retirement.
-//!
-//! [^1]: Also known as a fan-out asynchronous model.
-//!
-//! [`WaitQueue`]: list::WaitQueue
+//! [`WakeList`]: list::WakeList
+//! [`WakeNode`]: list::WakeNode
 
 pub mod list;
 
-pub mod list2;
-
 use core::{
+    fmt,
+    mem::ManuallyDrop,
     ptr::{self, NonNull},
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::Ordering,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
+use nekor_sync::atomic::tagged::{AtomicTaggedPointer, Field, Tag, TagField, TaggedPointer};
+
 use crate::{schedule::Scheduler, task::Task};
 
-/// The virtual function table that is associated to all [`Waker`] instances.
+/// The low address bits reserved for a [`WakeClass`] tag.
+const WAKE_TAG_MASK: usize = 0b111;
+
+/// The virtual function table associated with task [`Waker`] instances.
 pub static VTABLE: RawWakerVTable = const {
-    /// Clone a [`Waker`].
+    /// Clones a task waker.
     ///
     /// # Safety
     ///
-    /// This assumes that the data pointer has been sourced from a `&'static
-    /// Task` reference.
+    /// `data` must have been sourced from a valid `&'static Task`.
     unsafe fn clone(data: *const ()) -> RawWaker {
-        // NOTE: Tasks are always `'static`, no need to handle a reference
-        // count.
         RawWaker::new(data, &self::VTABLE)
     }
 
-    /// Wake a [`Task`] by value, effectively consuming it.
+    /// Schedules the addressed task.
     ///
     /// # Safety
     ///
-    /// This assumes that the data pointer has been sourced from a `&'static
-    /// Task` reference.
+    /// `task` must have been sourced from a valid `&'static Task`.
     unsafe fn wake(task: *const ()) {
-        // SAFETY: Assumed to be a valid `&'static Task`.
-        let task: &'static Task =
-            unsafe { NonNull::<Task>::new_unchecked(task as *mut _).as_ref() };
+        // SAFETY: The vtable contract requires a valid static task address.
+        let target_task =
+            unsafe { NonNull::<Task>::new_unchecked(task.cast::<Task>().cast_mut()).as_ref() };
 
-        // TODO: Use backpressure here.
-
-        let _ = Scheduler::try_schedule(task);
+        // TODO: Preserve a durable pending indication when the run queue is busy
+        // or full.
+        let _schedule_result = Scheduler::try_schedule(target_task);
     }
 
-    /// Properly dispose of a [`Waker`].
+    /// Disposes of a task waker.
     ///
-    /// This does nothing, as no dropping logic is required.
-    const fn drop(_: *const ()) {
-        /* no drop logic required */
-    }
+    /// Task wakers carry no reference count or other owned resource.
+    const fn drop(_: *const ()) {}
 
     RawWakerVTable::new(clone, wake, wake, drop)
 };
 
-/// A [`Waker`] that can be managed in an atomic manner.
-///
-/// # Remarks
-///
-/// This requires that any provided [`Waker`] is local to the Nekor executor
-/// (i.e., must have the [`default table`] as its own virtual function table).
-///
-/// Technically, a data pointer and a virtual function table could be atomically
-/// stored using a 16-byte atomic compare-and-swap (*DCAS*) instruction (such as
-/// `xcmpchg16b` on `x86{,-64}`), but such usage would drastically impact the
-/// range of devices that the kernel could support.
-///
-/// [`default table`]: self::VTABLE
-///
-/// # Drop
-///
-/// Since the Nekor executor [`Waker`] virtual function table has a no-op
-/// [`Drop`] implementation, this type has no [`Drop`]-related functionality.
-#[repr(transparent)]
-#[derive(Debug)]
-pub struct AtomicWaker(
-    // NOTE(invariant): This must be the data pointer of a `Waker` with a
-    // Nekor-specific virtual function table.
-    AtomicPtr<()>,
-);
+/// A test-only table for aligned atomic wake counters.
+#[cfg(test)]
+pub(super) static TEST_VTABLE: RawWakerVTable = const {
+    /// Clones a test waker.
+    ///
+    /// # Safety
+    ///
+    /// `data` must address a static aligned `AtomicUsize`.
+    unsafe fn clone(data: *const ()) -> RawWaker {
+        RawWaker::new(data, &self::TEST_VTABLE)
+    }
 
-impl AtomicWaker {
-    /// Attempt to instantiate a new [`AtomicWaker`] for the target [`Waker`].
+    /// Increments the addressed test counter.
     ///
-    /// # Failure
+    /// # Safety
     ///
-    /// Fails with [`None`] if the provided [`Waker`] virtual function table
-    /// does not match the [`default table`].
-    ///
-    /// [`default table`]: self::VTABLE
+    /// `data` must address a static aligned `AtomicUsize`.
+    unsafe fn wake(data: *const ()) {
+        let counter_address = data.cast_mut().cast::<core::sync::atomic::AtomicUsize>();
+
+        // SAFETY: The test vtable contract requires this exact static pointee.
+        let target_counter = unsafe { NonNull::new_unchecked(counter_address).as_ref() };
+
+        let _previous_count = target_counter.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Disposes of a test waker.
+    const fn drop(_: *const ()) {}
+
+    RawWakerVTable::new(clone, wake, wake, drop)
+};
+
+/// A kernel-supported interpretation of a tagged wake-target pointer.
+///
+/// Every class must use static aligned data, trivial clone and drop behavior,
+/// and a callback that is safe under concurrent interrupt-context invocation.
+#[derive(Clone, Copy)]
+#[repr(usize)]
+enum WakeClass {
+    /// A pointer to a static executor [`Task`].
+    Task = 0,
+
+    /// A pointer to a static aligned test counter.
+    #[cfg(test)]
+    Test = 1,
+}
+
+impl WakeClass {
+    /// Determines the class assigned to a supported raw-waker table.
     #[inline]
-    #[must_use]
-    pub fn new(waker: &Waker) -> Option<Self> {
-        if ptr::eq(waker.vtable(), &raw const self::VTABLE) {
-            Some(Self(AtomicPtr::new(waker.data().cast_mut())))
+    fn from_vtable(target_table: &'static RawWakerVTable) -> Option<Self> {
+        if ptr::eq(target_table, &raw const self::VTABLE) {
+            Some(Self::Task)
         } else {
+            #[cfg(test)]
+            if ptr::eq(target_table, &raw const self::TEST_VTABLE) {
+                return Some(Self::Test);
+            }
+
             None
         }
     }
 
-    /// Instantiate a new [`AtomicWaker`] for the target [`Waker`], without
-    /// checking for its virtual function table.
-    ///
-    /// # Safety
-    ///
-    /// The target [`Waker`] must be local to the Nekor executor (i.e., must
-    /// have the [`default table`] as its own virtual function table).
-    ///
-    /// [`default table`]: self::VTABLE
+    /// Returns the raw-waker table assigned to this class.
     #[inline]
-    #[must_use]
-    pub unsafe fn new_unchecked(waker: &Waker) -> Self {
-        Self(AtomicPtr::new(waker.data().cast_mut()))
+    const fn vtable(self) -> &'static RawWakerVTable {
+        match self {
+            Self::Task => &self::VTABLE,
+            #[cfg(test)]
+            Self::Test => &self::TEST_VTABLE,
+        }
+    }
+}
+
+// SAFETY: The three-bit mask reserves one contiguous low-bit field. The
+// logical value is exactly one `WakeClass` selected by `TagField`.
+unsafe impl Tag for WakeClass {
+    const MASK: usize = WAKE_TAG_MASK;
+
+    type Type = TagField;
+
+    type Value = Self;
+}
+
+// SAFETY: Every encoded class fits the reserved field. Decoding accepts exactly
+// the assigned discriminants and inverts each encoded class.
+unsafe impl Field for WakeClass {
+    #[inline]
+    fn value(self) -> usize {
+        self as usize
     }
 
-    /// Instantiate a new [`AtomicWaker`] that is initialized to *a null value*.
+    #[inline]
+    fn from_value(target_value: usize) -> Option<Self> {
+        match target_value {
+            target_value if target_value == Self::Task as usize => Some(Self::Task),
+            #[cfg(test)]
+            target_value if target_value == Self::Test as usize => Some(Self::Test),
+            _ => None,
+        }
+    }
+}
+
+// NOTE(invariant): The task wake class uses a `Task` data pointer. The explicit
+// task alignment guarantees support for every bit required by `WakeClass`.
+const _: () = assert!(TaggedPointer::<Task, WakeClass>::pointee_supports_tag());
+
+/// A validated static wake target from the kernel's supported class set.
+///
+/// The target is copyable because every supported class has static data and
+/// trivial ownership behavior. Copying this value does not clone an owned
+/// resource.
+// NOTE(invariant): The contained generic tagged pointer has a valid
+// `WakeClass`. Its untagged address is valid static data for that class's
+// raw-waker table.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct WakeTarget(TaggedPointer<(), WakeClass>);
+
+impl WakeTarget {
+    /// Validates and encodes a supported waker.
+    ///
+    /// Returns [`None`] when the vtable is not in the kernel's closed class
+    /// set, when the data pointer is null, or when its address does not
+    /// provide all reserved tag bits.
+    #[inline]
+    #[must_use]
+    pub fn new(target_waker: &Waker) -> Option<Self> {
+        let target_class = WakeClass::from_vtable(target_waker.vtable())?;
+        let target_data = NonNull::new(target_waker.data().cast_mut())?;
+
+        TaggedPointer::new(target_data, target_class).map(Self)
+    }
+
+    /// Invokes this target's class-specific wake-by-reference behavior.
+    #[inline]
+    fn wake_by_ref(self) -> bool {
+        let Self(tagged_target) = self;
+        let Some((target_data, target_class)) = tagged_target.split() else {
+            return false;
+        };
+        let raw_waker = RawWaker::new(target_data.as_ptr().cast_const(), target_class.vtable());
+
+        // SAFETY: The `WakeTarget` invariant proves that the decoded data and
+        // selected vtable form a valid static waker. `ManuallyDrop` preserves
+        // wake-by-reference semantics without consuming a logical raw-waker
+        // ownership unit.
+        let target_waker = ManuallyDrop::new(unsafe { Waker::from_raw(raw_waker) });
+
+        target_waker.wake_by_ref();
+
+        true
+    }
+}
+
+impl fmt::Debug for WakeTarget {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("WakeTarget").finish_non_exhaustive()
+    }
+}
+
+// SAFETY: Every constructible target uses a supported `Waker`, whose data is
+// static and whose callback satisfies the `Waker` thread-safety contract.
+unsafe impl Send for WakeTarget {}
+
+// SAFETY: `WakeTarget` is immutable and every supported callback permits
+// concurrent wake-by-reference invocation.
+unsafe impl Sync for WakeTarget {}
+
+/// A nullable tagged wake target managed through one atomic pointer.
+///
+/// Null represents an inactive registration. A non-null value is a validated
+/// [`WakeTarget`]. Arm, cancellation, and wake claiming use atomic exchanges so
+/// an interrupt never waits for a registration owner.
+// NOTE(invariant): The generic atomic value is either null or contains the
+// tagged pointer from a valid `WakeTarget`. Only `arm` writes a non-null value.
+#[repr(transparent)]
+#[derive(Debug)]
+pub struct AtomicWaker(AtomicTaggedPointer<(), WakeClass>);
+
+impl AtomicWaker {
+    /// Constructs an inactive atomic wake slot.
     #[inline]
     #[must_use]
     pub const fn null() -> Self {
-        Self(AtomicPtr::new(ptr::null_mut()))
+        Self(AtomicTaggedPointer::null())
     }
 
-    /// Materialize the [`Waker`] from the [`AtomicWaker`].
+    /// Arms this slot with a validated target.
     ///
-    /// # Failure
+    /// The acquiring read-modify-write synchronizes with a preceding wake claim
+    /// on the same slot. This is required by the list's arm-before-check
+    /// registration protocol.
     ///
-    /// Fails with [`None`] if the [`AtomicWaker`] is not initialized.
-    ///
-    /// # Remarks
-    ///
-    /// This method is safe to call multiple times, but it will only return
-    /// the same [`Waker`] instance if it is called multiple times.
-    ///
-    /// The vtable is guaranteed to be the same as the [`default table`].
-    ///
-    /// [`default table`]: self::VTABLE
+    /// Returns whether another target was active immediately before this arm.
     #[inline]
-    pub fn materialize(&self) -> Option<Waker> {
-        let Self(atomic_address) = self;
+    #[must_use]
+    pub fn arm(&self, target_waker: WakeTarget) -> bool {
+        let Self(target_address) = self;
+        let WakeTarget(tagged_target) = target_waker;
 
-        let task_address = atomic_address.load(Ordering::Acquire);
-
-        NonNull::new(task_address).map(|task_address| unsafe {
-            Waker::from_raw(RawWaker::new(NonNull::as_ptr(task_address), &self::VTABLE))
-        })
+        target_address
+            .swap(Some(tagged_target), Ordering::SeqCst)
+            .is_some()
     }
 
-    /// Takes the [`Waker`] from the [`AtomicWaker`] and returns it.
+    /// Cancels the currently active target.
     ///
-    /// # Failure
+    /// A concurrent wake that claimed the target first may still invoke its
+    /// callback after this method returns.
     ///
-    /// Fails with [`None`] if the [`AtomicWaker`] is not initialized.
-    ///
-    /// # Remarks
-    ///
-    /// The vtable is guaranteed to be the same as the [`default table`].
-    ///
-    /// [`default table`]: self::VTABLE
+    /// Returns whether this call cancelled an active target.
     #[inline]
-    pub fn take(&self) -> Option<Waker> {
-        let Self(atomic_address) = self;
+    #[must_use]
+    pub fn cancel(&self) -> bool {
+        let Self(target_address) = self;
 
-        let task_address = atomic_address.swap(ptr::null_mut(), Ordering::AcqRel);
+        target_address.swap(None, Ordering::SeqCst).is_some()
+    }
 
-        NonNull::new(task_address).map(|task_address|
-            // SAFETY: The pointer points to a valid task, and therefore abides by the vtable's expectations.
-            unsafe {
-                Waker::from_raw(RawWaker::new(NonNull::as_ptr(task_address), &self::VTABLE))
-            })
+    /// Determines whether this slot currently contains an active target.
+    #[inline]
+    #[must_use]
+    pub fn is_armed(&self) -> bool {
+        let Self(target_address) = self;
+
+        !target_address.is_null(Ordering::SeqCst)
+    }
+
+    /// Claims and invokes the currently active target.
+    ///
+    /// This operation clears the slot before invoking the callback, which makes
+    /// recursive and concurrent wake attempts coalesce.
+    ///
+    /// Returns whether a valid active target was claimed and invoked.
+    #[inline]
+    #[must_use]
+    pub fn wake(&self) -> bool {
+        let Self(target_address) = self;
+
+        let Some(claimed_target) = target_address.swap(None, Ordering::SeqCst) else {
+            return false;
+        };
+
+        WakeTarget(claimed_target).wake_by_ref()
     }
 }
