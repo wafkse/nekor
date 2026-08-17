@@ -30,7 +30,7 @@ impl Signal {
     /// The availability of the feature is unknown.
     #[inline]
     pub const fn unknown() -> Self {
-        Self::Guaranteed(Present::No)
+        Self::Detected(Present::No)
     }
 
     /// Determine a [`Signal`] from a bitwise [`State`].
