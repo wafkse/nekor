@@ -13,7 +13,7 @@ use serde::Deserialize;
 use crate::{
     manifest::Manifest,
     orchestrate::{
-        Orchestrate, OrchestrateVector, OrchestrationContext,
+        Orchestrate, OrchestrationContext,
         command::{OrchestrateCommand, OrchestrateError, OutputOptions},
     },
 };
@@ -53,6 +53,7 @@ pub struct InvokeContext {
 impl InvokeContext {
     /// Determine the root directory to use for path resolution.
     #[inline]
+    #[must_use]
     pub fn root(&self) -> &Utf8Path {
         let Self { root, .. } = self;
 
@@ -61,7 +62,8 @@ impl InvokeContext {
 
     /// Determine the root-level metadata provided.
     #[inline]
-    pub fn metadata(&self) -> &RootMetadata {
+    #[must_use]
+    pub const fn metadata(&self) -> &RootMetadata {
         let Self { metadata, .. } = self;
 
         metadata
@@ -69,7 +71,7 @@ impl InvokeContext {
 
     /// Determine the root-level metadata provided, in a mutable manner.
     #[inline]
-    pub fn metadata_mut(&mut self) -> &mut RootMetadata {
+    pub const fn metadata_mut(&mut self) -> &mut RootMetadata {
         let Self { metadata, .. } = self;
 
         metadata
@@ -77,7 +79,8 @@ impl InvokeContext {
 
     /// Determine the build manifest.
     #[inline]
-    pub fn manifest(&self) -> &Manifest {
+    #[must_use]
+    pub const fn manifest(&self) -> &Manifest {
         let Self { manifest, .. } = self;
 
         manifest
@@ -85,7 +88,7 @@ impl InvokeContext {
 
     /// Determine the build manifest, in a mutable manner.
     #[inline]
-    pub fn manifest_mut(&mut self) -> &mut Manifest {
+    pub const fn manifest_mut(&mut self) -> &mut Manifest {
         let Self { manifest, .. } = self;
 
         manifest
@@ -93,7 +96,8 @@ impl InvokeContext {
 
     /// Determine the orchestration context.
     #[inline]
-    pub fn orchestrate(&self) -> &OrchestrationContext {
+    #[must_use]
+    pub const fn orchestrate(&self) -> &OrchestrationContext {
         let Self {
             orchestrate_context,
             ..
@@ -104,7 +108,7 @@ impl InvokeContext {
 
     /// Determine the orchestration context, in a mutable manner.
     #[inline]
-    pub fn orchestrate_mut(&mut self) -> &mut OrchestrationContext {
+    pub const fn orchestrate_mut(&mut self) -> &mut OrchestrationContext {
         let Self {
             orchestrate_context,
             ..
@@ -115,7 +119,8 @@ impl InvokeContext {
 
     /// Determine the output options of this invocation context.
     #[inline]
-    pub fn output(&self) -> &OutputOptions {
+    #[must_use]
+    pub const fn output(&self) -> &OutputOptions {
         let Self { output, .. } = self;
 
         output
@@ -139,6 +144,11 @@ impl Invoke {
     ///
     /// This takes a parsed [`Invocation`] top-level structure and commences the
     /// orchestration process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when metadata or manifest loading fails, command
+    /// scheduling fails, or an orchestration worker fails.
     #[inline]
     pub fn run(self) -> Result<(), InvokeError> {
         let Self {
@@ -182,11 +192,7 @@ impl Invoke {
                 .map_err(InvokeError::Orchestrate)?;
         }
 
-        let vector_list = context
-            .orchestrate_context
-            .content_mut()
-            .drain(..)
-            .collect::<Vec<OrchestrateVector>>();
+        let vector_list = std::mem::take(context.orchestrate_context.content_mut());
 
         thread::scope(|scope| -> Result<(), InvokeError> {
             for mut vector in vector_list {
@@ -199,7 +205,7 @@ impl Invoke {
                 }
 
                 for handle in handle_list {
-                    let _ = handle
+                    let () = handle
                         .join()
                         .map_err(|_| OrchestrateError::Internal)
                         .map_err(InvokeError::Orchestrate)??;

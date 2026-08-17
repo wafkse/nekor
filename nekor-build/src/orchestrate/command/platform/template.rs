@@ -41,7 +41,7 @@ impl Execute for PlatformTemplateCommand {
 }
 
 impl PlatformTemplateCommand {
-    /// Render every MiniJinja template belonging to the selected platform.
+    /// Render every `MiniJinja` template belonging to the selected platform.
     fn build(
         context: &InvokeContext,
         platform: &Platform,
@@ -113,7 +113,7 @@ impl PlatformTemplateCommand {
         Ok(PlatformTemplateOutput::Clean { files })
     }
 
-    /// Determine the MiniJinja template name relative to a platform root.
+    /// Determine the `MiniJinja` template name relative to a platform root.
     fn template_name(root: &Utf8Path, path: &Utf8Path) -> Result<String, PlatformTemplateError> {
         path.strip_prefix(root)
             .map(Utf8Path::to_string)
@@ -138,7 +138,7 @@ pub enum PlatformTemplateError {
     #[error(transparent(0))]
     File(PlatformFileError),
 
-    /// MiniJinja failed to parse or render a template.
+    /// `MiniJinja` failed to parse or render a template.
     #[error(transparent(0))]
     MiniJinja(minijinja::Error),
 

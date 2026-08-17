@@ -16,9 +16,17 @@ pub trait Orchestrate {
 
     /// Schedule the required downstream orchestration commands for this
     /// command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when downstream scheduling fails.
     fn schedule(self, context: &mut InvokeContext) -> Result<(), Self::Error>;
 
     /// Execute the orchestration command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when command execution fails.
     fn execute(self, context: &InvokeContext) -> Result<(), Self::Error>;
 }
 
@@ -39,8 +47,9 @@ pub trait Orchestrate {
 pub struct OrchestrationContext(Vec<OrchestrateVector>);
 
 impl OrchestrationContext {
-    /// Creates a new [`OrchestrateContext`].
+    /// Creates a new [`OrchestrationContext`].
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         Self(Vec::<OrchestrateVector>::new())
     }
@@ -55,10 +64,12 @@ impl OrchestrationContext {
     pub fn concurrent(&mut self, command: impl Iterator<Item = OrchestrateCommand>) {
         let Self(vector_list) = self;
 
-        let target_vector = if let Some(vector_last) = vector_list.last_mut() {
-            vector_last
-        } else {
+        let target_vector = if vector_list.is_empty() {
             vector_list.push_mut(OrchestrateVector::new())
+        } else {
+            let final_index = vector_list.len() - 1;
+
+            &mut vector_list[final_index]
         };
 
         target_vector.content_mut().extend(command);
@@ -93,9 +104,16 @@ impl OrchestrationContext {
     }
 }
 
+impl Default for OrchestrationContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OrchestrationContext {
     /// Determine the orchestration vectors contained within this context.
     #[inline]
+    #[must_use]
     pub const fn content(&self) -> &[OrchestrateVector] {
         let Self(orchestrate_vec) = self;
 
@@ -122,6 +140,7 @@ pub struct OrchestrateVector {
 impl OrchestrateVector {
     /// Creates a new unnamed [`OrchestrateVector`].
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         let orchestrate_list = Vec::<OrchestrateCommand>::new();
 
@@ -129,11 +148,18 @@ impl OrchestrateVector {
     }
 }
 
+impl Default for OrchestrateVector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OrchestrateVector {
     /// Determine the slice of [`Orchestrate`] commands that this vector
     /// manages.
     #[inline]
-    pub fn content(&self) -> &[OrchestrateCommand] {
+    #[must_use]
+    pub const fn content(&self) -> &[OrchestrateCommand] {
         let Self {
             orchestrate_list, ..
         } = self;
@@ -144,7 +170,7 @@ impl OrchestrateVector {
     /// Determine the slice of [`Orchestrate`] commands that this vector
     /// manages, in a mutable manner.
     #[inline]
-    pub fn content_mut(&mut self) -> &mut Vec<OrchestrateCommand> {
+    pub const fn content_mut(&mut self) -> &mut Vec<OrchestrateCommand> {
         let Self {
             orchestrate_list, ..
         } = self;

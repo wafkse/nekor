@@ -95,7 +95,7 @@ impl Orchestrate for OrchestratePlatform {
 
         PlatformOutput::output(target_output, &mut target_buffer, context.output())
             .expect("failed to format output");
-        println!("{}", target_buffer);
+        println!("{target_buffer}");
 
         Ok(())
     }

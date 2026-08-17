@@ -22,7 +22,8 @@ pub struct Manifest {
 impl Manifest {
     /// Determine the manifest build information.
     #[inline]
-    pub fn build(&self) -> &ManifestBuildInfo {
+    #[must_use]
+    pub const fn build(&self) -> &ManifestBuildInfo {
         let Self { build, .. } = self;
 
         build
@@ -30,7 +31,8 @@ impl Manifest {
 
     /// Determine the platform database specified in the manifest.
     #[inline]
-    pub fn platform(&self) -> &PlatformDatabase {
+    #[must_use]
+    pub const fn platform(&self) -> &PlatformDatabase {
         let Self { platform, .. } = self;
 
         platform
@@ -46,6 +48,7 @@ pub struct ManifestBuildInfo {
 impl ManifestBuildInfo {
     /// Determine the default platform name to build.
     #[inline]
+    #[must_use]
     pub const fn platform(&self) -> Option<&PlatformName> {
         let Self { default, .. } = self;
 
@@ -111,7 +114,7 @@ impl From<Vec<PlatformDesc>> for PlatformDatabase {
             .map(|platform| (platform.name.clone(), platform))
             .collect();
 
-        PlatformDatabase(map)
+        Self(map)
     }
 }
 
@@ -152,6 +155,7 @@ pub struct PlatformDesc {
 impl PlatformDesc {
     /// Determine the name of the platform.
     #[inline]
+    #[must_use]
     pub const fn name(&self) -> &PlatformName {
         let Self { name, .. } = self;
 
@@ -160,6 +164,7 @@ impl PlatformDesc {
 
     /// Determine the path to the platform root directory.
     #[inline]
+    #[must_use]
     pub fn path(&self) -> &Utf8Path {
         let Self { path, .. } = self;
 
@@ -168,6 +173,7 @@ impl PlatformDesc {
 
     /// Determine the base platform name.
     #[inline]
+    #[must_use]
     pub const fn base(&self) -> Option<&PlatformName> {
         let Self { base, .. } = self;
 
@@ -176,6 +182,7 @@ impl PlatformDesc {
 
     /// Determine the description of the platform.
     #[inline]
+    #[must_use]
     pub fn description(&self) -> Option<&str> {
         let Self { description, .. } = self;
 

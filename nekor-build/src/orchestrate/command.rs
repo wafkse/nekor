@@ -27,7 +27,7 @@ impl Orchestrate for OrchestrateCommand {
 
     fn schedule(self, context: &mut InvokeContext) -> Result<(), Self::Error> {
         match self {
-            OrchestrateCommand::Platform(orchestrate_platform) => orchestrate_platform
+            Self::Platform(orchestrate_platform) => orchestrate_platform
                 .schedule(context)
                 .map_err(OrchestrateError::PlatformError),
         }
@@ -35,7 +35,7 @@ impl Orchestrate for OrchestrateCommand {
 
     fn execute(self, context: &InvokeContext) -> Result<(), Self::Error> {
         match self {
-            OrchestrateCommand::Platform(orchestrate_platform) => orchestrate_platform
+            Self::Platform(orchestrate_platform) => orchestrate_platform
                 .execute(context)
                 .map_err(OrchestrateError::PlatformError),
         }
@@ -66,6 +66,10 @@ pub trait Execute {
     type Error;
 
     /// Execute the command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the command cannot produce its output.
     fn command<'a>(
         self,
         context: &'a InvokeContext,
@@ -103,6 +107,10 @@ pub struct OutputOptions {
 /// A trait for generalised command outputs.
 pub trait Output: Serialize {
     /// Output the downstream formatted output as per the provided options.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when writing formatted output fails.
     fn output<W>(self, writer: &mut W, options: &OutputOptions) -> fmt::Result
     where
         W: fmt::Write;

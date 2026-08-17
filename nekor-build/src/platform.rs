@@ -68,7 +68,7 @@ pub enum PlatformLoadError {
     },
     /// Same-precedence platform fragments conflict.
     #[error(transparent(0))]
-    Merge(MergeError),
+    Merge(Box<MergeError>),
 }
 
 /// An error produced while resolving a platform inheritance chain.
@@ -185,7 +185,9 @@ impl Platform {
                     error: Box::new(error),
                 }
             })?;
-            document = document.merge(fragment).map_err(PlatformLoadError::Merge)?;
+            document = document
+                .merge(fragment)
+                .map_err(|error| PlatformLoadError::Merge(Box::new(error)))?;
         }
 
         Ok(Self {
@@ -212,7 +214,7 @@ impl Platform {
         document
     }
 
-    /// Discover MiniJinja templates belonging to the selected platform layer.
+    /// Discover `MiniJinja` templates belonging to the selected platform layer.
     ///
     /// # Errors
     ///
