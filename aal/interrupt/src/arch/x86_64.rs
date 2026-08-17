@@ -53,10 +53,10 @@ pub enum Present {
     ///
     /// An *Interrupt Service Routine* dispatch to the gate will result in a
     /// *General Protection* fault.
-    No = 0b0000_000__0,
+    No = 0b0000_0000,
 
     /// Yes, the specified [`RawGateDescriptor`] is present.
-    Yes = 0b0000_000__1,
+    Yes = 0b0000_0001,
 }
 
 /// The bitwise field of the *Gate Type* field of this [`RawTypeAttributes`].
@@ -106,14 +106,16 @@ pub struct RawTypeAttributes(u8);
 impl RawTypeAttributes {
     /// Construct a zeroed [`RawTypeAttributes`].
     #[inline]
+    #[must_use]
     pub const fn zeroed() -> Self {
         Self(u8::MIN)
     }
 
     /// Access the `Gate Type` field (bits 0–3) of this `RawTypeAttributes`.
     #[inline]
+    #[must_use]
     pub const fn gate_type(&self) -> TypeAttributesGateType<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         TypeAttributesGateType::wrap(target_value)
     }
@@ -130,8 +132,9 @@ impl RawTypeAttributes {
     /// Access the `Privilege Level` field (bits 5–6) of this
     /// `RawTypeAttributes`.
     #[inline]
+    #[must_use]
     pub const fn privilege_level(&self) -> TypeAttributesPrivilegeLevel<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         TypeAttributesPrivilegeLevel::wrap(target_value)
     }
@@ -147,8 +150,9 @@ impl RawTypeAttributes {
 
     /// Access the `Present` bit (bit 7) of this `RawTypeAttributes`.
     #[inline]
+    #[must_use]
     pub const fn present(&self) -> TypeAttributesPresent<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         TypeAttributesPresent::wrap(target_value)
     }
@@ -164,10 +168,11 @@ impl RawTypeAttributes {
     /// Pack a 3-tuple ([`GateType64`], [`PrivilegeLevel`], [`Present`]) into a
     /// [`RawTypeAttributes`] structure.
     #[inline]
+    #[must_use]
     pub const fn pack(target_tuple: (GateType64, PrivilegeLevel, Present)) -> Self {
         let (gate_type, privilege_level, is_present) = target_tuple;
 
-        let mut target_attributes = RawTypeAttributes::zeroed();
+        let mut target_attributes = Self::zeroed();
 
         target_attributes
             .gate_type_mut()
@@ -177,7 +182,7 @@ impl RawTypeAttributes {
             .privilege_level_mut()
             .const_merge(privilege_level as _);
 
-        let target_state = if let Present::Yes = is_present {
+        let target_state = if matches!(is_present, Present::Yes) {
             State::Set
         } else {
             State::Cleared
@@ -191,7 +196,7 @@ impl RawTypeAttributes {
 
 /// A 64-bit raw *Gate Descriptor* structure.
 ///
-/// Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table#Structure_on_x86-64
+/// Reference: <https://wiki.osdev.org/Interrupt_Descriptor_Table#Structure_on_x86-64>
 #[derive(Debug, Clone, Copy)]
 #[repr(
     C,
@@ -230,8 +235,9 @@ impl RawGateDescriptor {
     /// Determine the *Code Segment Descriptor* that is part of this
     /// [`RawGateDescriptor`].
     #[inline]
+    #[must_use]
     pub const fn segment(&self) -> &RawCodeSegment {
-        let &Self { ref segment, .. } = self;
+        let Self { segment, .. } = self;
 
         segment
     }
@@ -249,10 +255,9 @@ impl RawGateDescriptor {
 
     /// Determine the bits `0..=15` of the interrupt handler address.
     #[inline]
+    #[must_use]
     pub const fn offset_0_15(&self) -> &Partitioned<0, 15, u64> {
-        let &Self {
-            ref offset_0_15, ..
-        } = self;
+        let Self { offset_0_15, .. } = self;
 
         offset_0_15
     }
@@ -271,10 +276,9 @@ impl RawGateDescriptor {
 
     /// Determine the bits `16..=31` of the interrupt handler address.
     #[inline]
+    #[must_use]
     pub const fn offset_16_31(&self) -> &Partitioned<16, 31, u64> {
-        let &Self {
-            ref offset_16_31, ..
-        } = self;
+        let Self { offset_16_31, .. } = self;
 
         offset_16_31
     }
@@ -293,10 +297,9 @@ impl RawGateDescriptor {
 
     /// Determine the bits `32..=63` of the interrupt handler address.
     #[inline]
+    #[must_use]
     pub const fn offset_32_63(&self) -> &Partitioned<32, 63, u64> {
-        let &Self {
-            ref offset_32_63, ..
-        } = self;
+        let Self { offset_32_63, .. } = self;
 
         offset_32_63
     }
@@ -315,6 +318,7 @@ impl RawGateDescriptor {
 
     /// Determine the IST (Interrupt Stack Table) field.
     #[inline]
+    #[must_use]
     pub const fn interrupt_stack_table(&self) -> Option<RawIst> {
         let &Self { ist, .. } = self;
 
@@ -332,10 +336,10 @@ impl RawGateDescriptor {
 
     /// Determine the type attributes of this *Gate Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn type_attributes(&self) -> &RawTypeAttributes {
-        let &Self {
-            ref type_attributes,
-            ..
+        let Self {
+            type_attributes, ..
         } = self;
 
         type_attributes
@@ -359,7 +363,7 @@ impl RawGateDescriptor {
 const _: () = {
     assert!(mem::size_of::<RawGateDescriptor>() == mem::size_of::<u128>());
 
-    assert!(mem::align_of::<RawGateDescriptor>() == mem::align_of::<usize>())
+    assert!(mem::align_of::<RawGateDescriptor>() == mem::align_of::<usize>());
 };
 
 impl Eq for RawGateDescriptor {}
@@ -476,6 +480,7 @@ impl Service {
     /// Forgery of a [`Service`] token is __only__ acceptable in the case of
     /// deferred *Interrupt Service Routine*.
     #[inline]
+    #[must_use]
     pub const unsafe fn provide() -> Self {
         Self(marker::PhantomData)
     }
@@ -514,7 +519,7 @@ impl Environmental for Interrupted {}
 pub trait Forward: private::Sealed {
     #[doc(hidden/* reason = "this function must be a last resort" */)]
     #[unsafe(naked)]
-    unsafe extern "C" fn raw<'a>(target_service: &'a Service) -> ! {
+    unsafe extern "C" fn raw(target_service: &Service) -> ! {
         arch::naked_asm!("ud2")
     }
 }
@@ -529,6 +534,12 @@ pub struct Become<I>(marker::PhantomData<fn() -> I>);
 /// ## Multiple Entrance Vectors
 ///
 /// This *Interrupt Service Routine* can be entered from many distinct vectors.
+///
+/// # Safety
+///
+/// Implementors must preserve the processor interrupt-entry ABI for every
+/// implemented vector. The raw entry point must use the expected stack layout,
+/// preserve all required register state, and never return normally.
 pub unsafe trait Routine<const N: u8>
 where
     Vector<N>: Available,
@@ -569,7 +580,7 @@ where
     // TODO: We need to write our entry functions manually in global_asm
     #[doc(hidden/* reason = "this function must be a last resort" */)]
     #[unsafe(naked)]
-    unsafe extern "C" fn raw<'a>(target_service: &'a Service) -> ! {
+    unsafe extern "C" fn raw(target_service: &Service) -> ! {
         arch::naked_asm!(
             "jmp {}",
             "ud2",
@@ -578,10 +589,22 @@ where
     }
 
     /// The actual routine used in the *Interrupt Service Routine*.
-    unsafe fn me<'a>(target_service: &'a Service, target_input: Self::Input) -> !;
+    ///
+    /// # Safety
+    ///
+    /// The service reference and input must describe the active interrupt
+    /// frame for vector `N`. The implementation must restore or transfer that
+    /// frame according to the processor interrupt-entry ABI and must not
+    /// return normally.
+    unsafe fn me(target_service: &Service, target_input: Self::Input) -> !;
 }
 
 /// An *Interrupt Gate* to a *Interrupt Service [`Routine`]*.
+///
+/// # Safety
+///
+/// Implementors must satisfy [`Routine`] and must only be installed in an
+/// interrupt gate whose entry disables maskable interrupts.
 pub unsafe trait Gate<const N: u8>: Routine<N, Mode = Interrupted>
 where
     Vector<N>: Available,
@@ -589,6 +612,11 @@ where
 }
 
 /// An *Trap Gate* to a *Interrupt Service [`Routine`]*.
+///
+/// # Safety
+///
+/// Implementors must satisfy [`Routine`] and must only be installed in a trap
+/// gate whose entry preserves the interrupt-enable state.
 pub unsafe trait Trap<const N: u8>: Routine<N, Mode = Trapped>
 where
     Vector<N>: Available,
