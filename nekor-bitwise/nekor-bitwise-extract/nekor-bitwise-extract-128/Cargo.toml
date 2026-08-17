@@ -1,13 +1,13 @@
 [package]
 name = "nekor-bitwise-extract-128"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [dependencies]
-nekor-bitwise-extract-128-8 = { version = "*", path = "../nekor-bitwise-extract-128-8" }
-nekor-bitwise-extract-128-16 = { version = "*", path = "../nekor-bitwise-extract-128-16" }
-nekor-bitwise-extract-128-32 = { version = "*", path = "../nekor-bitwise-extract-128-32" }
-nekor-bitwise-extract-128-64 = { version = "*", path = "../nekor-bitwise-extract-128-64" }
-nekor-bitwise-extract-128-128 = { version = "*", path = "../nekor-bitwise-extract-128-128" }
+nekor-bitwise-extract-128-8 = { workspace = true }
+nekor-bitwise-extract-128-16 = { workspace = true }
+nekor-bitwise-extract-128-32 = { workspace = true }
+nekor-bitwise-extract-128-64 = { workspace = true }
+nekor-bitwise-extract-128-128 = { workspace = true }
 
-nekor-bitwise-extract-core = { path = "../nekor-bitwise-extract-core" }
+nekor-bitwise-extract-core = { workspace = true }

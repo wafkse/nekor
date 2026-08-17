@@ -1,6 +1,6 @@
 [package]
 name = "nekor-aal-signal"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
@@ -8,24 +8,19 @@ edition.workspace = true
 [dependencies]
 
 [dependencies.nekor-aal-arch]
-version = "*"
-path = "../arch"
+workspace = true
 
 [dependencies.nekor-aal-cache]
-version = "*"
-path = "../cache"
+workspace = true
 
 [dependencies.nekor-aal-feature]
-version = "*"
-path = "../feature"
+workspace = true
 
 [dependencies.nekor-aal-hotpatch]
-version = "*"
-path = "../hotpatch"
+workspace = true
 
 [dependencies.nekor-bitwise]
-version = "*"
-path = "../../nekor-bitwise"
+workspace = true
 
 [lints]
 workspace = true

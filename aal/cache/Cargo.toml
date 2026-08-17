@@ -1,6 +1,6 @@
 [package]
 name = "nekor-aal-cache"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 
@@ -8,8 +8,7 @@ edition.workspace = true
 [features]
 
 [dependencies.nekor-aal-arch]
-version = "*"
-path = "../arch"
+workspace = true
 
 [lints]
 workspace = true

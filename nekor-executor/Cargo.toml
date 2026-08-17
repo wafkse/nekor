@@ -1,6 +1,6 @@
 [package]
 name = "nekor-executor"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
@@ -25,10 +25,10 @@ task-queue-size-2 = []
 task-queue-size-1 = []
 
 [dependencies]
-nekor-structure = { version = "*", path = "../nekor-structure" }
-nekor-sync = { version = "*", path = "../nekor-sync" }
-nekor-domain = { version = "*", path = "../nekor-domain" }
-nekor-aal = { version = "*", path = "../nekor-aal" }
+nekor-structure = { workspace = true }
+nekor-sync = { workspace = true }
+nekor-domain = { workspace = true }
+nekor-aal = { workspace = true }
 
 tokel = { workspace = true }
 

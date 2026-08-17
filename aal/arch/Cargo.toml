@@ -1,14 +1,14 @@
 [package]
 name = "nekor-aal-arch"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
 
 [dependencies]
-nekor-aal-agnostic = { version = "*", path = "../agnostic" }
-nekor-bitwise = { version = "*", path = "../../nekor-bitwise" }
-nekor-primitive = { version = "*", path = "../../nekor-primitive" }
+nekor-aal-agnostic = { workspace = true }
+nekor-bitwise = { workspace = true }
+nekor-primitive = { workspace = true }
 
 [lints]
 workspace = true

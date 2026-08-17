@@ -1,37 +1,30 @@
 [package]
 name = "nekor-aal"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
 
 [dependencies.nekor-aal-arch]
-version = "*"
-path = "../aal/arch"
+workspace = true
 
 [dependencies.nekor-aal-cache]
-version = "*"
-path = "../aal/cache"
+workspace = true
 
 [dependencies.nekor-aal-critical]
-version = "*"
-path = "../aal/critical"
+workspace = true
 
 [dependencies.nekor-aal-feature]
-version = "*"
-path = "../aal/feature"
+workspace = true
 
 [dependencies.nekor-aal-hotpatch]
-version = "*"
-path = "../aal/hotpatch"
+workspace = true
 
 [dependencies.nekor-aal-local]
-version = "*"
-path = "../aal/local"
+workspace = true
 
 [dependencies.nekor-aal-signal]
-version = "*"
-path = "../aal/signal"
+workspace = true
 
 [lints]
 workspace = true

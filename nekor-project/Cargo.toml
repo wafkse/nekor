@@ -1,10 +1,10 @@
 [package]
 name = "nekor-project"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [dependencies]
-nekor-project-derive = { version = "*", path = "nekor-project-derive" }
+nekor-project-derive = { workspace = true }
 
 [lints]
 workspace = true

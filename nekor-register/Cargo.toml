@@ -1,10 +1,10 @@
 [package]
 name = "nekor-register"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [dependencies]
-nekor-primitive = { version = "*", path = "../nekor-primitive" }
+nekor-primitive = { workspace = true }
 
 [lints]
 workspace = true

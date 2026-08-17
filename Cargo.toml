@@ -45,10 +45,66 @@ exclude = [
 ]
 
 [workspace.package]
+version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
+camino = "1.2.2"
+fack = "0.1.2"
+miette = { version = "7.6.0", features = ["derive"] }
 tokel = "0.2.4"
+walkdir = "2.5"
+nekor-build-kdl-config = { path = "nekor-build/nekor-build-kdl-config", package = "nekor-build-kdl-config" }
+nekor-aal = { path = "nekor-aal" }
+nekor-aal-agnostic = { path = "aal/agnostic" }
+nekor-aal-arch = { path = "aal/arch" }
+nekor-aal-cache = { path = "aal/cache" }
+nekor-aal-critical = { path = "aal/critical" }
+nekor-aal-feature = { path = "aal/feature" }
+nekor-aal-hotpatch = { path = "aal/hotpatch" }
+nekor-aal-local = { path = "aal/local" }
+nekor-aal-signal = { path = "aal/signal" }
+nekor-backoff = { path = "nekor-backoff" }
+nekor-bitwise = { path = "nekor-bitwise" }
+nekor-bitwise-extract = { path = "nekor-bitwise/nekor-bitwise-extract" }
+nekor-bitwise-extract-128 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128" }
+nekor-bitwise-extract-128-128 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128-128" }
+nekor-bitwise-extract-128-16 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128-16" }
+nekor-bitwise-extract-128-32 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128-32" }
+nekor-bitwise-extract-128-64 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128-64" }
+nekor-bitwise-extract-128-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-128-8" }
+nekor-bitwise-extract-16 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-16" }
+nekor-bitwise-extract-16-16 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-16-16" }
+nekor-bitwise-extract-16-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-16-8" }
+nekor-bitwise-extract-32 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-32" }
+nekor-bitwise-extract-32-16 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-32-16" }
+nekor-bitwise-extract-32-32 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-32-32" }
+nekor-bitwise-extract-32-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-32-8" }
+nekor-bitwise-extract-64 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64" }
+nekor-bitwise-extract-64-16 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64-16" }
+nekor-bitwise-extract-64-32 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64-32" }
+nekor-bitwise-extract-64-64 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64-64" }
+nekor-bitwise-extract-64-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-64-8" }
+nekor-bitwise-extract-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-8" }
+nekor-bitwise-extract-8-8 = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-8-8" }
+nekor-bitwise-extract-core = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-core" }
+nekor-bitwise-extract-macro = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-macro" }
+nekor-bitwise-extract-macro-impl = { path = "nekor-bitwise/nekor-bitwise-extract/nekor-bitwise-extract-macro-impl" }
+nekor-bitwise-size = { path = "nekor-bitwise/nekor-bitwise-size" }
+nekor-boot = { path = "boot/nekor-boot" }
+nekor-cpu = { path = "nekor-cpu" }
+nekor-executor = { path = "nekor-executor" }
+nekor-hal = { path = "nekor-hal" }
+nekor-platform = { path = "nekor-platform" }
+nekor-project = { path = "nekor-project" }
+nekor-register = { path = "nekor-register" }
+nekor-socal = { path = "nekor-socal" }
+nekor-domain = { path = "nekor-domain" }
+nekor-primitive = { path = "nekor-primitive" }
+nekor-project-core = { path = "nekor-project/nekor-project-core" }
+nekor-project-derive = { path = "nekor-project/nekor-project-derive" }
+nekor-structure = { path = "nekor-structure" }
+nekor-sync = { path = "nekor-sync" }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(usermode)"] }

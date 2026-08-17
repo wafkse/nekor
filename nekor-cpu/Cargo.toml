@@ -1,6 +1,6 @@
 [package]
 name = "nekor-cpu"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
@@ -22,9 +22,9 @@ maximum-core-count-4096 = []
 maximum-core-count-8192 = []
 
 [dependencies]
-nekor-aal = { version = "*", path = "../nekor-aal" }
-nekor-domain = { version = "*", path = "../nekor-domain" }
-nekor-structure = { version = "*", path = "../nekor-structure" }
+nekor-aal = { workspace = true }
+nekor-domain = { workspace = true }
+nekor-structure = { workspace = true }
 
 tokel = { workspace = true }
 

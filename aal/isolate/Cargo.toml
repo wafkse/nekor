@@ -1,6 +1,6 @@
 [package]
 name = "nekor-aal-isolate"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 
@@ -16,12 +16,12 @@ arch-x86_64-xsave-8192 = []
 arch-x86_64-xsave-16384 = []
 
 [dependencies]
-nekor-domain = { version = "*", path = "../../nekor-domain" }
-nekor-bitwise = { version = "*", path = "../../nekor-bitwise" }
-nekor-aal-arch = { version = "*", path = "../arch" }
-nekor-aal-hotpatch = { version = "*", path = "../hotpatch" }
-nekor-aal-agnostic = { version = "*", path = "../agnostic" }
-nekor-aal-feature = { version = "*", path = "../feature" }
+nekor-domain = { workspace = true }
+nekor-bitwise = { workspace = true }
+nekor-aal-arch = { workspace = true }
+nekor-aal-hotpatch = { workspace = true }
+nekor-aal-agnostic = { workspace = true }
+nekor-aal-feature = { workspace = true }
 
 tokel = { workspace = true }
 
