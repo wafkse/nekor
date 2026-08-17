@@ -82,10 +82,9 @@ impl Retry {
     ///   further. The closure embedded within the continue variant must be used
     ///   to engage in backoff.
     #[inline]
-    #[must_use]
-    pub fn attempt<'a>(
-        &'a mut self,
-    ) -> ControlFlow<NonZero<usize>, impl FnOnce() -> Option<NonZero<usize>> + use<'a>> {
+    pub fn attempt(
+        &mut self,
+    ) -> ControlFlow<NonZero<usize>, impl FnOnce() -> Option<NonZero<usize>> + use<'_>> {
         let Self(limit_state, backoff_state) = self;
 
         let target_closure = || -> Option<NonZero<usize>> {

@@ -169,7 +169,7 @@ impl Backoff {
 
     /// Perform a single backoff cycle using the engaged strategy.
     #[inline]
-    pub fn cycle(backoff_state: &mut BackoffState) {
+    pub const fn cycle(backoff_state: &mut BackoffState) {
         let &mut BackoffState {
             ref mut cycle_count,
             ..
