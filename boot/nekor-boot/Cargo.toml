@@ -1,6 +1,6 @@
 [package]
 name = "nekor-boot"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 
 [features]
@@ -9,3 +9,4 @@ default = []
 kernel = []
 
 [dependencies]
+nekor-bitwise = { workspace = true }
