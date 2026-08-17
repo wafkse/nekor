@@ -16,6 +16,7 @@ members = [
   "boot/nekor-multiboot2",
   "boot/nekor-uefi",
   "nekor",
+  "nekor-build/nekor-build-kdl-config",
   "nekor-aal",
   "nekor-backoff",
   "nekor-bitwise",

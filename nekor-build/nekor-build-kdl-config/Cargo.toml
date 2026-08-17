@@ -1,0 +1,16 @@
+[package]
+name = "nekor-build-kdl-config"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+camino.workspace = true
+indexmap = { version = "2.13.0", features = ["serde"] }
+kdl = { version = "6.7.1", features = ["span"] }
+miette.workspace = true
+num-traits = "0.2.19"
+serde = { version = "1.0.228", features = ["derive"] }
+fack.workspace = true
+
+[lints]
+workspace = true
