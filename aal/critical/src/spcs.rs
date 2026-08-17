@@ -1,10 +1,12 @@
+//! Stable-point critical sections stop all processor cores at safe locations.
+//!
 //! - *Stable-point Critical Sections* (*`SpCS`*):
 //!     - Puts the currently-active core in a waiting state and publishes
 //!       stablepoint deferral to all other cores through an *IPI*.
 //!     - Once all cores are in a well-defined stablepoint, they are all put to
 //!       sleep.
 //!
-//! Very big delay, used for runtime code patching.
+//! This mechanism has a very large delay. It is used for runtime code patching.
 //!
 //! Well, but what is a *stablepoint*?
 //!

@@ -1,10 +1,13 @@
+//! Global critical sections coordinate access across processor cores.
+//!
 //! - *Global Critical Sections* (*GCS*) are those who:
 //!     - *Disable interrupts* for the currently-active core.
 //!     - *Lock* a corresponding [`Mutex`] for the desired global lock category.
 //!       This will inhibit any other global contenders for the same *GCS* kind.
 //!
-//! Used for access control to a non-concurrent subsystem. Many *GCS* can
-//! coexist. Delay depends on per-*GCS* contention.
+//! Used for access control to a non-concurrent subsystem.
+//!
+//! Many *GCS* can coexist. Delay depends on per-*GCS* contention.
 
 use core::marker;
 
