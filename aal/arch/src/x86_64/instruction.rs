@@ -28,17 +28,18 @@ pub mod idtr {
                 "lidtq [{}]",
                 in(reg) target_address,
                 options(nostack, preserves_flags, readonly, att_syntax)
-            )
+            );
         }
     }
 
     /// Store the currently-active (*IDTR*) *Interrupt Descriptor Table* in
     /// *Long Mode*.
     ///
-    /// # Remarks
+    /// # Safety
     ///
-    /// * The caller must have a *privilege level of zero*, or have the
-    ///   `CR4.UMIP` bit disabled.
+    /// The caller must have a privilege level of zero or have `CR4.UMIP`
+    /// disabled. `target_address` must remain valid and exclusively writable
+    /// for the duration of the instruction.
     #[inline]
     pub unsafe fn sidtq(target_address: &mut MaybeUninit<DescriptorTablePointer<Idt, Bits64>>) {
         // SAFETY: The safety of this instruction has been guaranteed by the caller.
@@ -47,7 +48,7 @@ pub mod idtr {
                 "sidtq [{}]",
                 in(reg) target_address,
                 options(nostack, preserves_flags, att_syntax)
-            )
+            );
         }
     }
 }
@@ -64,6 +65,7 @@ pub mod fsgsbase {
     /// * The `FSGSBASE` architectural extension must be supported.
     /// * The `CR4.FSGSBASE` bit must be set (*1*).
     #[inline]
+    #[must_use]
     pub unsafe fn rdgsbase() -> u64 {
         let gsbase: u64;
 
@@ -87,6 +89,7 @@ pub mod fsgsbase {
     ///
     /// * The `CR4.FSGSBASE` bit must be set (*1*).
     #[inline]
+    #[must_use]
     pub unsafe fn rdfsbase() -> u64 {
         let fsbase: u64;
 

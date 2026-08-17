@@ -21,10 +21,10 @@ use crate::x86::{descriptor::DescriptorIndex, privilege::PrivilegeLevel};
 #[repr(u8)]
 pub enum TableIndicator {
     /// Use the *Global Descriptor Table* as the *Segment Selector* source.
-    Gdt = 0b0000_000__0,
+    Gdt = 0b0000_0000,
 
     /// Use the *Local Descriptor Table* as the *Segment Selector* source.
-    Ldt = 0b0000_000__1,
+    Ldt = 0b0000_0001,
 }
 
 /// The bitwise field of the *Index* field of this [`SegmentSelector`].
@@ -84,14 +84,16 @@ pub struct RawSegmentSelector(u16);
 impl RawSegmentSelector {
     /// Construct a zeroed [`RawSegmentSelector`].
     #[inline]
+    #[must_use]
     pub const fn zeroed() -> Self {
         Self(u16::MIN)
     }
 
     /// Access the `Index` field (bits 3–15) of this `RawSegmentSelector`.
     #[inline]
+    #[must_use]
     pub const fn index(&self) -> SegmentSelectorIndex<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentSelectorIndex::wrap(target_value)
     }
@@ -108,8 +110,9 @@ impl RawSegmentSelector {
     /// Access the `TI` (Table Indicator) field (bit 2) of this
     /// `RawSegmentSelector`.
     #[inline]
+    #[must_use]
     pub const fn table_indicator(&self) -> SegmentSelectorTableIndicator<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentSelectorTableIndicator::wrap(target_value)
     }
@@ -126,8 +129,9 @@ impl RawSegmentSelector {
     /// Access the `RPL` (Requested Privilege Level) field (bits 0–1) of this
     /// `RawSegmentSelector`.
     #[inline]
+    #[must_use]
     pub const fn requested_privilege_level(&self) -> SegmentSelectorRpl<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentSelectorRpl::wrap(target_value)
     }
@@ -169,7 +173,8 @@ impl SegmentSelector {
     /// Determine the raw bit-for-bit representation for the target
     /// [`SegmentSelector`].
     #[inline]
-    pub const fn raw(self: &Self) -> RawSegmentSelector {
+    #[must_use]
+    pub const fn raw(&self) -> RawSegmentSelector {
         let &Self {
             descriptor_index,
             descriptor_table,
@@ -182,7 +187,7 @@ impl SegmentSelector {
             .index_mut()
             .const_merge(descriptor_index.raw());
 
-        let target_state = if let TableIndicator::Gdt = descriptor_table {
+        let target_state = if matches!(descriptor_table, TableIndicator::Gdt) {
             State::Cleared
         } else {
             State::Set
@@ -203,10 +208,10 @@ impl SegmentSelector {
 impl SegmentSelector {
     /// The [`DescriptorIndex`] associated with this [`SegmentSelector`].
     #[inline]
+    #[must_use]
     pub const fn index(&self) -> &DescriptorIndex {
-        let &Self {
-            ref descriptor_index,
-            ..
+        let Self {
+            descriptor_index, ..
         } = self;
 
         descriptor_index
@@ -225,10 +230,10 @@ impl SegmentSelector {
 
     /// The [`TableIndicator`] associated to this [`SegmentSelector`].
     #[inline]
+    #[must_use]
     pub const fn table(&self) -> &TableIndicator {
-        let &Self {
-            ref descriptor_table,
-            ..
+        let Self {
+            descriptor_table, ..
         } = self;
 
         descriptor_table
@@ -248,9 +253,10 @@ impl SegmentSelector {
 
     /// The *Requested* [`PrivilegeLevel`] of this [`SegmentSelector`].
     #[inline]
+    #[must_use]
     pub const fn privilege(&self) -> &PrivilegeLevel {
-        let &Self {
-            ref requested_privilege_level,
+        let Self {
+            requested_privilege_level,
             ..
         } = self;
 
@@ -319,6 +325,7 @@ pub struct RawCodeSegment(RawSegmentSelector);
 impl RawCodeSegment {
     /// Access the `Index` field (bits 3–15) of this `RawCodeSegment`.
     #[inline]
+    #[must_use]
     pub const fn index(&self) -> CodeSegmentSelectorIndex<'_> {
         let &Self(RawSegmentSelector(ref target_value)) = self;
 
@@ -337,6 +344,7 @@ impl RawCodeSegment {
     /// Access the `TI` (Table Indicator) field (bit 2) of this
     /// `RawCodeSegment`.
     #[inline]
+    #[must_use]
     pub const fn table_indicator(&self) -> CodeSegmentSelectorTableIndicator<'_> {
         let &Self(RawSegmentSelector(ref target_value)) = self;
 
@@ -355,6 +363,7 @@ impl RawCodeSegment {
     /// Access the `CPL` (Current Privilege Level) field (bits 0–1) of this
     /// `RawCodeSegment`.
     #[inline]
+    #[must_use]
     pub const fn current_privilege_level(&self) -> CodeSegmentSelectorCpl<'_> {
         let &Self(RawSegmentSelector(ref target_value)) = self;
 
@@ -385,7 +394,7 @@ impl Deref for RawDataSegment {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         target_value
     }
@@ -403,6 +412,7 @@ pub struct CodeSegment(SegmentSelector);
 impl CodeSegment {
     /// The [`DescriptorIndex`] associated with this [`CodeSegment`].
     #[inline]
+    #[must_use]
     pub const fn index(&self) -> &DescriptorIndex {
         let &Self(SegmentSelector {
             ref descriptor_index,
@@ -425,6 +435,7 @@ impl CodeSegment {
 
     /// The [`TableIndicator`] associated to this [`CodeSegment`].
     #[inline]
+    #[must_use]
     pub const fn table(&self) -> &TableIndicator {
         let &Self(SegmentSelector {
             ref descriptor_table,
@@ -448,6 +459,7 @@ impl CodeSegment {
 
     /// The *Current* [`PrivilegeLevel`] of this [`CodeSegment`].
     #[inline]
+    #[must_use]
     pub const fn privilege(&self) -> &PrivilegeLevel {
         let &Self(SegmentSelector {
             ref requested_privilege_level,
@@ -484,7 +496,7 @@ impl Deref for DataSegment {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         target_value
     }

@@ -163,6 +163,6 @@ pub unsafe fn serialize() {
         arch::asm!(
             "serialize",
             options(att_syntax, nomem, nostack, preserves_flags)
-        )
+        );
     }
 }

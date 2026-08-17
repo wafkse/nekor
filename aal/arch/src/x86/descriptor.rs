@@ -117,6 +117,7 @@ impl DescriptorIndex {
     /// Construct a new [`DescriptorIndex`] to be used as a *Segment Selector*
     /// index.
     #[inline]
+    #[must_use]
     pub const fn new(target_index: NonZero<u16>) -> Option<Self> {
         const MAX: u16 = const {
             let DescriptorIndex(target_max) = DescriptorIndex::MAX;
@@ -139,6 +140,7 @@ impl DescriptorIndex {
     /// The provided index must be in the inclusive range:
     /// [`DescriptorIndex::MIN`] and [`DescriptorIndex::MAX`].
     #[inline]
+    #[must_use]
     pub const unsafe fn new_unchecked(target_index: u16) -> Self {
         Self(
             // SAFETY: `DescriptorIndex::MIN` mirrors `Nonzero::MIN`.
@@ -148,7 +150,8 @@ impl DescriptorIndex {
 
     /// Retrieve the raw [`u16`] value corresponding to this descriptor index.
     #[inline]
-    pub const fn raw(self: &Self) -> u16 {
+    #[must_use]
+    pub const fn raw(&self) -> u16 {
         let &Self(target_value) = self;
 
         NonZero::get(target_value)
@@ -227,7 +230,7 @@ pub type SegmentAccessByteMut<'a> = <SegmentAccessByte<'a> as Counterpart>::Mut;
 
 /// A raw *Segment Descriptor* representation.
 ///
-/// Reference: https://wiki.osdev.org/Global_Descriptor_Table
+/// Reference: <https://wiki.osdev.org/Global_Descriptor_Table>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C, align(8), /* must be 8-byte aligned */)]
 pub struct RawSegmentDescriptor(u64);
@@ -235,8 +238,9 @@ pub struct RawSegmentDescriptor(u64);
 impl RawSegmentDescriptor {
     /// Access the *Limit* field (low part) in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn limit_low(&self) -> SegmentLimitLow<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentLimitLow::wrap(target_value)
     }
@@ -252,8 +256,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Limit* field (high part) in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn limit_high(&self) -> SegmentLimitHigh<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentLimitHigh::wrap(target_value)
     }
@@ -269,8 +274,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Base* field (low part) in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn base_low(&self) -> SegmentBaseLow<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentBaseLow::wrap(target_value)
     }
@@ -285,8 +291,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Base* field (middle part) in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn base_middle(&self) -> SegmentBaseMiddle<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentBaseMiddle::wrap(target_value)
     }
@@ -302,8 +309,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Base* field (high part) in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn base_high(&self) -> SegmentBaseHigh<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentBaseHigh::wrap(target_value)
     }
@@ -319,8 +327,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Flags* field in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn flags(&self) -> SegmentFlags<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentFlags::wrap(target_value)
     }
@@ -335,8 +344,9 @@ impl RawSegmentDescriptor {
 
     /// Access the *Access Byte* field in this *Segment Descriptor*.
     #[inline]
+    #[must_use]
     pub const fn access_byte(&self) -> SegmentAccessByte<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         SegmentAccessByte::wrap(target_value)
     }
@@ -521,8 +531,9 @@ pub struct RawAccessByte(u8);
 impl RawAccessByte {
     /// Access the *Present* bit in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn present(&self) -> AccessBytePresent<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessBytePresent::wrap(target_value)
     }
@@ -537,8 +548,9 @@ impl RawAccessByte {
 
     /// Access the *Described Privilege Level* field in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn privilege(&self) -> AccessByteDpl<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteDpl::wrap(target_value)
     }
@@ -554,8 +566,9 @@ impl RawAccessByte {
 
     /// Access the *System* bit in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn system(&self) -> AccessByteSystem<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteSystem::wrap(target_value)
     }
@@ -570,8 +583,9 @@ impl RawAccessByte {
 
     /// Access the *Executable* bit in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn executable(&self) -> AccessByteExecutable<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteExecutable::wrap(target_value)
     }
@@ -587,8 +601,9 @@ impl RawAccessByte {
     /// Access the *Direction/Conforming* bit in this *Access Byte*.
     #[inline]
     #[doc(alias = "conforming")]
+    #[must_use]
     pub const fn direction(&self) -> AccessByteDc<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteDc::wrap(target_value)
     }
@@ -604,8 +619,9 @@ impl RawAccessByte {
 
     /// Access the *Read/Write* (*RW*) bit in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn read_write(&self) -> AccessByteRw<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteRw::wrap(target_value)
     }
@@ -620,8 +636,9 @@ impl RawAccessByte {
 
     /// Access the *Accessed* bit in this *Access Byte*.
     #[inline]
+    #[must_use]
     pub const fn accessed(&self) -> AccessByteAccessed<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteAccessed::wrap(target_value)
     }
@@ -645,8 +662,9 @@ impl RawAccessByte {
     /// [`Self::read_write`], and [`Self::accessed`]. Use this accessor for
     /// system descriptors only.
     #[inline]
+    #[must_use]
     pub const fn descriptor_type(&self) -> AccessByteDescriptorType<'_> {
-        let &Self(ref target_value) = self;
+        let Self(target_value) = self;
 
         AccessByteDescriptorType::wrap(target_value)
     }

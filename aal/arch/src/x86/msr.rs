@@ -21,36 +21,36 @@ pub enum Msr {
     SysEnterIp = 0x176,
 
     /// The recipient address of the system-wide system call handler.
-    LStar = 0xC0000082,
+    LStar = 0xC000_0082,
 
     /// The recipient address of the system-wide system call handler.
     ///
     /// This is akin to [`Msr::LStar`], but is destined for 32-bit userspace
     /// running under compatibility mode.
-    CStar = 0xC0000083,
+    CStar = 0xC000_0083,
 
     /// The mask used to determine which `RFLAGS` bits to clear in a system call
     /// transition.
     ///
     /// Each bit in this register will correspond to a cleared bit in `RFLAGS`.
-    SfMask = 0xC0000084,
+    SfMask = 0xC000_0084,
 
     /// The Extended Feature Enable Register (EFER).
     ///
     /// Used for `sys{call,ret}` enable and long mode.
-    Efer = 0xC0000080,
+    Efer = 0xC000_0080,
 
     /// The core-specific `FS.Base` register.
-    FsBase = 0xC0000100,
+    FsBase = 0xC000_0100,
 
     /// The core-specific `GS.Base` register.
-    GsBase = 0xC0000101,
+    GsBase = 0xC000_0101,
 
     /// The kernel-specific `GS.Base` register.
     ///
     /// Swapped with [`Msr::GsBase`] on every `swapgs` instruction during a
     /// `CPL` context transition.
-    KernelGsBase = 0xC0000102,
+    KernelGsBase = 0xC000_0102,
 }
 
 impl Msr {
@@ -103,7 +103,10 @@ impl Msr {
     /// function.
     #[inline]
     pub unsafe fn write(target_register: Self, target_value: MsrValue) {
-        let (high, low) = ((target_value >> u32::BITS) as u32, target_value as u32);
+        let [low_0, low_1, low_2, low_3, high_0, high_1, high_2, high_3] =
+            target_value.to_le_bytes();
+        let low = u32::from_le_bytes([low_0, low_1, low_2, low_3]);
+        let high = u32::from_le_bytes([high_0, high_1, high_2, high_3]);
 
         // SAFETY: Concerns are per-MSR, cannot be exhaustively mentioned.
         unsafe {

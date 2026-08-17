@@ -30,12 +30,13 @@ impl PrivilegeLevel {
     ///
     /// This will truncate the most significant `6` bits.
     #[inline]
+    #[must_use]
     pub const fn raw(target_value: u8) -> Self {
         match target_value & 0b11 {
-            0b00 => PrivilegeLevel::Ring0,
-            0b01 => PrivilegeLevel::Ring1,
-            0b10 => PrivilegeLevel::Ring2,
-            0b11 => PrivilegeLevel::Ring3,
+            0b00 => Self::Ring0,
+            0b01 => Self::Ring1,
+            0b10 => Self::Ring2,
+            0b11 => Self::Ring3,
             _ => unreachable!(),
         }
     }

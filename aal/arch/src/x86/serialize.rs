@@ -38,7 +38,7 @@ impl IRet {
     /// privilege level, making it available to both usermode-based testing and
     /// paravirtualization.
     #[cfg(target_arch = "x86")]
-    #[inline(always)]
+    #[inline]
     pub fn x86() {
         // SAFETY: This is both memory- and architecturally-safe.
         unsafe {
@@ -67,7 +67,7 @@ impl IRet {
     /// privilege level, without requiring extra architectural features, making
     /// it available to both usermode-based testing and paravirtualization.
     #[cfg(target_arch = "x86_64")]
-    #[inline(always)]
+    #[inline]
     pub fn x86_64() {
         // SAFETY: This is both memory- and architecturally-safe.
         unsafe {
@@ -141,6 +141,6 @@ impl Serialize {
     pub unsafe fn now() {
         // SAFETY: The required feature has been asserted by the caller, and the
         // `serialize` instruction does not raise any CPU-level exceptions.
-        let _ = unsafe { crate::x86::instruction::serialize() };
+        unsafe { crate::x86::instruction::serialize() };
     }
 }
