@@ -694,7 +694,6 @@ pub unsafe trait Switch {
     // hardware frame. One united interrupt entry to reside in the hot interrupt
     // code section. LSL will get rid of swapgs and testing the code segment's RPL
 
-
     /// An Interrupt Service Routine entry point.
     ///
     /// The const-generic `E` indicates whether this routine is destined towards
@@ -879,6 +878,6 @@ pub unsafe trait Switch {
             // The context-switch trampoline.
             trampoline = sym Self::trampoline,
             options(att_syntax)
-        )
+        );
     }
 }
