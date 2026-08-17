@@ -440,6 +440,8 @@ impl Static {
 
 #[cfg(test)]
 mod tests {
+    use core::ptr;
+
     use crate::store::{Initialized, Static};
 
     #[test]
@@ -447,6 +449,6 @@ mod tests {
         let st: &'static usize = Static::value(18273).anyhow();
         let st2: &'static usize = Initialized::anyhow(&Static::value(18273));
 
-        println!("{:?}, {:?}", st as *const _, st2 as *const _);
+        println!("{:?}, {:?}", ptr::from_ref(st), ptr::from_ref(st2));
     }
 }

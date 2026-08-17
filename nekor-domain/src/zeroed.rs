@@ -73,6 +73,7 @@ impl Zeroed {
     ///
     /// This lazily initializes the value using the specified value.
     #[inline]
+    #[must_use]
     pub fn value_in<T, D>() -> &'static T
     where
         T: Zeroable,
