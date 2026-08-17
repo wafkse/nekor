@@ -1,8 +1,9 @@
 [package]
 name = "nekor-project-core"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 
 [dependencies]
 proc-macro2 = "1.0.106"
+quote = "1.0.45"
 syn = "2.0.117"
