@@ -8,6 +8,7 @@ use nekor_bitwise::prelude::Extract;
 /// fields.
 ///
 /// Note that this is transparent over `P`'s [`Extract::Output`] type.
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Partitioned<const N: usize, const M: usize, P>(
     // NOTE: `P::Output` is the smallest integer that can fit `M - N`
@@ -52,8 +53,8 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let &Self(ref left_value, ..) = self;
-        let &Self(ref right_value, ..) = other;
+        let Self(left_value, ..) = self;
+        let Self(right_value, ..) = other;
 
         left_value == right_value
     }
@@ -67,8 +68,8 @@ where
 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        let &Self(ref left_value, ..) = self;
-        let &Self(ref right_value, ..) = other;
+        let Self(left_value, ..) = self;
+        let Self(right_value, ..) = other;
 
         left_value.partial_cmp(right_value)
     }
@@ -81,26 +82,12 @@ where
 {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let &Self(ref left_value, ..) = self;
-        let &Self(ref right_value, ..) = other;
+        let Self(left_value, ..) = self;
+        let Self(right_value, ..) = other;
 
         left_value.cmp(right_value)
     }
 }
-
-impl<const N: usize, const M: usize, P> Clone for Partitioned<N, M, P>
-where
-    P: Extract<N, M>,
-{
-    #[inline]
-    fn clone(&self) -> Self {
-        let &Self(target_value, ..) = self;
-
-        Self(target_value, marker::PhantomData)
-    }
-}
-
-impl<const N: usize, const M: usize, P> Copy for Partitioned<N, M, P> where P: Extract<N, M> {}
 
 impl<const N: usize, const M: usize, P> hash::Hash for Partitioned<N, M, P>
 where
@@ -109,9 +96,9 @@ where
 {
     #[inline]
     fn hash<H: hash::Hasher>(&self, target_state: &mut H) {
-        let &Self(ref target_value, ..) = self;
+        let Self(target_value, ..) = self;
 
-        target_value.hash(target_state)
+        target_value.hash(target_state);
     }
 }
 
@@ -122,7 +109,7 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let &Self(ref target_value, ..) = self;
+        let Self(target_value, ..) = self;
 
         f.write_fmt(format_args!("Partitioned::<{N}..{M}>({target_value:?})"))
     }

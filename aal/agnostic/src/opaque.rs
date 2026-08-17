@@ -42,16 +42,16 @@ where
     /// See the [`Self::value`] **Safety** section for rationale and any
     /// additional information.
     #[inline]
-    pub const unsafe fn unwrap(self: Self) -> S {
+    pub const unsafe fn unwrap(self) -> S {
         let Self(target_value) = self;
 
         target_value
     }
 }
 
-impl<S: fmt::Debug> fmt::Debug for Opaque<S>
+impl<S> fmt::Debug for Opaque<S>
 where
-    S: Scalar,
+    S: Scalar + fmt::Debug,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

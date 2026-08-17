@@ -37,8 +37,9 @@ impl<T> RelPtr<T> {
     ///
     /// This operation is always safe, but using the resulting pointer is not.
     #[inline]
+    #[must_use]
     pub fn base(self: Pin<&Self>) -> *const T {
-        let base_address = self.get_ref() as *const Self;
+        let base_address = core::ptr::from_ref::<Self>(self.get_ref());
 
         let base_address = base_address.addr();
 
@@ -83,8 +84,9 @@ impl<T> RelPtrMut<T> {
     ///
     /// This operation is always safe, but using the resulting pointer is not.
     #[inline]
+    #[must_use]
     pub fn base(self: Pin<&Self>) -> *mut T {
-        let base_address = self.get_ref() as *const Self;
+        let base_address = core::ptr::from_ref::<Self>(self.get_ref());
 
         let base_address = base_address.addr();
 

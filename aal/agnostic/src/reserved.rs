@@ -20,6 +20,7 @@ where
     ///
     /// This will act as zeroed memory.
     #[inline]
+    #[must_use]
     pub const fn field() -> Self {
         Self(MaybeUninit::zeroed())
     }

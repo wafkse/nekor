@@ -40,7 +40,7 @@ where
 {
     /// Determine the currently-active structure in this [`Swap`] mechanism.
     #[inline]
-    pub const fn active<'a>(&'a self) -> &'a S {
+    pub const fn active(&self) -> &S {
         let &Self(ref structure_list, target_structure) = self;
 
         // SAFETY: A `bool` is always in-bound for a 2-element array.
@@ -49,7 +49,7 @@ where
         // particularly, the boolean always indicates a valid structure.
         unsafe {
             // FIXME(const): Make this use `get_unchecked_mut` when const-fn-stable.
-            NonNull::new_unchecked(structure_list.as_ptr() as *mut MaybeUninit<S>)
+            NonNull::new_unchecked(structure_list.as_ptr().cast_mut())
                 .offset(target_structure as isize)
                 .as_ref()
                 .assume_init_ref()
@@ -59,7 +59,7 @@ where
     /// Determine the currently-active structure in this [`Swap`] mechanism, but
     /// in a mutable manner.
     #[inline]
-    pub const fn active_mut<'a>(&'a mut self) -> &'a mut S {
+    pub const fn active_mut(&mut self) -> &mut S {
         let &mut Self(ref mut structure_list, target_structure) = self;
 
         // SAFETY: A `bool` is always in-bound for a 2-element array.
@@ -77,13 +77,13 @@ where
 
     /// Determine the currently-inactive structure in this [`Swap`] mechanism.
     #[inline]
-    pub const fn inactive<'a>(&'a self) -> &'a MaybeUninit<S> {
+    pub const fn inactive(&self) -> &MaybeUninit<S> {
         let &Self(ref structure_list, target_structure) = self;
 
         // SAFETY: A `bool` is always in-bound for a 2-element array.
         unsafe {
             // FIXME(const): Make this use `get_unchecked_mut` when const-fn-stable.
-            NonNull::new_unchecked(structure_list.as_ptr() as *mut MaybeUninit<S>)
+            NonNull::new_unchecked(structure_list.as_ptr().cast_mut())
                 .offset(!target_structure as isize)
                 .as_ref()
         }
@@ -92,7 +92,7 @@ where
     /// Determine the currently-inactive structure in this [`Swap`] mechanism,
     /// but in a mutable manner.
     #[inline]
-    pub const fn inactive_mut<'a>(&'a mut self) -> &'a mut MaybeUninit<S> {
+    pub const fn inactive_mut(&mut self) -> &mut MaybeUninit<S> {
         let &mut Self(ref mut structure_list, target_structure) = self;
 
         // SAFETY: A `bool` is always in-bound for a 2-element array.
@@ -106,7 +106,7 @@ where
 
     /// Access the leftwards-facing structure.
     #[inline]
-    pub const fn left<'a>(&'a self) -> &'a MaybeUninit<S> {
+    pub const fn left(&self) -> &MaybeUninit<S> {
         let &Self([ref left_structure, ..], ..) = self;
 
         left_structure
@@ -114,7 +114,7 @@ where
 
     /// Access the rightwards-facing structure.
     #[inline]
-    pub const fn right<'a>(&'a self) -> &'a MaybeUninit<S> {
+    pub const fn right(&self) -> &MaybeUninit<S> {
         let &Self([.., ref right_structure], ..) = self;
 
         right_structure
@@ -133,7 +133,7 @@ where
     /// value violates [`Swap`]'s invariants and may cause undefined
     /// behavior when the active structure is subsequently accessed.
     #[inline]
-    pub const unsafe fn left_mut<'a>(&'a mut self) -> &'a mut MaybeUninit<S> {
+    pub const unsafe fn left_mut(&mut self) -> &mut MaybeUninit<S> {
         let &mut Self([ref mut left_structure, ..], ..) = self;
 
         left_structure
@@ -152,7 +152,7 @@ where
     /// value violates [`Swap`]'s invariants and may cause undefined
     /// behavior when the active structure is subsequently accessed.
     #[inline]
-    pub const unsafe fn right_mut<'a>(&'a mut self) -> &'a mut MaybeUninit<S> {
+    pub const unsafe fn right_mut(&mut self) -> &mut MaybeUninit<S> {
         let &mut Self([.., ref mut right_structure], ..) = self;
 
         right_structure
@@ -164,7 +164,7 @@ where
     ///
     /// The currently-inactive structure must be correctly initialized.
     #[inline]
-    pub const unsafe fn now<'a>(&'a mut self) -> &'a mut S {
+    pub const unsafe fn now(&mut self) -> &mut S {
         let &mut Self(.., ref mut target_state) = self;
 
         *target_state = !*target_state;
