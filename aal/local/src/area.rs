@@ -44,10 +44,10 @@ impl Area {
     #[inline]
     #[must_use]
     pub fn read() -> Self {
-        #[cfg(any(target_arch = "x86"))]
+        #[cfg(target_arch = "x86")]
         return arch::x86::read_area();
 
-        #[cfg(any(target_arch = "x86_64"))]
+        #[cfg(target_arch = "x86_64")]
         return arch::x86_64::read_area();
     }
 
@@ -57,10 +57,10 @@ impl Area {
     /// storage.
     #[inline]
     pub fn write(self) {
-        #[cfg(any(target_arch = "x86"))]
+        #[cfg(target_arch = "x86")]
         return arch::x86::write_area(self);
 
-        #[cfg(any(target_arch = "x86_64"))]
+        #[cfg(target_arch = "x86_64")]
         return arch::x86_64::write_area(self);
     }
 }

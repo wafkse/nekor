@@ -41,7 +41,7 @@ pub fn read_area() -> Area {
     ///
     /// The per-CPU area for this processor core must have been initialized.
     #[cfg(not(usermode))]
-    #[inline(always)]
+    #[inline]
     unsafe fn read_segment_area() -> usize {
         let s: usize;
 
@@ -91,7 +91,7 @@ pub fn write_area(area: Area) {
     ///
     /// The per-CPU area for this processor core must have been initialized.
     #[cfg(not(usermode))]
-    #[inline(always)]
+    #[inline]
     unsafe fn write_segment_area(v: usize) {
         // SAFETY: Writes to designated CPU area.
         #[cfg(target_arch = "x86_64")]
