@@ -13,4 +13,5 @@ pub mod pod;
 
 pub mod choose;
 
-pub mod patch;
+#[path = "patch/patch.rs"]
+pub mod site;

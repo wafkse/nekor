@@ -34,7 +34,5 @@ impl Publish {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         PublishX86::now(target_list);
-
-        ()
     }
 }

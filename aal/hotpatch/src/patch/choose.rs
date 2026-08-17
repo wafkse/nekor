@@ -6,19 +6,19 @@ use nekor_aal_agnostic::rel_ptr::RelPtrMut;
 
 use crate::patch::{
     delegate::{Delegated, Delegator},
-    patch::{Patch, Patchsite, Template},
+    site::{Patch, Patchsite, Template},
 };
 
 /// A chosen [`Delegated`] template for a specific [`Delegator`] `D`.
 #[repr(transparent)]
 pub struct Chosen<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>;
 
 impl<D, I, O> Chosen<D, I, O>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>,
 {
     /// Construct a new [`Chosen`] selection for the target [`Delegated`] `U`.
@@ -80,27 +80,25 @@ where
 
 impl<D, I, O> Copy for Chosen<D, I, O>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>,
 {
 }
 
 impl<D, I, O> Clone for Chosen<D, I, O>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>,
 {
     #[inline]
     fn clone(&self) -> Self {
-        let &Self(target_left, target_right) = self;
-
-        Self(target_left, target_right)
+        *self
     }
 }
 
 impl<D, I, O> fmt::Debug for Chosen<D, I, O>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>,
 {
     #[inline]

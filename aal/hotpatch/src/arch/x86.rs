@@ -17,7 +17,7 @@ impl PublishX86 {
     /// Perform a *CMC-Publish* operation in a coordinated fashion.
     #[inline]
     pub fn now(_: impl Iterator<Item = Target>) {
-        let ref serialize_support_signal = qualified::Serialize::supported();
+        let serialize_support_signal = &qualified::Serialize::supported();
 
         if Signal::is(serialize_support_signal, Present::Yes) {
             // SAFETY: The Serialize::now() function is safe to call as it is

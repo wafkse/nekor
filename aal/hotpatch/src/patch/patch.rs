@@ -13,6 +13,12 @@ use crate::patch::{
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
+type DelegatedInput<D> = <<D as Delegator>::Target as Delegated>::Input;
+type DelegatedOutput<D> = <<D as Delegator>::Target as Delegated>::Output;
+type PatchsiteFor<D> = Patchsite<D, DelegatedInput<D>, DelegatedOutput<D>>;
+type StaticPatchsite<D> = Pin<&'static PatchsiteFor<D>>;
+type PatchIdentity<D, I, O> = fn() -> (D, I, O);
+
 /// The architecture-specific diversion instruction used for detours to a
 /// [`Delegated`] implementation.
 #[derive(Debug, Hash)]
@@ -88,34 +94,23 @@ type JmpRel32Mut<'a> = <JmpRel32<'a> as Counterpart>::Mut;
 #[derive(Debug)]
 #[repr(C)]
 pub struct Template<D>(
-    pub(crate)  fn(
-        <<D as Delegator>::Target as Delegated>::Input,
-    ) -> <<D as Delegator>::Target as Delegated>::Output,
+    pub(crate) fn(DelegatedInput<D>) -> DelegatedOutput<D>,
     pub(crate) marker::PhantomData<fn() -> D>,
 )
 where
-    D: Delegator + ?Sized;
+    D: Delegator;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<D> Template<D> where D: Delegator + ?Sized {}
+impl<D> Template<D> where D: Delegator {}
 
 impl<D> Template<D>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
 {
     /// Assemble the architecture-specific instruction required for the delegate
     /// diversion.
     #[inline]
-    fn assemble(
-        self,
-        target_patchsite: Pin<
-            &'static Patchsite<
-                D,
-                <D::Target as Delegated>::Input,
-                <D::Target as Delegated>::Output,
-            >,
-        >,
-    ) -> Diversion {
+    unsafe fn assemble(self, target_patchsite: StaticPatchsite<D>) -> Diversion {
         let Self(delegate_address, ..) = self;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -127,11 +122,20 @@ where
 
             let target_address = delegate_address as usize;
 
-            // NOTE: The kernel uses `code-model=small`, which guarantees that such
-            // {E,R}IP-relative address will never be incorrect, as it resides within a +/-
-            // 2 GiB range and thus jumps can be done via the `jmp rel32`
-            // instruction.
-            let relative_address = target_address.wrapping_sub(base_address) as u32;
+            // NOTE: The small code model keeps the target within the signed
+            // 32-bit displacement range required by `jmp rel32`.
+            let relative_address = if target_address >= base_address {
+                i64::try_from(target_address - base_address)
+            } else {
+                i64::try_from(base_address - target_address).map(|offset| -offset)
+            };
+            let relative_address = relative_address.and_then(i32::try_from);
+            let Ok(relative_address) = relative_address else {
+                // SAFETY: The small code model guarantees that the linked
+                // addresses differ by a signed 32-bit displacement.
+                unsafe { core::hint::unreachable_unchecked() }
+            };
+            let relative_address = u32::from_ne_bytes(relative_address.to_ne_bytes());
 
             let mut encoded_instr = X86::JMP_REL32_UD2_NOP_TEMPLATE;
 
@@ -147,7 +151,7 @@ where
 #[repr(transparent)]
 pub struct Patched<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>;
 
 /// The patchsite for a [`Delegator`] and [`Delegated`] pair.
@@ -158,15 +162,15 @@ pub struct Patchsite<D, I, O>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     AtomicU64,
     marker::PhantomPinned,
-    marker::PhantomData<fn() -> (D, I, O)>,
+    marker::PhantomData<PatchIdentity<D, I, O>>,
 )
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>;
 
 impl<D, I, O> Patchsite<D, I, O>
 where
-    D: Delegator + ?Sized,
+    D: Delegator,
     D::Target: Delegated<Input = I, Output = O>,
 {
     /// Attempt to patch the [`Delegator`] with the [`Delegated`]
@@ -180,6 +184,11 @@ where
     ///
     /// This method is unsafe because it assumes that no other thread will see a
     /// stale reference to the [`Delegator`] after the patch.
+    ///
+    /// # Errors
+    ///
+    /// Returns the previously installed diversion when another contender
+    /// changes the patchsite before this operation completes.
     #[inline]
     pub unsafe fn stale(
         self: Pin<&'static Self>,
@@ -189,7 +198,9 @@ where
 
         let target_template = Chosen::template(target_chosen);
 
-        let Diversion(diversion_sequence) = Template::assemble(target_template, self);
+        // SAFETY: Patch storage and delegate code use the small code model, so
+        // their relative displacement is representable by `jmp rel32`.
+        let Diversion(diversion_sequence) = unsafe { Template::assemble(target_template, self) };
 
         match atomic_variable.compare_exchange(
             atomic_variable.load(Ordering::Acquire),
@@ -236,6 +247,10 @@ where
     /// "Rust" ABI instead. This is safe as it is a simple trampoline.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.trampoline"))]
     #[unsafe(naked)]
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "the trampoline preserves the delegated function ABI"
+    )]
     // FIXME(unstable): Use "custom" ABI when available.
     pub unsafe extern "sysv64-unwind" fn trampoline(
         target_value: <T::Target as Delegated>::Input,
@@ -249,7 +264,7 @@ where
     }
 
     /// Run the target [`Delegated::implementation`] for this [`Patch`].
-    #[inline(always)]
+    #[inline]
     pub fn run(target_value: <T::Target as Delegated>::Input) -> <T::Target as Delegated>::Output {
         // SAFETY: This is safe, as it is a trampoline to a function with the
         // correct parameters and ABI.
@@ -264,13 +279,14 @@ where
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.offset"))]
     #[unsafe(naked)]
     #[allow(
+        clippy::needless_pass_by_value,
         named_asm_labels,
-        reason = "inline assembler defines globally-visible symbols"
+        reason = "the patchsite preserves its ABI and defines global symbols"
     )]
     // FIXME: As we are dealing with a mixed code model, we need to have all
     // sections and subsections under the "KERNEL_PATCH_STORAGE_SECTION" reside in
     // RAM and not memory-mapped flash to be able to actually patch properly.
-    // XIP WILL RAPE US IN THE ASSHOLE!
+    // Execute-in-place storage cannot satisfy these writable patching needs.
     // FIXME(unstable): Use "custom" ABI when available.
     pub unsafe extern "sysv64-unwind" fn patchsite(
         target_value: <T::Target as Delegated>::Input,

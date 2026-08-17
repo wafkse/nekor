@@ -5,9 +5,9 @@
     clippy::nursery,
     clippy::unwrap_used,
     clippy::panic,
-    clippy::pedantic,
     rustdoc::all
 )]
+#![deny(clippy::pedantic)]
 //! Architecture-level runtime code patching support.
 
 pub mod arch;
@@ -23,7 +23,7 @@ pub mod prelude {
     pub use crate::patch::{
         choose::Chosen,
         delegate::{Delegated, Delegator, Logical, Single},
-        patch::Patch,
         pod::Pod,
+        site::Patch,
     };
 }
