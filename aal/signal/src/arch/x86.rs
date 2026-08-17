@@ -142,16 +142,16 @@ pub unsafe fn tpause(wait_state: Cstate, ref target_deadline: u64) {
     let edx = TscDeadlineEdx::wrap(target_deadline).value();
     let eax = TscDeadlineEax::wrap(target_deadline).value();
 
-    let mut target_state = u32::MIN;
+    let mut ecx = u32::MIN;
 
-    TpauseCState::wrap(&mut target_state).set(if let Cstate::C0_1 = wait_state {
+    TpauseCState::wrap(&mut ecx).set(if let Cstate::C0_1 = wait_state {
         State::Set
     } else {
         State::Cleared
     });
 
     // NOTE: We always zero out any bits marked as reserved.
-    TpauseCStateReserved::wrap(&mut target_state).merge(u32::MIN);
+    TpauseCStateReserved::wrap(&mut ecx).merge(u32::MIN);
 
     // SAFETY: The `tpause` instruction is available and introduces
     // non-safety-altering behavior.
@@ -160,6 +160,7 @@ pub unsafe fn tpause(wait_state: Cstate, ref target_deadline: u64) {
             "tpause",
             in("edx") edx,
             in("eax") eax,
+            in("ecx") ecx,
             options(nomem, nostack, att_syntax));
     }
 }
