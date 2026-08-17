@@ -1,0 +1,22 @@
+// Platform-specific overrides for the x86_64 usermode target.
+//
+// Platform inheritance is declared in `nekor.toml`.
+
+layout {
+    // NOTE: For usermode builds, there is no virtual or physical base. The
+    // host kernel provides ASLR for the binary.
+    //
+    // These are set to zero to synchronize the virtual and load memory
+    // addresses. VMA = LMA.
+    base 0x0
+    physical-base 0x0
+}
+
+// Debugging configuration specific to usermode targets.
+debug {
+    // State that the target is in usermode.
+    usermode #true
+
+    // Whether usermode-based test functionality should be enabled.
+    test #true
+}

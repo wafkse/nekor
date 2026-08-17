@@ -2,8 +2,8 @@
 
 !*/
 
-!*.tera
+!*.jinja
+!*.kdl
 
-!platform.toml
-
+!README.md
 !.gitignore

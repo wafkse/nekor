@@ -1,10 +1,7 @@
 pub mod show;
-
 pub mod template;
 
-use std::{fmt, fs, io};
-
-use cargo_metadata::camino::Utf8PathBuf;
+use std::fmt;
 
 use clap::{Parser, Subcommand};
 use fack::prelude::Error;
@@ -12,7 +9,7 @@ use serde::Serialize;
 
 use crate::{
     invoke::InvokeContext,
-    manifest::PlatformDesc,
+    manifest::{PlatformDesc, PlatformName},
     orchestrate::{
         Orchestrate,
         command::{
@@ -25,21 +22,17 @@ use crate::{
             },
         },
     },
-    platform::PlatformSpec,
+    platform::{Platform, PlatformResolveError},
 };
-
-// TODO: Make platform template family ofn subcommands: build
 
 /// An orchestrate platform command.
 #[derive(Parser, Debug, Clone)]
 pub struct OrchestratePlatform {
     /// The name of the platform to orchestrate build for.
-    ///
-    /// This name must be recognized by the manifest.
     #[arg(long, short)]
-    name: String,
+    name: PlatformName,
 
-    /// The subcommand of the platform command.
+    /// The platform-level operation to perform.
     #[clap(subcommand)]
     platform_command: PlatformCommand,
 }
@@ -47,11 +40,10 @@ pub struct OrchestratePlatform {
 /// A platform-level command in the orchestrator.
 #[derive(Subcommand, Debug, Clone)]
 pub enum PlatformCommand {
-    /// Show basic information and metadata about the platform
+    /// Show platform information.
     #[clap(subcommand)]
     Show(PlatformShowCommand),
-
-    /// Platform template management
+    /// Manage platform templates.
     #[clap(subcommand)]
     Template(PlatformTemplateCommand),
 }
@@ -59,26 +51,19 @@ pub enum PlatformCommand {
 /// An error relevant to a platform command.
 #[derive(Debug, Error)]
 pub enum OrchestratePlatformError {
-    /// The platform was not found in the build manifest.
-    #[error("the target platform was not found: {name}")]
-    PlatformNotFound { name: String },
-
-    /// The specified platform configuration file was unable to be read.
-    #[error("failed to read platform configuration file: {_0}")]
-    PlatformConfigFile(io::Error),
-
-    /// Failed to deserialize the platform configuration file.
-    #[error("failed to parse file `{path}`: {error}")]
-    DeserializeConfigFile {
-        path: Utf8PathBuf,
-        error: toml::de::Error,
+    /// The selected platform was not found in the build manifest.
+    #[error("the target platform was not found `{name}`")]
+    PlatformNotFound {
+        /// The missing selected platform name.
+        name: PlatformName,
     },
-
-    /// An error specific to the `platform show` command.
+    /// Platform resolution failed.
+    #[error(transparent(0))]
+    PlatformResolve(PlatformResolveError),
+    /// An error specific to the platform show command.
     #[error(transparent(0))]
     PlatformShowError(PlatformShowError),
-
-    /// An error specific to the `platform template` command.
+    /// An error specific to the platform template command.
     #[error(transparent(0))]
     PlatformTemplateError(PlatformTemplateError),
 }
@@ -99,54 +84,17 @@ impl Orchestrate for OrchestratePlatform {
             name,
             platform_command,
         } = self;
-
-        let Some(desc) = context.manifest().platform().get(name.as_str()) else {
+        let database = context.manifest().platform();
+        let Some(desc) = database.get(name.as_str()) else {
             return Err(OrchestratePlatformError::PlatformNotFound { name });
         };
-
-        let spec_path = context.root().join(desc.path());
-
-        let spec: PlatformSpec = toml::from_slice(
-            fs::read(spec_path.clone())
-                .map_err(OrchestratePlatformError::PlatformConfigFile)?
-                .as_slice(),
-        )
-        .map_err(|error| OrchestratePlatformError::DeserializeConfigFile {
-            path: spec_path,
-            error,
-        })?;
-
-        let base = if let Some(base) = spec.platform().base() {
-            let Some(base_desc) = context.manifest().platform().get(base) else {
-                return Err(OrchestratePlatformError::PlatformNotFound {
-                    name: base.to_string(),
-                });
-            };
-
-            let base_path = context.root().join(base_desc.path());
-
-            let base_spec: PlatformSpec = toml::from_slice(
-                fs::read(base_path.clone())
-                    .map_err(OrchestratePlatformError::PlatformConfigFile)?
-                    .as_slice(),
-            )
-            .map_err(|error| OrchestratePlatformError::DeserializeConfigFile {
-                path: base_path,
-                error,
-            })?;
-
-            Some((base_desc, base_spec))
-        } else {
-            None
-        };
-
-        let target_output = platform_command.command(context, (&spec, desc, base))?;
-
+        let platform = Platform::resolve(context.root(), database, desc)
+            .map_err(OrchestratePlatformError::PlatformResolve)?;
+        let target_output = platform_command.command(context, (&platform, desc))?;
         let mut target_buffer = String::new();
 
         PlatformOutput::output(target_output, &mut target_buffer, context.output())
             .expect("failed to format output");
-
         println!("{}", target_buffer);
 
         Ok(())
@@ -157,34 +105,27 @@ impl Orchestrate for OrchestratePlatform {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PlatformOutput<'a> {
-    /// Output for the "platform show" subcommand.
+    /// Output for the platform show subcommand.
     Show(PlatformShowOutput<'a>),
-
-    /// Output for the "platform template" subcommand.
+    /// Output for the platform template subcommand.
     Template(PlatformTemplateOutput),
 }
 
-impl<'a> Output for PlatformOutput<'a> {
+impl Output for PlatformOutput<'_> {
     fn output<W>(self, writer: &mut W, options: &OutputOptions) -> fmt::Result
     where
         W: fmt::Write,
     {
         match self {
-            PlatformOutput::Show(target_output) => target_output.output(writer, options),
-            PlatformOutput::Template(target_output) => target_output.output(writer, options),
+            Self::Show(target_output) => target_output.output(writer, options),
+            Self::Template(target_output) => target_output.output(writer, options),
         }
     }
 }
 
 impl Execute for PlatformCommand {
-    type Data<'a> = (
-        &'a PlatformSpec,
-        &'a PlatformDesc,
-        Option<(&'a PlatformDesc, PlatformSpec)>,
-    );
-
+    type Data<'a> = (&'a Platform, &'a PlatformDesc);
     type Output<'a> = PlatformOutput<'a>;
-
     type Error = OrchestratePlatformError;
 
     fn command<'a>(
@@ -193,11 +134,11 @@ impl Execute for PlatformCommand {
         data: Self::Data<'a>,
     ) -> Result<Self::Output<'a>, Self::Error> {
         match self {
-            PlatformCommand::Show(target_command) => target_command
+            Self::Show(target_command) => target_command
                 .command(context, data)
                 .map(PlatformOutput::Show)
                 .map_err(OrchestratePlatformError::PlatformShowError),
-            PlatformCommand::Template(target_command) => target_command
+            Self::Template(target_command) => target_command
                 .command(context, data)
                 .map(PlatformOutput::Template)
                 .map_err(OrchestratePlatformError::PlatformTemplateError),
