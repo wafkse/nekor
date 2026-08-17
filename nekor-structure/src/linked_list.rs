@@ -41,7 +41,8 @@ pub unsafe trait Forward: Linked {
     fn next_or(self: Pin<&Self>, default: Pin<&Self>) -> NonNull<Self> {
         let next_default: &Self = &default;
 
-        self.next().unwrap_or(NonNull::from_ref(next_default))
+        self.next()
+            .unwrap_or_else(|| NonNull::from_ref(next_default))
     }
 
     /// Retrieve a reference to the pointer to the next node in the list.
@@ -96,7 +97,8 @@ pub unsafe trait Backward: Linked {
     fn prior_or(self: Pin<&Self>, default: Pin<&Self>) -> NonNull<Self> {
         let prior_default: &Self = &default;
 
-        self.prior().unwrap_or(NonNull::from_ref(prior_default))
+        self.prior()
+            .unwrap_or_else(|| NonNull::from_ref(prior_default))
     }
 
     /// Retrieve a reference to the pointer to the next node in the list.
@@ -422,6 +424,16 @@ where
     }
 }
 
+impl<T> Default for IntrusiveList<T>
+where
+    T: Bidirectional + ?Sized,
+{
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> IntrusiveList<T>
 where
     T: Bidirectional + ?Sized,
@@ -470,13 +482,10 @@ where
             // SAFETY: `target_value` was originally pinned. Link invariants
             // are satisfied at this point too.
             let _ = unsafe { Pin::new_unchecked(target_value).replace_prior(tail_address) };
-
-            let _ = list_tail.replace(node_address);
         } else {
             let _ = list_head.replace(node_address);
-
-            let _ = list_tail.replace(node_address);
         }
+        let _ = list_tail.replace(node_address);
 
         *node_count += 1;
 
@@ -642,8 +651,15 @@ where
     /// Attempt to remove a node from this list.
     ///
     /// Fails if the specified [`Inserted`] handle is not native to this list.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns the original handle when it belongs to another list.
     #[inline]
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "ownership proves the handle cannot remain usable after removal"
+    )]
     pub fn try_remove<'a>(
         &mut self,
         target_handle: Inserted<'a, T>,
@@ -824,25 +840,32 @@ unsafe impl<T> Forward for External<T> {
 }
 
 #[test]
-fn testme() {
+fn insertion_and_removal() {
     let mut v = External::node(0);
     let mut v2 = External::node(1);
 
     let value = unsafe { Pin::new_unchecked(&mut v) };
     let value2 = unsafe { Pin::new_unchecked(&mut v2) };
 
-    {
-        let mut l = IntrusiveList::new();
+    let mut list = IntrusiveList::new();
 
-        let i = unsafe { l.try_insert_back(value).expect("already in other list") };
+    let first_handle = unsafe {
+        list.try_insert_back(value)
+            .expect("node is not in another list")
+    };
 
-        let k = unsafe { l.try_insert_back(value2).expect("already in other list") };
+    let second_handle = unsafe {
+        list.try_insert_back(value2)
+            .expect("node is not in another list")
+    };
 
-        dbg!((&i, &k));
+    let first = list
+        .try_remove(first_handle)
+        .expect("handle belongs to this list");
+    let second = list
+        .try_remove(second_handle)
+        .expect("handle belongs to this list");
 
-        drop(i);
-        drop(k);
-
-        drop(l);
-    }
+    assert_eq!(**first, 0);
+    assert_eq!(**second, 1);
 }

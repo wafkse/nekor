@@ -53,6 +53,16 @@ where
     }
 }
 
+impl<T, const N: usize> Default for Arena<T, N>
+where
+    BitMapUsize<N>: InBound,
+{
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const N: usize> Arena<T, N>
 where
     BitMapUsize<N>: InBound,
@@ -123,6 +133,10 @@ where
     }
 
     /// Attempt to allocate into this arena.
+    ///
+    /// # Errors
+    ///
+    /// Returns the original value when every arena slot is reserved.
     #[inline]
     pub fn allocate(&self, value: T) -> Result<InArena<'_, T>, T> {
         let Self {
@@ -175,13 +189,22 @@ where
     }
 }
 
-/// SAFETY: This type does not reference any external or per-thread data,
-/// therefore, it can be sent across threads in a safe manner.
-unsafe impl<T, const N: usize> Send for Arena<T, N> where BitMapUsize<N>: InBound {}
+// SAFETY: Stored values may move with the arena only when `T` is safe to send.
+unsafe impl<T, const N: usize> Send for Arena<T, N>
+where
+    T: Send,
+    BitMapUsize<N>: InBound,
+{
+}
 
-/// SAFETY: The access to the [`Arena`] is synchronized through the use of
-/// atomic primitives.
-unsafe impl<T, const N: usize> Sync for Arena<T, N> where BitMapUsize<N>: InBound {}
+// SAFETY: Atomic slot ownership serializes access, and moving values between
+// threads is only permitted when `T` is safe to send.
+unsafe impl<T, const N: usize> Sync for Arena<T, N>
+where
+    T: Send,
+    BitMapUsize<N>: InBound,
+{
+}
 
 impl<T, const N: usize> Drop for Arena<T, N>
 where
@@ -254,14 +277,11 @@ pub struct InArena<'a, T>(
     InitializationState<'a>,
 );
 
-impl<'a, T> InArena<'a, T> {
+impl<T> InArena<'_, T> {
     /// Access the data backed by this handle.
     #[inline]
     #[must_use]
-    pub const fn data<'b>(&'b self) -> &'b &'a mut T
-    where
-        'a: 'b,
-    {
+    pub const fn data(&self) -> &T {
         let Self(target_data, ..) = self;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
@@ -272,10 +292,7 @@ impl<'a, T> InArena<'a, T> {
     /// Access the data backed by this handle, in a mutable manner.
     #[inline]
     #[must_use]
-    pub const fn data_mut<'b>(&'b mut self) -> &'b mut &'a mut T
-    where
-        'a: 'b,
-    {
+    pub const fn data_mut(&mut self) -> &mut T {
         let &mut Self(ref mut target_data, ..) = self;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
@@ -286,7 +303,7 @@ impl<'a, T> InArena<'a, T> {
     /// Access the allocation information for this handle.
     #[inline]
     #[must_use]
-    pub const fn allocation(&self) -> &Reserve<'a> {
+    pub const fn allocation(&self) -> &Reserve<'_> {
         let Self(_, allocation, ..) = self;
 
         allocation
@@ -324,18 +341,18 @@ mod tests {
     fn reserve_reuses_lowest_free_slot() {
         let arena: Arena<u32, 8> = Arena::new();
 
-        let first = arena.allocate(1).ok().expect("arena has free slots");
-        let second = arena.allocate(2).ok().expect("arena has free slots");
-        let third = arena.allocate(3).ok().expect("arena has free slots");
+        let first = arena.allocate(1).expect("arena has free slots");
+        let second = arena.allocate(2).expect("arena has free slots");
+        let third = arena.allocate(3).expect("arena has free slots");
 
         // Free the middle slot, fragmenting the reservation bitmap.
         drop(second);
 
         // This used to livelock: the lowest-zero scan skipped past the freed
         // slot onto an already-reserved bit and retried forever.
-        let refill = arena.allocate(4).ok().expect("freed slot is reusable");
+        let refill = arena.allocate(4).expect("freed slot is reusable");
 
-        assert_eq!(**InArena::data(&refill), 4);
+        assert_eq!(*InArena::data(&refill), 4);
 
         drop((first, third, refill));
     }
@@ -356,8 +373,12 @@ mod tests {
 
         let arena: Arena<Counted, 4> = Arena::new();
 
-        let held = arena.allocate(Counted).ok().expect("arena has free slots");
-        let leaked = arena.allocate(Counted).ok().expect("arena has free slots");
+        let Ok(held) = arena.allocate(Counted) else {
+            unreachable!("arena has free slots")
+        };
+        let Ok(leaked) = arena.allocate(Counted) else {
+            unreachable!("arena has free slots")
+        };
 
         // Dropping the handle used to be a no-op on the stored value.
         drop(held);

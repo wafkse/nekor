@@ -5,9 +5,9 @@
     clippy::nursery,
     clippy::unwrap_used,
     clippy::panic,
-    clippy::pedantic,
     rustdoc::all
 )]
+#![deny(clippy::pedantic)]
 //! Lock-free and allocator-less data structures for the Nekor unikernel.
 //!
 //! This crate does not have a prelude module. Each data structure must be

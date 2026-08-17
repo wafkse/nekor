@@ -62,21 +62,27 @@ where
             SlotState::reserve(target_state),
             SlotState::initialization(target_state),
         );
+        let initial_index = u32::try_from(N - 1).unwrap_or_else(|_| {
+            // `InBound` is only implemented for bitmap widths representable
+            // by the platform index type.
+            unreachable!()
+        });
 
         loop {
-            let reserve_at = match AtomicBitmap::at_rightmost(reserve_state) {
-                Some(at_rightmost) => At::right(at_rightmost),
-                // NOTE: Initial acquisition starts from the least significant bit.
-                None => AtomicBitmap::try_at(reserve_state, const { (N - 1) as u32 }),
-            };
+            let reserve_at = AtomicBitmap::at_rightmost(reserve_state).map_or_else(
+                || AtomicBitmap::try_at(reserve_state, initial_index),
+                At::right,
+            );
 
             match reserve_at.filter(SlotState::<N>::filter) {
                 Some(ref reserve_at) => match reserve_at.one_with::<Exclusive>(backoff_state) {
                     Outcome::Success(..) => {
                         let reserve_index = At::index(reserve_at);
 
-                        while let Status::Unmet =
-                            AtomicBitmap::condition(initialization_state, Unset(1 << reserve_index))
+                        while AtomicBitmap::condition(
+                            initialization_state,
+                            Unset(1 << reserve_index),
+                        ) == Status::Unmet
                         {
                             Monitored::wait(AtomicBitmap::monitor(initialization_state));
                         }
@@ -88,7 +94,7 @@ where
                         });
                     }
                     Outcome::Failure(Reason::Unchanged, ..) => unreachable!(),
-                    Outcome::Failure(Reason::Contended, ..) => continue,
+                    Outcome::Failure(Reason::Contended, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => break None,
                 },
                 None => break None,
@@ -121,27 +127,23 @@ where
         target_value: T,
         target_storage: &'a [UnsafeCell<MaybeUninit<T>>; N],
     ) {
-        match target_storage
+        let Some(mut target_storage) = target_storage
             .get(reserve_index as usize)
             .map(UnsafeCell::get)
-            .map(NonNull::new)
-            .flatten()
-        {
-            Some(mut target_storage) => {
-                // SAFETY: The slot has been assigned to us in an exclusive manner due to
-                // reserved state type, which corresponds to the target storage
-                // array.
-                let uninit_ref = unsafe { target_storage.as_mut() };
+            .and_then(NonNull::new)
+        else {
+            unreachable!("a reserved queue index must be in bounds")
+        };
 
-                MaybeUninit::write(uninit_ref, target_value);
+        // SAFETY: The slot is exclusively assigned to this reservation and
+        // belongs to the corresponding storage array.
+        let uninit_ref = unsafe { target_storage.as_mut() };
 
-                let _ = InitializationState::bitmap(queue_state.initialization())
-                    .at(reserve_index)
-                    .one::<Cooperative>();
-            }
-            // NOTE: The allocated reserve index is always in-bounds.
-            None => unreachable!(),
-        }
+        MaybeUninit::write(uninit_ref, target_value);
+
+        let _ = InitializationState::bitmap(queue_state.initialization())
+            .at(reserve_index)
+            .one::<Cooperative>();
     }
 }
 
@@ -176,7 +178,7 @@ where
         target_state: &'a SlotState<N>,
         backoff_state: &mut <Exclusive as Mode>::State,
     ) -> Option<Self> {
-        let ref initialization_state = SlotState::initialization(target_state);
+        let initialization_state = &SlotState::initialization(target_state);
 
         loop {
             // NOTE: No need for filtering the `At` engagement vector here, as the engaged
@@ -347,42 +349,29 @@ where
             target_storage,
         } = self;
 
-        match Acquired::<N, T>::acquire(slot_state) {
-            Some(Acquired { acquired_index, .. }) => {
-                match target_storage
-                    .get(acquired_index as usize)
-                    .map(UnsafeCell::get)
-                    .map(NonNull::new)
-                    .flatten()
-                {
-                    Some(mut target_storage) => {
-                        // SAFETY: The slot has been assigned to us in an exclusive manner due to
-                        // reserved state type, which corresponds to the
-                        // target storage array.
-                        let init_ref = unsafe { target_storage.as_mut() };
+        let Acquired { acquired_index, .. } = Acquired::<N, T>::acquire(slot_state)?;
+        let Some(mut target_storage) = target_storage
+            .get(acquired_index as usize)
+            .map(UnsafeCell::get)
+            .and_then(NonNull::new)
+        else {
+            unreachable!("an acquired queue index must be in bounds")
+        };
 
-                        // SAFETY: The value is initialized as it has been acquired from an
-                        // initialized slot.
-                        let target_value = unsafe { init_ref.assume_init_read() };
+        // SAFETY: The acquired initialized slot is exclusively assigned to
+        // this operation and belongs to the corresponding storage array.
+        let init_ref = unsafe { target_storage.as_mut() };
 
-                        // NOTE: The reservation bit is exclusively owned by us,
-                        // as we consumed its initialization bit. The clear is
-                        // therefore unconditional and cannot be contended away:
-                        // a single-shot compare-and-swap here could silently
-                        // fail under neighboring-bit traffic and leak the slot
-                        // forever.
-                        let _ = ReserveState::bitmap(slot_state.reserve())
-                            .at(acquired_index)
-                            .zero::<Cooperative>();
+        // SAFETY: Acquiring the initialization bit proves the value exists.
+        let target_value = unsafe { init_ref.assume_init_read() };
 
-                        Some(target_value)
-                    }
-                    // NOTE: The allocated reserve index is always in-bounds.
-                    None => unreachable!(),
-                }
-            }
-            None => None,
-        }
+        // The reservation bit is exclusively owned after consuming its
+        // initialization bit, so the clear cannot be contended away.
+        let _ = ReserveState::bitmap(slot_state.reserve())
+            .at(acquired_index)
+            .zero::<Cooperative>();
+
+        Some(target_value)
     }
 }
 
@@ -481,7 +470,7 @@ mod tests {
 
         // Fill the queue
         for i in 0..8 {
-            assert!(queue.enqueue(i).is_ok(), "Failed to enqueue at index {}", i);
+            assert!(queue.enqueue(i).is_ok(), "Failed to enqueue at index {i}");
         }
 
         // Next enqueue should fail

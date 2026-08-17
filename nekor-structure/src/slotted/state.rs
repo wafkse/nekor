@@ -24,7 +24,7 @@ impl<'a> ReserveState<'a> {
     }
 }
 
-impl<'a> Deref for ReserveState<'a> {
+impl Deref for ReserveState<'_> {
     type Target = AtomicBitmap;
 
     #[inline]
@@ -52,7 +52,7 @@ impl<'a> InitializationState<'a> {
     }
 }
 
-impl<'a> Deref for InitializationState<'a> {
+impl Deref for InitializationState<'_> {
     type Target = AtomicBitmap;
 
     #[inline]
@@ -157,7 +157,7 @@ where
     /// [`SlotState`].
     #[inline]
     #[must_use]
-    pub const fn filter(at: &At<'_>) -> bool {
-        At::index(at) < N as u32
+    pub fn filter(at: &At<'_>) -> bool {
+        usize::try_from(At::index(at)).is_ok_and(|index| index < N)
     }
 }
