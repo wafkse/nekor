@@ -22,8 +22,18 @@ where
 {
     /// Construct a [`Head`] for the target bootloader request `R`.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         Self(RawHead::new::<R>(), marker::PhantomData::<R>)
+    }
+}
+
+impl<R> Default for Head<R>
+where
+    R: BootRequest,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -45,6 +55,7 @@ pub struct RawHead {
 impl RawHead {
     /// Construct a [`RawHead`] for the target bootloader request `R`.
     #[inline]
+    #[must_use]
     pub const fn new<R>() -> Self
     where
         R: BootRequest,
@@ -128,7 +139,7 @@ where
     #[inline]
     #[must_use = "this request is useless if not embedded into the appropiate program section"]
     pub const fn request(target_value: R) -> Self {
-        Block {
+        Self {
             block_head: Head::<R>::new(),
             block_storage: UnsafeCell::new(Storage::<R>::request(target_value)),
         }
@@ -138,7 +149,7 @@ where
     #[inline]
     #[must_use = "this response is useless if not embedded into the appropiate program section"]
     pub const fn reponse(target_value: R::Response) -> Self {
-        Block {
+        Self {
             block_head: Head::<R>::new(),
             block_storage: UnsafeCell::new(Storage::<R>::response(target_value)),
         }

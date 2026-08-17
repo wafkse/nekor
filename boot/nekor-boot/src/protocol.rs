@@ -12,14 +12,15 @@ pub struct Slug(Le<u64>);
 impl Slug {
     /// Determine the [`Slug`] value that corresponds to a standalone buffer.
     #[inline]
+    #[must_use]
     pub const fn standalone<const N: usize>(target_buffer: [u8; N]) -> Self {
         // NOTE: These parameters were sourced from `https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1a_hash`.
 
         /// The FNV offset-basis used for the `FNV-1a` hash.
-        const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+        const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 
         /// The FNV prime used for the `FNV-1a` hash.
-        const FNV_PRIME: u64 = 0x100000001b3;
+        const FNV_PRIME: u64 = 0x0100_0000_01b3;
 
         let mut hash_state = FNV_OFFSET_BASIS;
 
