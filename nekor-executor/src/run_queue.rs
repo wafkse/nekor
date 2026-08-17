@@ -270,7 +270,7 @@ impl Run {
                     digit_count += 1;
                 }
 
-                number % 10_usize
+                number % 10
             }
 
             arch::naked_asm!(
