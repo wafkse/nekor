@@ -43,23 +43,22 @@ pub enum Cooperative {}
 // and thread-safe.
 unsafe impl Mode for Cooperative {
     type Signal = Snapshot;
-
     type State = ();
 
     #[inline]
-    fn zero_with(at: At<'_>, (): &mut Self::State, in_mode: &InMode) -> Self::Signal {
+    fn zero_with(at: At<'_>, _target_state: &mut Self::State, in_mode: &InMode) -> Self::Signal {
         let Disengage(target_value, _, bit_index) = At::disengage(at, in_mode);
 
-        let snapshot_value = target_value.fetch_and(1usize.wrapping_shl(bit_index).not(), AcqRel);
+        let snapshot_value = target_value.fetch_and(1_usize.wrapping_shl(bit_index).not(), AcqRel);
 
         Snapshot(snapshot_value)
     }
 
     #[inline]
-    fn one_with(at: At<'_>, (): &mut Self::State, in_mode: &InMode) -> Self::Signal {
+    fn one_with(at: At<'_>, _target_state: &mut Self::State, in_mode: &InMode) -> Self::Signal {
         let Disengage(target_value, _, bit_index) = At::disengage(at, in_mode);
 
-        let snapshot_value = target_value.fetch_or(1usize.wrapping_shl(bit_index), AcqRel);
+        let snapshot_value = target_value.fetch_or(1_usize.wrapping_shl(bit_index), AcqRel);
 
         Snapshot(snapshot_value)
     }
@@ -74,16 +73,17 @@ impl Display for Cooperative {
 
 #[cfg(test)]
 mod tests {
+    use core::sync::atomic::{Ordering, fence};
+
     use super::*;
     use crate::atomic::bitmap::AtomicBitmap;
-    use core::sync::atomic::{Ordering, fence};
 
     /// Test that `one()` actually sets a bit from 0 to 1
     #[test]
     fn one_sets_bit() {
         let bitmap = AtomicBitmap::zeroed();
 
-        let _ = bitmap.at(5).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(5).one::<Cooperative>();
 
         assert_eq!(bitmap.snapshot() & (1 << 5), 1 << 5, "bit 5 should be set");
     }
@@ -92,9 +92,9 @@ mod tests {
     #[test]
     fn zero_clears_bit() {
         let bitmap = AtomicBitmap::zeroed();
-        let _ = bitmap.at(7).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(7).one::<Cooperative>();
 
-        let _ = bitmap.at(7).zero::<Cooperative>();
+        let _: Snapshot = bitmap.at(7).zero::<Cooperative>();
 
         assert_eq!(bitmap.snapshot() & (1 << 7), 0, "bit 7 should be cleared");
     }
@@ -110,11 +110,7 @@ mod tests {
 
         // Clear bit 3 - should return previous state (bit 3 was 1)
         let Snapshot(before_clear) = bitmap.at(3).zero::<Cooperative>();
-        assert_eq!(
-            before_clear & (1 << 3),
-            1 << 3,
-            "snapshot should show bit was 1"
-        );
+        assert_eq!(before_clear & (1 << 3), 1 << 3, "snapshot should show bit was 1");
     }
 
     /// Test that operations work on already-targeted states (idempotent in
@@ -124,24 +120,20 @@ mod tests {
         let bitmap = AtomicBitmap::zeroed();
 
         // Setting an already-clear bit
-        let _ = bitmap.at(2).zero::<Cooperative>();
+        let _: Snapshot = bitmap.at(2).zero::<Cooperative>();
         assert_eq!(bitmap.snapshot() & (1 << 2), 0, "bit should remain clear");
 
         // Clearing an already-set bit
-        let _ = bitmap.at(4).one::<Cooperative>();
-        let _ = bitmap.at(4).one::<Cooperative>();
-        assert_eq!(
-            bitmap.snapshot() & (1 << 4),
-            1 << 4,
-            "bit should remain set"
-        );
+        let _: Snapshot = bitmap.at(4).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(4).one::<Cooperative>();
+        assert_eq!(bitmap.snapshot() & (1 << 4), 1 << 4, "bit should remain set");
     }
 
     /// Test that multiple concurrent threads can all successfully set different
     /// bits
     #[test]
     fn concurrent_operations_on_different_bits_all_succeed() {
-        use std::sync::Arc;
+        use alloc::sync::Arc;
         use std::thread;
 
         let bitmap = Arc::new(AtomicBitmap::zeroed());
@@ -151,7 +143,7 @@ mod tests {
         for i in 0..16 {
             let bitmap_clone = Arc::clone(&bitmap);
             handles.push(thread::spawn(move || {
-                let _ = bitmap_clone.at(i).one::<Cooperative>();
+                let _: Snapshot = bitmap_clone.at(i).one::<Cooperative>();
             }));
         }
 
@@ -163,7 +155,7 @@ mod tests {
         fence(Ordering::Acquire);
 
         // All bits should be set - cooperative mode never fails
-        let expected = (1usize << 16) - 1;
+        let expected = (1_usize << 16) - 1;
         assert_eq!(
             bitmap.snapshot() & expected,
             expected,
@@ -175,8 +167,8 @@ mod tests {
     /// This is the key difference from Exclusive mode - no failures occur
     #[test]
     fn concurrent_operations_on_same_bit_all_succeed() {
-        use std::sync::{Arc, Barrier};
-        use std::thread;
+        use alloc::sync::Arc;
+        use std::{sync::Barrier, thread};
 
         let bitmap = Arc::new(AtomicBitmap::zeroed());
         let barrier = Arc::new(Barrier::new(10));
@@ -188,7 +180,7 @@ mod tests {
             let barrier_clone = Arc::clone(&barrier);
             handles.push(thread::spawn(move || {
                 barrier_clone.wait(); // Synchronize start
-                let _ = bitmap_clone.at(5).one::<Cooperative>();
+                let _: Snapshot = bitmap_clone.at(5).one::<Cooperative>();
                 // In cooperative mode, this never fails - no return value to
                 // check
             }));
@@ -209,8 +201,8 @@ mod tests {
     /// failure
     #[test]
     fn concurrent_mixed_operations_all_succeed() {
-        use std::sync::{Arc, Barrier};
-        use std::thread;
+        use alloc::sync::Arc;
+        use std::{sync::Barrier, thread};
 
         let bitmap = Arc::new(AtomicBitmap::zeroed());
         let barrier = Arc::new(Barrier::new(20));
@@ -223,9 +215,9 @@ mod tests {
             handles.push(thread::spawn(move || {
                 barrier_clone.wait();
                 if i % 2 == 0 {
-                    let _ = bitmap_clone.at(10).one::<Cooperative>();
+                    let _: Snapshot = bitmap_clone.at(10).one::<Cooperative>();
                 } else {
-                    let _ = bitmap_clone.at(10).zero::<Cooperative>();
+                    let _: Snapshot = bitmap_clone.at(10).zero::<Cooperative>();
                 }
             }));
         }
@@ -239,7 +231,7 @@ mod tests {
 
         // Final state is unpredictable, but all operations succeeded
         // The key is that no operation failed - they all completed
-        let _ = bitmap.snapshot(); // Just verify we can read it
+        bitmap.snapshot(); // Just verify we can read it
     }
 
     /// Test operations across the full bit range
@@ -249,13 +241,13 @@ mod tests {
 
         // Set all bits
         for i in 0..usize::BITS {
-            let _ = bitmap.at(i).one::<Cooperative>();
+            let _: Snapshot = bitmap.at(i).one::<Cooperative>();
         }
         assert_eq!(bitmap.snapshot(), usize::MAX, "all bits should be set");
 
         // Clear all bits
         for i in 0..usize::BITS {
-            let _ = bitmap.at(i).zero::<Cooperative>();
+            let _: Snapshot = bitmap.at(i).zero::<Cooperative>();
         }
         assert_eq!(bitmap.snapshot(), 0, "all bits should be cleared");
     }
@@ -265,15 +257,15 @@ mod tests {
     fn multiple_independent_bit_operations() {
         let bitmap = AtomicBitmap::zeroed();
 
-        let _ = bitmap.at(0).one::<Cooperative>();
-        let _ = bitmap.at(5).one::<Cooperative>();
-        let _ = bitmap.at(15).one::<Cooperative>();
-        let _ = bitmap.at(31).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(0).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(5).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(15).one::<Cooperative>();
+        let _: Snapshot = bitmap.at(31).one::<Cooperative>();
 
         let expected = (1 << 0) | (1 << 5) | (1 << 15) | (1 << 31);
         assert_eq!(bitmap.snapshot(), expected, "selected bits should be set");
 
-        let _ = bitmap.at(5).zero::<Cooperative>();
+        let _: Snapshot = bitmap.at(5).zero::<Cooperative>();
         let expected = (1 << 0) | (1 << 15) | (1 << 31);
         assert_eq!(bitmap.snapshot(), expected, "bit 5 should be cleared");
     }

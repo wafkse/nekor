@@ -8,6 +8,7 @@ use crate::{
     name::Name,
     node::Node,
     overlay::{Overlay, OverlayError},
+    parse::document as parse_document,
     source::Source,
 };
 
@@ -16,6 +17,7 @@ use crate::{
 pub struct Document {
     // NOTE(invariant): Every semantic path has at most one node. Parsing and
     // merging reject conflicting terminal definitions before construction.
+    /// The top-level nodes keyed by their semantic names.
     fields: IndexMap<Name, Node>,
 }
 
@@ -28,14 +30,14 @@ impl Document {
     /// invalid reserved representation annotations.
     #[inline]
     pub fn parse(input: &str, source: &Source) -> Result<Self, LoadError> {
-        crate::parse::document(input, source)
+        parse_document(input, source)
     }
 
     /// Determine a top-level node by name.
     #[inline]
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&Node> {
-        let Self { fields } = self;
+        let &Self { ref fields } = self;
 
         fields.get(name)
     }
@@ -43,7 +45,7 @@ impl Document {
     /// Iterate over top-level nodes in source order.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&Name, &Node)> {
-        let Self { fields } = self;
+        let &Self { ref fields } = self;
 
         fields.iter()
     }
@@ -57,7 +59,7 @@ impl Document {
     /// Determine the backing map for Serde projection.
     #[inline]
     pub(crate) const fn fields(&self) -> &IndexMap<Name, Node> {
-        let Self { fields } = self;
+        let &Self { ref fields } = self;
 
         fields
     }
@@ -92,9 +94,7 @@ impl Overlay for Document {
 
         for (name, node) in derived {
             if let Some((index, inherited_name, inherited)) = fields.shift_remove_full(&name) {
-                let resolved = inherited
-                    .overlay(node)
-                    .map_err(|error| error.prefixed(name))?;
+                let resolved = inherited.overlay(node).map_err(|error| error.prefixed(name))?;
                 _ = fields.shift_insert(index, inherited_name, resolved);
             } else {
                 _ = fields.insert(name, node);

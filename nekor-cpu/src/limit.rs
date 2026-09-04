@@ -27,43 +27,20 @@ use core::num::NonZero;
 /// Where `<tts>` is the input token stream to [`size`].
 macro_rules! size {
     () => {};
-    (
-        $($target_size:literal),+
-    ) => {
-        tokel::stream!(
-            const {
-                #[allow(unreachable_code, reason = "a smaller core count can be shadowed and made unreachable by a greater count")]
-                'a: {
-                    [<
-                        $(
-                            {
-                                #[cfg(feature = [<
-                                     "maximum-core-count-"
-                                     // NOTE: This macro parameter can be embedded within a None-delimited token
-                                     // group, so we forcibly flatten whatever the macro expansion engine gives us.
-                                     [< $target_size >]:flatten
-                                >]:to_string:concatenate)]
-                                break 'a $target_size;
-                            }
-                        )*
-                    // NOTE: The `reverse` here is `TokenGroup`-based, so it won't reorder the labelled break expression internally.
-                    >]:reverse
-
-                    {
-                        unreachable!(
-                            [<
-                                "No selected maximal processor core count, please enable one of the following:"
-                                $(
-                                    " "
-
-                                    "`" [< "maximum-core-count-" [< $target_size >]:flatten >]:to_string:concatenate "`"
-                                )*
-                            >]:to_string:concatenate
-                        )
-                    }
-                }
+    ($(($target_size:literal, $feature:literal)),+ $(,)?) => {
+        const {
+            $(
+                if cfg!(feature = $feature) {
+                    $target_size
+                } else
+            )+
+            {
+                panic!(concat!(
+                    "No selected maximal processor core count, please enable one of the following:",
+                    $(" maximum-core-count-", $feature),+
+                ))
             }
-        )
+        }
     };
 }
 
@@ -79,7 +56,20 @@ impl Cores {
     pub const fn maximum() -> NonZero<usize> {
         const {
             NonZero::new(size!(
-                1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192
+                (8192, "maximum-core-count-8192"),
+                (4096, "maximum-core-count-4096"),
+                (2048, "maximum-core-count-2048"),
+                (1024, "maximum-core-count-1024"),
+                (512, "maximum-core-count-512"),
+                (256, "maximum-core-count-256"),
+                (128, "maximum-core-count-128"),
+                (64, "maximum-core-count-64"),
+                (32, "maximum-core-count-32"),
+                (16, "maximum-core-count-16"),
+                (8, "maximum-core-count-8"),
+                (4, "maximum-core-count-4"),
+                (2, "maximum-core-count-2"),
+                (1, "maximum-core-count-1"),
             ))
             .expect("bad core count")
         }

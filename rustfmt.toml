@@ -1,12 +1,100 @@
+# rustfmt.toml
+
+# Requires nightly rustfmt.
 unstable_features = true
-tab_spaces = 4
-max_width = 100
-reorder_imports = true
+
+edition = "2024"
+style_edition = "2024"
+
+# ---------------------------------------------------------------------------
+# Width
+# ---------------------------------------------------------------------------
+
+max_width = 120
+
+# Keep rustfmt's normal tendency to break complex constructs before 100 chars.
+# "Max" tends to produce overly dense 90–100 character expressions.
+use_small_heuristics = "Default"
+
+# Treat max_width as an actual policy rather than just a preference.
+error_on_line_overflow = false
+error_on_unformatted = true
+
+# ---------------------------------------------------------------------------
+# Comments / docs
+# ---------------------------------------------------------------------------
 
 wrap_comments = true
-comment_width = 80
-normalize_comments = false
+comment_width = 100
 
-format_strings = true
-format_macro_matchers = false
+# Also rustfmt Rust code inside ```rust doc blocks.
+format_code_in_doc_comments = true
+doc_comment_code_block_width = 100
+
+# Normalize comment representation.
+normalize_comments = true
+normalize_doc_attributes = true
+
+# ---------------------------------------------------------------------------
+# Macros
+# ---------------------------------------------------------------------------
+
+# Format macro_rules! matchers:
+#
+#     ($foo : ident)
+#
+# becomes:
+#
+#     ($foo:ident)
+#
+format_macro_matchers = true
+
+# Format Rust-like contents of macro_rules! bodies.
 format_macro_bodies = true
+
+# Don't globally exempt any macro invocations.
+skip_macro_invocations = []
+
+# ---------------------------------------------------------------------------
+# Generics / where clauses
+# ---------------------------------------------------------------------------
+
+# Do NOT try to squeeze `where T: Foo, U: Bar` onto one line.
+where_single_line = false
+
+fn_params_layout = "Tall"
+brace_style = "SameLineWhere"
+
+# ---------------------------------------------------------------------------
+# Imports
+# ---------------------------------------------------------------------------
+
+reorder_imports = true
+reorder_modules = true
+
+# std/core/alloc
+#
+# external crates
+#
+# crate/self/super
+group_imports = "StdExternalCrate"
+
+# Keep imports consolidated per module without producing giant crate-wide
+# nested import trees.
+imports_granularity = "Crate"
+
+# ---------------------------------------------------------------------------
+# General consistency
+# ---------------------------------------------------------------------------
+
+blank_lines_upper_bound = 1
+
+match_block_trailing_comma = true
+
+use_field_init_shorthand = true
+merge_derives = true
+
+# Put associated types/consts before methods inside impls.
+reorder_impl_items = true
+
+newline_style = "Unix"

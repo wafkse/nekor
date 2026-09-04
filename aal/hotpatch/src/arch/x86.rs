@@ -1,7 +1,8 @@
 //! `x86` architecture support.
 
-use nekor_aal_arch::x86::serialize::{IRet, Serialize};
+use core::convert::Infallible;
 
+use nekor_aal_arch::x86::serialize::{IRet, Serialize};
 use nekor_aal_feature::{
     arch::x86::qualified,
     prelude::{Feature, Present, Signal},
@@ -11,7 +12,10 @@ use crate::cmc::Target;
 
 /// An architecture-specific implementation for the abstract *CMC-Publish*
 /// operation.
-pub enum PublishX86 {}
+pub enum PublishX86 {
+    /// An impossible marker variant; this type is used only as a namespace.
+    __Variant(Infallible),
+}
 
 impl PublishX86 {
     /// Perform a *CMC-Publish* operation in a coordinated fashion.
@@ -35,4 +39,7 @@ impl PublishX86 {
 
 /// An architecture-specific implementation for the abstract *CMC-Acquire*
 /// operation.
-pub enum AcquireX86 {}
+pub enum AcquireX86 {
+    /// An impossible marker variant; this type is used only as a namespace.
+    __Variant(Infallible),
+}

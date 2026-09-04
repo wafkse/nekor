@@ -18,9 +18,8 @@ impl<'a, I, const N: usize> Counterpart for Bit<'a, I, N>
 where
     I: BitAt<N>,
 {
-    type Mut = BitMut<'a, I, N>;
-
     type Immut = Self;
+    type Mut = BitMut<'a, I, N>;
 }
 
 impl<'a, I, const N: usize> Bit<'a, I, N>
@@ -142,9 +141,8 @@ impl<'a, I, const N: usize> Counterpart for BitMut<'a, I, N>
 where
     I: BitAt<N>,
 {
-    type Mut = Self;
-
     type Immut = Bit<'a, I, N>;
+    type Mut = Self;
 }
 
 /// A helper macro to implement the distinct combinations of the [`BitMut`]

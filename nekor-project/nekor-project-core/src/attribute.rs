@@ -18,10 +18,12 @@
 //! and malformed assignments return `syn::Error`. Callers never receive a
 //! partially parsed option.
 
-use alloc::string::ToString;
-use alloc::vec::Vec;
+use alloc::{string::ToString, vec::Vec};
 
-use syn::{Attribute, Ident, Token, parse::Nothing, parse::Parse};
+use syn::{
+    Attribute, Ident, Token,
+    parse::{Nothing, Parse},
+};
 
 /// One parsed `project` helper attribute.
 ///
@@ -80,7 +82,7 @@ impl Parse for ProjectAttribute {
                         trait_name,
                         "invalid trait name for unsafe clause",
                     ));
-                }
+                },
             };
 
             return Ok(Self::UnsafeClause(clause_target));

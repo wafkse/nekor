@@ -1,6 +1,7 @@
 //! Platform loading and resolution support.
 
-use std::{collections::BTreeSet, fs, io, path::PathBuf};
+use alloc::collections::BTreeSet;
+use std::{fs, io, path::PathBuf};
 
 use cargo_metadata::camino::{Utf8Path, Utf8PathBuf};
 use fack::prelude::Error;
@@ -138,26 +139,20 @@ impl Platform {
         }
 
         let root = current;
-        let mut resolved = Self::load(&workspace.join(root.path())).map_err(|error| {
-            PlatformResolveError::Load {
-                name: root.name().clone(),
-                error: Box::new(error),
-            }
+        let mut resolved = Self::load(&workspace.join(root.path())).map_err(|error| PlatformResolveError::Load {
+            name: root.name().clone(),
+            error: Box::new(error),
         })?;
 
         for desc in chain.into_iter().rev().skip(1) {
-            let layer = Self::load(&workspace.join(desc.path())).map_err(|error| {
-                PlatformResolveError::Load {
-                    name: desc.name().clone(),
-                    error: Box::new(error),
-                }
+            let layer = Self::load(&workspace.join(desc.path())).map_err(|error| PlatformResolveError::Load {
+                name: desc.name().clone(),
+                error: Box::new(error),
             })?;
-            resolved = resolved
-                .overlay(layer)
-                .map_err(|error| PlatformResolveError::Overlay {
-                    name: desc.name().clone(),
-                    error: Box::new(error),
-                })?;
+            resolved = resolved.overlay(layer).map_err(|error| PlatformResolveError::Overlay {
+                name: desc.name().clone(),
+                error: Box::new(error),
+            })?;
         }
 
         Ok(resolved)
@@ -172,18 +167,14 @@ impl Platform {
         let mut document = Document::default();
 
         for path in Self::files(&root.join("data"), "kdl").map_err(PlatformLoadError::File)? {
-            let input = fs::read_to_string(path.as_std_path()).map_err(|error| {
-                PlatformLoadError::Read {
-                    path: path.clone(),
-                    error,
-                }
+            let input = fs::read_to_string(path.as_std_path()).map_err(|error| PlatformLoadError::Read {
+                path: path.clone(),
+                error,
             })?;
             let source = Source::file(path.clone());
-            let fragment = Document::parse(input.as_str(), &source).map_err(|error| {
-                PlatformLoadError::Load {
-                    path,
-                    error: Box::new(error),
-                }
+            let fragment = Document::parse(input.as_str(), &source).map_err(|error| PlatformLoadError::Load {
+                path,
+                error: Box::new(error),
             })?;
             document = document
                 .merge(fragment)
@@ -200,7 +191,7 @@ impl Platform {
     #[inline]
     #[must_use]
     pub fn root(&self) -> &Utf8Path {
-        let Self { root, .. } = self;
+        let &Self { ref root, .. } = self;
 
         root.as_path()
     }
@@ -209,7 +200,7 @@ impl Platform {
     #[inline]
     #[must_use]
     pub const fn document(&self) -> &Document {
-        let Self { document, .. } = self;
+        let &Self { ref document, .. } = self;
 
         document
     }
@@ -220,7 +211,7 @@ impl Platform {
     ///
     /// Returns an error when recursive file discovery fails.
     pub fn template_files(&self) -> Result<Vec<Utf8PathBuf>, PlatformFileError> {
-        let Self { root, .. } = self;
+        let &Self { ref root, .. } = self;
 
         Self::files(root.as_path(), "jinja")
     }
@@ -258,9 +249,7 @@ impl Overlay for Platform {
             document: derived,
         } = derived;
 
-        document
-            .overlay(derived)
-            .map(|document| Self { root, document })
+        document.overlay(derived).map(|document| Self { root, document })
     }
 }
 
@@ -269,7 +258,7 @@ impl Serialize for Platform {
     where
         S: serde::Serializer,
     {
-        let Self { document, .. } = self;
+        let &Self { ref document, .. } = self;
 
         document.serialize(serializer)
     }

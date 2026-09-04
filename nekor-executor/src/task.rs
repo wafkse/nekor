@@ -14,13 +14,12 @@
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    ptr::NonNull,
+    ptr::{NonNull, from_ref},
     task::Waker,
 };
 
-use nekor_structure::arena::Arena;
-
 use nekor_domain::prelude::Erased;
+use nekor_structure::arena::Arena;
 use nekor_sync::atomic::bitmap::typeutil::{BitMapUsize, InBound};
 
 use crate::{
@@ -94,9 +93,7 @@ impl Task {
     #[inline]
     #[must_use]
     pub const fn queue(&self) -> &Erased<TaskQueue> {
-        let Self { schedule_queue, .. } = self;
-
-        schedule_queue
+        &self.schedule_queue
     }
 }
 
@@ -107,18 +104,18 @@ impl Task {
     ///
     /// This will fail **iff**:
     ///
-    /// - The target task is not in a dormant state, i.e., it is either pending
-    ///   or executing.
+    /// - The target task is not in a dormant state, i.e., it is either pending or executing.
     ///
     /// See the distinct task states in [`StateDescriptor`] for further
     /// information.
     #[inline]
     pub fn acquire(target_task: &'static Self) -> Option<Acquired> {
-        let Self { status, raw, .. } = target_task;
+        let status = &target_task.status;
+        let raw = &target_task.raw;
 
         match TaskStatus::determine(status) {
             StateDescriptor::Dormant(target_state) => {
-                if target_state.pending().is_some() {
+                target_state.pending().is_some().then(|| {
                     let raw_ptr = raw.get();
 
                     // SAFETY: Cannot be null, as the pointer has been sourced
@@ -129,11 +126,9 @@ impl Task {
                     // context, as the task has been acquired exclusively.
                     let reference = unsafe { raw_ptr.as_mut() };
 
-                    Some(Acquired(reference))
-                } else {
-                    None
-                }
-            }
+                    Acquired(reference)
+                })
+            },
             StateDescriptor::Pending(..) | StateDescriptor::Executing(..) => None,
         }
     }
@@ -144,12 +139,7 @@ impl Task {
     pub const fn waker(&'static self) -> Waker {
         // SAFETY: `Task` (and `Waker`-related code) is thread-safe, as required
         // by the `RawWakerVTable` documentation.
-        unsafe {
-            Waker::new(
-                core::ptr::from_ref::<Self>(self).cast::<()>(),
-                &wake::VTABLE,
-            )
-        }
+        unsafe { Waker::new(from_ref::<Self>(self).cast::<()>(), &wake::VTABLE) }
     }
 }
 
@@ -162,9 +152,7 @@ impl Deref for Acquired {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
-
-        target_value
+        self.0
     }
 }
 

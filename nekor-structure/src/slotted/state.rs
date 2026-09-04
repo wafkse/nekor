@@ -29,7 +29,7 @@ impl Deref for ReserveState<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_bitmap) = self;
+        let &Self(target_bitmap) = self;
 
         target_bitmap
     }
@@ -57,7 +57,7 @@ impl Deref for InitializationState<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_bitmap) = self;
+        let &Self(target_bitmap) = self;
 
         target_bitmap
     }
@@ -74,16 +74,14 @@ impl Deref for InitializationState<'_> {
 ///
 /// Each bitmap indicates the downstream state of the *storage array*,
 /// particularly:
-///     - The *Reservation State*: Indicates the mutable, mutually exclusive
-///       state of the `I`th slot in the storage array. This can be *relied upon
-///       in unsafe code*, as it is a strong *invariant* for the same
-///       `(slot-state, storage-array)` 2-tuple.
-///     - The *Initialization State*: Indicates the initialization and
-///       availability of the `I`th slot in the storage array. Storage slot
-///       availability implies that any future dequeue operation may acquire and
-///       *consume* the value in the downstream slot `I` in the storage array.
-///       This can be *relied upon in unsafe code*, as it is a strong
+///     - The *Reservation State*: Indicates the mutable, mutually exclusive state of the `I`th slot
+///       in the storage array. This can be *relied upon in unsafe code*, as it is a strong
 ///       *invariant* for the same `(slot-state, storage-array)` 2-tuple.
+///     - The *Initialization State*: Indicates the initialization and availability of the `I`th
+///       slot in the storage array. Storage slot availability implies that any future dequeue
+///       operation may acquire and *consume* the value in the downstream slot `I` in the storage
+///       array. This can be *relied upon in unsafe code*, as it is a strong *invariant* for the
+///       same `(slot-state, storage-array)` 2-tuple.
 ///
 /// The downstream *storage array* must be exactly `N`-elements long.
 #[derive(Debug)]
@@ -113,8 +111,7 @@ where
     #[inline]
     #[must_use]
     pub const fn zeroed() -> Self {
-        let (reserve_state, initialization_state) =
-            (AtomicBitmap::zeroed(), AtomicBitmap::zeroed());
+        let (reserve_state, initialization_state) = (AtomicBitmap::zeroed(), AtomicBitmap::zeroed());
 
         Self {
             reserve_state,
@@ -131,21 +128,14 @@ where
     #[inline]
     #[must_use]
     pub const fn reserve(&self) -> ReserveState<'_> {
-        let Self { reserve_state, .. } = self;
-
-        ReserveState(reserve_state)
+        ReserveState(&self.reserve_state)
     }
 
     /// Determine the *initialization state* of this [`SlotState`].
     #[inline]
     #[must_use]
     pub const fn initialization(&self) -> InitializationState<'_> {
-        let Self {
-            initialization_state,
-            ..
-        } = self;
-
-        InitializationState(initialization_state)
+        InitializationState(&self.initialization_state)
     }
 }
 

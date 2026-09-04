@@ -6,8 +6,7 @@ use core::{
     mem::MaybeUninit,
     ptr::NonNull,
     sync::atomic::{
-        AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicIsize, AtomicU8, AtomicU16, AtomicU32,
-        AtomicU64, AtomicUsize,
+        AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicIsize, AtomicU8, AtomicU16, AtomicU32, AtomicU64, AtomicUsize,
     },
 };
 
@@ -81,16 +80,11 @@ impl Zeroed {
     {
         // SAFETY: The reference is valid and is correct to share between
         // threads.
-        let Container { value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
+        let &Container { ref value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
 
+        // SAFETY: The to-migrate stage is not the `Initialized` variant.
         let target_migrate =
-            // SAFETY: The to-migrate stage is not the `Initialized` variant.
-            unsafe {
-            value_header.migrate(
-                InitializationStage::Uninitialized,
-                InitializationStage::Pending,
-            )
-        };
+            unsafe { value_header.migrate(InitializationStage::Uninitialized, InitializationStage::Pending) };
 
         match target_migrate {
             None => {
@@ -107,7 +101,7 @@ impl Zeroed {
                 unsafe { value_header.store(InitializationStage::Initialized) };
 
                 target_value
-            }
+            },
             Some(target_stage) => match target_stage {
                 InitializationStage::Pending => {
                     loop {
@@ -117,16 +111,11 @@ impl Zeroed {
 
                                 // SAFETY: The value is guaranteed to have been
                                 // initialized due to an initialization signal.
-                                let target_value = unsafe {
-                                    target_value
-                                        .get()
-                                        .as_ref()
-                                        .unwrap_unchecked()
-                                        .assume_init_ref()
-                                };
+                                let target_value =
+                                    unsafe { target_value.get().as_ref().unwrap_unchecked().assume_init_ref() };
 
                                 break target_value;
-                            }
+                            },
                             // TODO: Add Backoff type here.
                             InitializationStage::Pending => hint::spin_loop(),
                             // NOTE: There is no initializing thread panic risk
@@ -134,20 +123,14 @@ impl Zeroed {
                             InitializationStage::Uninitialized => unreachable!(),
                         }
                     }
-                }
+                },
                 InitializationStage::Initialized => {
                     let target_value = Static::raw_value_in::<T, D>();
 
                     // SAFETY: The value is guaranteed to have been initialized
                     // due to an initialization signal.
-                    unsafe {
-                        target_value
-                            .get()
-                            .as_ref()
-                            .unwrap_unchecked()
-                            .assume_init_ref()
-                    }
-                }
+                    unsafe { target_value.get().as_ref().unwrap_unchecked().assume_init_ref() }
+                },
                 InitializationStage::Uninitialized => unreachable!(),
             },
         }
@@ -162,10 +145,10 @@ impl Zeroed {
 ///
 /// Albeit this may seem unsound at first, behavior can be:
 ///
-/// - The value is zero-initialized at program start. As known, this is enforced
-///   by the [`Zeroable`] unsafe trait.
-/// - If the value is non-[`Freeze`], it can be mutated, but the value **always
-///   remains initialized** during the lifetime of the program.
+/// - The value is zero-initialized at program start. As known, this is enforced by the [`Zeroable`]
+///   unsafe trait.
+/// - If the value is non-[`Freeze`], it can be mutated, but the value **always remains
+///   initialized** during the lifetime of the program.
 ///
 /// Furthermore, all static values stored through this [`Domain`] will not be
 /// able to be accessed by the regular [`Static`] interface. Access to values is
@@ -260,12 +243,9 @@ impl Zeroed {
         // Safe to wrap out of the `MaybeUninit` due to the fact that the
         // underlying storage is zero-initialized and `T` implements `Zeroable`.
         unsafe {
-            NonNull::<UnsafeCell<MaybeUninit<T>>>::from_ref(Static::raw_value_in::<
-                T,
-                AlwaysZeroed<D>,
-            >())
-            .cast::<T>()
-            .as_ref()
+            NonNull::<UnsafeCell<MaybeUninit<T>>>::from_ref(Static::raw_value_in::<T, AlwaysZeroed<D>>())
+                .cast::<T>()
+                .as_ref()
         }
     }
 }

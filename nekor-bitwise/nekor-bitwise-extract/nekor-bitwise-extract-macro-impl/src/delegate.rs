@@ -4,17 +4,15 @@
 //
 // O type needs sealed trait
 
-use crate::primitive::Primitive;
-
 use proc_macro2::TokenStream;
-
 use quote::quote;
-
 use syn::{
     Ident, Token,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
 };
+
+use crate::primitive::Primitive;
 
 /// The input macro structure expected by the `metadata` proc-macro.
 pub struct Delegate {
@@ -53,8 +51,7 @@ impl Delegate {
 
         let optional_impl_detail = match become_token {
             Some(..) => {
-                let detail_module_doc =
-                    format!("Implementation details for the `{trait_name_slice}*`-related traits.");
+                let detail_module_doc = format!("Implementation details for the `{trait_name_slice}*`-related traits.");
 
                 let sealed_trait_doc = format!(
                     "A trait to act as a supertrait seal for the `{trait_name_slice}*`-related \
@@ -70,14 +67,11 @@ impl Delegate {
                         pub trait Sealed {}
                     }
                 })
-            }
+            },
             None => None,
         };
 
-        let metadata_trait_doc = format!(
-            "A metadata delegator item for the `{}` type",
-            input_primitive.as_str()
-        );
+        let metadata_trait_doc = format!("A metadata delegator item for the `{}` type", input_primitive.as_str());
 
         let DelegatedList(delegate_impls) = trait_list;
 
@@ -215,8 +209,8 @@ impl Parse for DelegatedList {
 
         let _ = syn::bracketed!(list_content in input);
 
-        Ok(Self(
-            Punctuated::<DelegateTraitImpl, Token![,]>::parse_terminated(&list_content)?,
-        ))
+        Ok(Self(Punctuated::<DelegateTraitImpl, Token![,]>::parse_terminated(
+            &list_content,
+        )?))
     }
 }

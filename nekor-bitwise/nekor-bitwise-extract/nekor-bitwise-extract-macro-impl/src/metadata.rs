@@ -1,9 +1,7 @@
 //! Metadata trait generator infrastructure.
 
 use proc_macro2::TokenStream;
-
 use quote::quote;
-
 use syn::{
     Ident, Token,
     parse::{Parse, ParseStream},
@@ -54,8 +52,7 @@ impl Metadata {
 
         let optional_impl_detail = match become_token {
             Some(..) => {
-                let detail_module_doc =
-                    format!("Implementation details for the `{trait_name_slice}*`-related traits.");
+                let detail_module_doc = format!("Implementation details for the `{trait_name_slice}*`-related traits.");
 
                 let sealed_trait_doc = format!(
                     "A trait to act as a supertrait seal for the `{trait_name_slice}*`-related \
@@ -71,12 +68,11 @@ impl Metadata {
                         pub trait Sealed {}
                     }
                 })
-            }
+            },
             None => None,
         };
 
-        let metadata_trait_doc =
-            format!("A metadata item about a {type_name_out}-from-{type_name_in} extraction.");
+        let metadata_trait_doc = format!("A metadata item about a {type_name_out}-from-{type_name_in} extraction.");
 
         let metadata_trait = quote! {
             #optional_impl_detail

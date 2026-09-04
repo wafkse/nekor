@@ -1,7 +1,7 @@
 pub mod show;
 pub mod template;
 
-use std::fmt;
+use core::fmt;
 
 use clap::{Parser, Subcommand};
 use fack::prelude::Error;
@@ -13,12 +13,10 @@ use crate::{
     orchestrate::{
         Orchestrate,
         command::{
-            Execute, OrchestrateCommand, Output, OutputOptions,
+            Execute, OrchestrateCommand, Output, OutputError, OutputOptions,
             platform::{
                 show::{PlatformShowCommand, PlatformShowError, PlatformShowOutput},
-                template::{
-                    PlatformTemplateCommand, PlatformTemplateError, PlatformTemplateOutput,
-                },
+                template::{PlatformTemplateCommand, PlatformTemplateError, PlatformTemplateOutput},
             },
         },
     },
@@ -66,6 +64,10 @@ pub enum OrchestratePlatformError {
     /// An error specific to the platform template command.
     #[error(transparent(0))]
     PlatformTemplateError(PlatformTemplateError),
+
+    /// Formatting command output failed.
+    #[error(transparent(0))]
+    Output(OutputError),
 }
 
 impl Orchestrate for OrchestratePlatform {
@@ -80,21 +82,18 @@ impl Orchestrate for OrchestratePlatform {
     }
 
     fn execute(self, context: &InvokeContext) -> Result<(), Self::Error> {
-        let Self {
-            name,
-            platform_command,
-        } = self;
+        let Self { name, platform_command } = self;
         let database = context.manifest().platform();
         let Some(desc) = database.get(name.as_str()) else {
             return Err(OrchestratePlatformError::PlatformNotFound { name });
         };
-        let platform = Platform::resolve(context.root(), database, desc)
-            .map_err(OrchestratePlatformError::PlatformResolve)?;
+        let platform =
+            Platform::resolve(context.root(), database, desc).map_err(OrchestratePlatformError::PlatformResolve)?;
         let target_output = platform_command.command(context, (&platform, desc))?;
         let mut target_buffer = String::new();
 
         PlatformOutput::output(target_output, &mut target_buffer, context.output())
-            .expect("failed to format output");
+            .map_err(OrchestratePlatformError::Output)?;
         println!("{target_buffer}");
 
         Ok(())
@@ -112,7 +111,7 @@ pub enum PlatformOutput<'a> {
 }
 
 impl Output for PlatformOutput<'_> {
-    fn output<W>(self, writer: &mut W, options: &OutputOptions) -> fmt::Result
+    fn output<W>(self, writer: &mut W, options: &OutputOptions) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
@@ -125,14 +124,10 @@ impl Output for PlatformOutput<'_> {
 
 impl Execute for PlatformCommand {
     type Data<'a> = (&'a Platform, &'a PlatformDesc);
-    type Output<'a> = PlatformOutput<'a>;
     type Error = OrchestratePlatformError;
+    type Output<'a> = PlatformOutput<'a>;
 
-    fn command<'a>(
-        self,
-        context: &'a InvokeContext,
-        data: Self::Data<'a>,
-    ) -> Result<Self::Output<'a>, Self::Error> {
+    fn command<'a>(self, context: &'a InvokeContext, data: Self::Data<'a>) -> Result<Self::Output<'a>, Self::Error> {
         match self {
             Self::Show(target_command) => target_command
                 .command(context, data)

@@ -5,6 +5,8 @@
 //! canonical public namespace by re-exporting those facilities without
 //! flattening their APIs.
 
+use core::hint::spin_loop;
+
 pub use nekor_aal as aal;
 pub use nekor_backoff as backoff;
 pub use nekor_bitwise as bitwise;
@@ -28,6 +30,6 @@ pub use nekor_sync as sync;
 #[inline(never)]
 pub fn entry() -> ! {
     loop {
-        core::hint::spin_loop();
+        spin_loop();
     }
 }

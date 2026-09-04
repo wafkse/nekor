@@ -1,12 +1,9 @@
 //! implement implementation infrastructure.
 
-use core::num::NonZero;
-use core::ops::RangeInclusive;
+use core::{num::NonZero, ops::RangeInclusive};
 
 use proc_macro2::{Span, TokenStream};
-
 use quote::quote;
-
 use syn::{
     Ident, LitInt, Token,
     parse::{Parse, ParseStream},
@@ -156,8 +153,7 @@ impl Implement {
 
         let optional_impl_detail = match become_token {
             Some(..) => {
-                let detail_module_doc =
-                    format!("Implementation details for the `{trait_name_slice}*`-related traits.");
+                let detail_module_doc = format!("Implementation details for the `{trait_name_slice}*`-related traits.");
 
                 let sealed_trait_doc = format!(
                     "A trait to act as a supertrait seal for the `{trait_name_slice}*`-related \
@@ -173,61 +169,55 @@ impl Implement {
                         pub trait Sealed {}
                     }
                 })
-            }
+            },
             None => None,
         };
 
-        let implement_trait_doc =
-            format!("An implement item about a {type_name_out}-from-{type_name_in} extraction.");
+        let implement_trait_doc = format!("An implement item about a {type_name_out}-from-{type_name_in} extraction.");
 
         let input_type_ident = syn::parse_str::<syn::Type>(type_name_in)?;
 
-        let impl_list =
-            BitRanges::inout(input_type, output_type)
-                .map(| target_range | {
-                    let (&start, &end) = (target_range.start(), target_range.end());
+        let impl_list = BitRanges::inout(input_type, output_type)
+            .map(|target_range| {
+                let (&start, &end) = (target_range.start(), target_range.end());
 
-                    let bitset_width = end - start + 1;
+                let bitset_width = end - start + 1;
 
-                    let start_literal = LitInt::new(&start.to_string(), Span::call_site());
-                    let end_literal =
-                        LitInt::new(&end.to_string(), Span::call_site());
+                let start_literal = LitInt::new(&start.to_string(), Span::call_site());
+                let end_literal = LitInt::new(&end.to_string(), Span::call_site());
 
-                    let bitset_width_literal = LitInt::new(
-                        &bitset_width.to_string(),
-                        Span::call_site(),
-                    );
+                let bitset_width_literal = LitInt::new(&bitset_width.to_string(), Span::call_site());
 
-                    let bitset_mask_value = quote! {
-                        Self::MAX >> (Self::BITS as usize - #bitset_width_literal)
-                    };
+                let bitset_mask_value = quote! {
+                    Self::MAX >> (Self::BITS as usize - #bitset_width_literal)
+                };
 
-                    let extract_mask_value = quote! {
-                        (Self::MAX >> (Self::BITS as usize - #bitset_width_literal)) << #start_literal
-                    };
+                let extract_mask_value = quote! {
+                    (Self::MAX >> (Self::BITS as usize - #bitset_width_literal)) << #start_literal
+                };
 
-                    let fuse_mask_value = quote! {
-                        !((Self::MAX >> (Self::BITS as usize - #bitset_width_literal)) << #start_literal)
-                    };
+                let fuse_mask_value = quote! {
+                    !((Self::MAX >> (Self::BITS as usize - #bitset_width_literal)) << #start_literal)
+                };
 
-                    quote! {
-                        #[doc = #implement_trait_doc]
-                        impl #trait_name<#start_literal, #end_literal> for #input_type_ident {
-                            /// The number of bits to be extracted.
-                            const BITSET_WIDTH: usize = #bitset_width_literal;
+                quote! {
+                    #[doc = #implement_trait_doc]
+                    impl #trait_name<#start_literal, #end_literal> for #input_type_ident {
+                        /// The number of bits to be extracted.
+                        const BITSET_WIDTH: usize = #bitset_width_literal;
 
-                            /// The bitwise mask composed of all to-be-extracted bits.
-                            const BITSET_MASK: Self = #bitset_mask_value;
+                        /// The bitwise mask composed of all to-be-extracted bits.
+                        const BITSET_MASK: Self = #bitset_mask_value;
 
-                            /// The fuse mask for the extract operation.
-                            const EXTRACT_MASK: Self = #extract_mask_value;
+                        /// The fuse mask for the extract operation.
+                        const EXTRACT_MASK: Self = #extract_mask_value;
 
-                            /// The fuse mask for the merge operation.
-                            const FUSE_MASK: Self = #fuse_mask_value;
-                        }
+                        /// The fuse mask for the merge operation.
+                        const FUSE_MASK: Self = #fuse_mask_value;
                     }
-                })
-                .collect::<Vec<_>>();
+                }
+            })
+            .collect::<Vec<_>>();
 
         let implement_trait = quote! {
             #optional_impl_detail

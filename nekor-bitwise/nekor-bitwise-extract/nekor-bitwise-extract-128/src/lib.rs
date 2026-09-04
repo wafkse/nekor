@@ -21,11 +21,9 @@ pub mod downstream {
     pub use nekor_bitwise_extract_128_128::MetadataU128U128;
 }
 
-use crate::downstream::{
-    MetadataU128U8, MetadataU128U16, MetadataU128U32, MetadataU128U64, MetadataU128U128,
-};
-
 use nekor_bitwise_extract_core::delegate;
+
+use crate::downstream::{MetadataU128U8, MetadataU128U16, MetadataU128U32, MetadataU128U64, MetadataU128U128};
 
 delegate!(become u128 as MetadataU128 for [
     u8 become MetadataU128U8,

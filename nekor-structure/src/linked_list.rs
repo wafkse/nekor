@@ -41,8 +41,7 @@ pub unsafe trait Forward: Linked {
     fn next_or(self: Pin<&Self>, default: Pin<&Self>) -> NonNull<Self> {
         let next_default: &Self = &default;
 
-        self.next()
-            .unwrap_or_else(|| NonNull::from_ref(next_default))
+        self.next().unwrap_or_else(|| NonNull::from_ref(next_default))
     }
 
     /// Retrieve a reference to the pointer to the next node in the list.
@@ -97,8 +96,7 @@ pub unsafe trait Backward: Linked {
     fn prior_or(self: Pin<&Self>, default: Pin<&Self>) -> NonNull<Self> {
         let prior_default: &Self = &default;
 
-        self.prior()
-            .unwrap_or_else(|| NonNull::from_ref(prior_default))
+        self.prior().unwrap_or_else(|| NonNull::from_ref(prior_default))
     }
 
     /// Retrieve a reference to the pointer to the next node in the list.
@@ -276,9 +274,7 @@ impl<T> Link<T> {
     /// Mutate the prior node in the list relative to this link.
     #[inline]
     pub const fn prior_mut(&mut self) -> &mut Option<NonNull<T>> {
-        let &mut Self {
-            ref mut prior_node, ..
-        } = self;
+        let &mut Self { ref mut prior_node, .. } = self;
 
         prior_node
     }
@@ -286,9 +282,7 @@ impl<T> Link<T> {
     /// Mutate the next node in the list relative to this link.
     #[inline]
     pub const fn next_mut(&mut self) -> &mut Option<NonNull<T>> {
-        let &mut Self {
-            ref mut next_node, ..
-        } = self;
+        let &mut Self { ref mut next_node, .. } = self;
 
         next_node
     }
@@ -298,9 +292,7 @@ impl<T> Link<T> {
     #[must_use]
     pub const fn pair(&self) -> (Option<NonNull<T>>, Option<NonNull<T>>) {
         let &Self {
-            next_node,
-            prior_node,
-            ..
+            next_node, prior_node, ..
         } = self;
 
         (next_node, prior_node)
@@ -310,26 +302,20 @@ impl<T> Link<T> {
     #[inline]
     #[must_use]
     pub const fn next_slot(&self) -> &Option<NonNull<T>> {
-        let Self { next_node, .. } = self;
-
-        next_node
+        &self.next_node
     }
 
     /// Retrieve the `prior` slot of this link.
     #[inline]
     #[must_use]
     pub const fn prior_slot(&self) -> &Option<NonNull<T>> {
-        let Self { prior_node, .. } = self;
-
-        prior_node
+        &self.prior_node
     }
 
     /// Mutate the `next` slot of this link.
     #[inline]
     pub const fn next_slot_mut(&mut self) -> &mut Option<NonNull<T>> {
-        let &mut Self {
-            ref mut next_node, ..
-        } = self;
+        let &mut Self { ref mut next_node, .. } = self;
 
         next_node
     }
@@ -337,9 +323,7 @@ impl<T> Link<T> {
     /// Mutate the `prior` slot of this link.
     #[inline]
     pub const fn prior_slot_mut(&mut self) -> &mut Option<NonNull<T>> {
-        let &mut Self {
-            ref mut prior_node, ..
-        } = self;
+        let &mut Self { ref mut prior_node, .. } = self;
 
         prior_node
     }
@@ -449,10 +433,7 @@ where
     /// [`IntrusiveList`] with a proper [`IntrusiveList::try_remove`]
     /// invocation.
     #[must_use]
-    pub unsafe fn try_insert_back<'a>(
-        &mut self,
-        target_value: Pin<&'a mut T>,
-    ) -> Option<Inserted<'a, T>> {
+    pub unsafe fn try_insert_back<'a>(&mut self, target_value: Pin<&'a mut T>) -> Option<Inserted<'a, T>> {
         let &mut Self {
             head_node: ref mut list_head,
             tail_node: ref mut list_tail,
@@ -477,15 +458,15 @@ where
 
             // SAFETY: Not part of any other list. Respective backlink
             // underway.
-            let _ = unsafe { tail_node.replace_next(node_address) };
+            let _: Option<NonNull<T>> = unsafe { tail_node.replace_next(node_address) };
 
             // SAFETY: `target_value` was originally pinned. Link invariants
             // are satisfied at this point too.
-            let _ = unsafe { Pin::new_unchecked(target_value).replace_prior(tail_address) };
+            let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_prior(tail_address) };
         } else {
-            let _ = list_head.replace(node_address);
+            let _: Option<NonNull<T>> = list_head.replace(node_address);
         }
-        let _ = list_tail.replace(node_address);
+        let _: Option<NonNull<T>> = list_tail.replace(node_address);
 
         *node_count += 1;
 
@@ -510,10 +491,7 @@ where
     /// [`IntrusiveList`] with a proper [`IntrusiveList::try_remove`]
     /// invocation.
     #[must_use]
-    pub unsafe fn try_insert_front<'a>(
-        &mut self,
-        target_value: Pin<&'a mut T>,
-    ) -> Option<Inserted<'a, T>> {
+    pub unsafe fn try_insert_front<'a>(&mut self, target_value: Pin<&'a mut T>) -> Option<Inserted<'a, T>> {
         let &mut Self {
             head_node: ref mut list_head,
             tail_node: ref mut list_tail,
@@ -538,17 +516,17 @@ where
 
             // SAFETY: Not part of any other list. Respective backlink
             // underway.
-            let _ = unsafe { head_node.replace_prior(node_address) };
+            let _: Option<NonNull<T>> = unsafe { head_node.replace_prior(node_address) };
 
             // SAFETY: `target_value` was originally pinned. Link invariants
             // are satisfied at this point too.
-            let _ = unsafe { Pin::new_unchecked(target_value).replace_next(head_address) };
+            let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_next(head_address) };
 
-            let _ = list_head.replace(node_address);
+            let _: Option<NonNull<T>> = list_head.replace(node_address);
         } else {
-            let _ = list_head.replace(node_address);
+            let _: Option<NonNull<T>> = list_head.replace(node_address);
 
-            let _ = list_tail.replace(node_address);
+            let _: Option<NonNull<T>> = list_tail.replace(node_address);
         }
 
         *node_count += 1;
@@ -576,20 +554,8 @@ where
             ..
         } = target_handle;
 
-        if ptr::eq(list_address.as_ptr().cast_const(), self) {
-            Some(
-                // SAFETY:
-                //
-                // The pointer is perfectly convertible to a reference - as it
-                // as been sourced from a reference itself.
-                //
-                // Furthermore, ownership is local to this list due to the
-                // safety contract.
-                unsafe { Pin::new_unchecked(node_address.as_ref()) },
-            )
-        } else {
-            None
-        }
+        // SAFETY: The pointer originated from a pinned node owned by this list.
+        ptr::eq(list_address.as_ptr().cast_const(), self).then(|| unsafe { Pin::new_unchecked(node_address.as_ref()) })
     }
 
     /// Try to unlock an [`Inserted`] value from being accessed in a mutable
@@ -598,30 +564,25 @@ where
     /// This will not unlock the value if it happens to not be from this same
     /// list.
     #[inline]
-    pub fn try_unlock_mut<'a>(
-        &'a mut self,
-        target_handle: &Inserted<'a, T>,
-    ) -> Option<Pin<&'a mut T>> {
+    pub fn try_unlock_mut<'a>(&'a mut self, target_handle: &Inserted<'a, T>) -> Option<Pin<&'a mut T>> {
         let &Inserted {
             list_address,
             mut node_address,
             ..
         } = target_handle;
 
-        if ptr::eq(list_address.as_ptr().cast_const(), self) {
-            Some(
-                // SAFETY:
-                //
-                // The pointer is perfectly convertible to a reference - as it
-                // as been sourced from a reference itself.
-                //
-                // Furthermore, ownership is local to this list due to the
-                // safety contract.
-                unsafe { Pin::new_unchecked(node_address.as_mut()) },
-            )
-        } else {
-            None
-        }
+        // SAFETY:
+        //
+        // The pointer is perfectly convertible to a reference - as it
+        // as been sourced from a reference itself.
+        //
+        // Furthermore, ownership is local to this list due to the
+        // safety contract.
+        // SAFETY: The node pointer originated from the pinned value held by
+        // the list, and the mutable list borrow provides exclusive access.
+        let target_value = unsafe { Pin::new_unchecked(node_address.as_mut()) };
+
+        ptr::eq(list_address.as_ptr().cast_const(), self).then_some(target_value)
     }
 
     /// Unlock an [`Inserted`] value from being accessed immutably.
@@ -656,16 +617,16 @@ where
     ///
     /// Returns the original handle when it belongs to another list.
     #[inline]
-    #[allow(
-        clippy::needless_pass_by_value,
-        reason = "ownership proves the handle cannot remain usable after removal"
-    )]
-    pub fn try_remove<'a>(
-        &mut self,
-        target_handle: Inserted<'a, T>,
-    ) -> Result<Pin<&'a mut T>, Inserted<'a, T>> {
+    pub fn try_remove<'a>(&mut self, target_handle: Inserted<'a, T>) -> Result<Pin<&'a mut T>, Inserted<'a, T>> {
         // SAFETY: Reference to non-null pointer coercion is always safe.
         let self_address = unsafe { NonNull::new_unchecked(self) };
+
+        if !ptr::eq(
+            self_address.as_ptr().cast_const(),
+            target_handle.list_address.as_ptr().cast_const(),
+        ) {
+            return Err(target_handle);
+        }
 
         let &mut Self {
             ref mut head_node,
@@ -673,77 +634,60 @@ where
             ref mut node_count,
         } = self;
 
-        let Inserted {
-            list_address,
-            mut node_address,
-            marker,
-            ..
-        } = target_handle;
+        let Inserted { mut node_address, .. } = target_handle;
 
-        if ptr::eq(
-            self_address.as_ptr().cast_const(),
-            list_address.as_ptr().cast_const(),
-        ) {
-            // SAFETY: This was originally acquired through a `Pin<&mut _>`, and
-            // we have borrowed the whole list mutably.
-            let mut target_node = unsafe { Pin::new_unchecked(node_address.as_mut()) };
+        // SAFETY: This was originally acquired through a `Pin<&mut _>`, and
+        // we have borrowed the whole list mutably.
+        let mut target_node = unsafe { Pin::new_unchecked(node_address.as_mut()) };
 
-            let (prior_node, next_node) =
-                (target_node.as_ref().prior(), target_node.as_ref().next());
+        let (prior_node, next_node) = (target_node.as_ref().prior(), target_node.as_ref().next());
 
-            match (prior_node, next_node) {
-                (Some(mut prior_node), Some(mut next_node)) => {
-                    // SAFETY: [see previous safety comment]
-                    let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
+        match (prior_node, next_node) {
+            (Some(mut prior_node), Some(mut next_node)) => {
+                // SAFETY: [see previous safety comment]
+                let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
 
-                    // SAFETY: [see previous safety comment]
-                    let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
+                // SAFETY: [see previous safety comment]
+                let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
 
-                    // SAFETY: Node is untouched during removal.
-                    unsafe {
-                        let _ = target_prior.replace_next(next_node);
+                // SAFETY: Node is untouched during removal.
+                unsafe {
+                    let _: Option<NonNull<T>> = target_prior.replace_next(next_node);
 
-                        let _ = target_next.replace_prior(prior_node);
-                    };
-                }
-                (None, Some(mut next_node)) => {
-                    // SAFETY: [see previous safety comment]
-                    let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
+                    let _: Option<NonNull<T>> = target_next.replace_prior(prior_node);
+                };
+            },
+            (None, Some(mut next_node)) => {
+                // SAFETY: [see previous safety comment]
+                let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
 
-                    // NOTE: The new head must not back-reference the removed
-                    // node, as that link dangles once the node's lifetime is
-                    // due.
-                    *target_next.prior_slot_mut() = None;
+                // NOTE: The new head must not back-reference the removed
+                // node, as that link dangles once the node's lifetime is
+                // due.
+                *target_next.prior_slot_mut() = None;
 
-                    *head_node = Some(next_node);
-                }
-                (Some(mut prior_node), None) => {
-                    // SAFETY: [see previous safety comment]
-                    let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
+                *head_node = Some(next_node);
+            },
+            (Some(mut prior_node), None) => {
+                // SAFETY: [see previous safety comment]
+                let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
 
-                    // NOTE: The new tail must not forward-reference the removed
-                    // node, as that link dangles once the node's lifetime is
-                    // due.
-                    *target_prior.next_slot_mut() = None;
+                // NOTE: The new tail must not forward-reference the removed
+                // node, as that link dangles once the node's lifetime is
+                // due.
+                *target_prior.next_slot_mut() = None;
 
-                    *tail_node = Some(prior_node);
-                }
-                (None, None) => (*head_node, *tail_node) = (None, None),
-            }
-
-            *target_node.as_mut().next_slot_mut() = None;
-            *target_node.as_mut().prior_slot_mut() = None;
-
-            *node_count -= 1;
-
-            Ok(target_node)
-        } else {
-            Err(Inserted {
-                list_address,
-                node_address,
-                marker,
-            })
+                *tail_node = Some(prior_node);
+            },
+            (None, None) => (*head_node, *tail_node) = (None, None),
         }
+
+        *target_node.as_mut().next_slot_mut() = None;
+        *target_node.as_mut().prior_slot_mut() = None;
+
+        *node_count -= 1;
+
+        Ok(target_node)
     }
 }
 
@@ -772,18 +716,14 @@ impl<T> Deref for External<T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(.., target_value) = self;
-
-        target_value
+        &self.1
     }
 }
 
 impl<T> DerefMut for External<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let Self(.., target_value) = self;
-
-        target_value
+        &mut self.1
     }
 }
 
@@ -791,7 +731,7 @@ impl<T> DerefMut for External<T> {
 unsafe impl<T> Linked for External<T> {
     #[inline]
     unsafe fn link(self: Pin<&Self>) -> Pin<&Link<Self>> {
-        let Self(target_link, ..) = self.get_ref();
+        let target_link = &self.get_ref().0;
 
         // SAFETY: The `Link` is pinned.
         unsafe { Pin::new_unchecked(target_link) }
@@ -800,7 +740,7 @@ unsafe impl<T> Linked for External<T> {
     #[inline]
     unsafe fn link_mut(self: Pin<&mut Self>) -> Pin<&mut Link<Self>> {
         // SAFETY: The `Link` is never moved.
-        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
+        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
 
         // SAFETY: The `Link` is pinned.
         unsafe { Pin::new_unchecked(target_link) }
@@ -810,14 +750,14 @@ unsafe impl<T> Linked for External<T> {
 // SAFETY: Abides by list logical invariants.
 unsafe impl<T> Backward for External<T> {
     fn prior_slot(self: Pin<&Self>) -> &Option<NonNull<Self>> {
-        let Self(target_link, ..) = self.get_ref();
+        let target_link = &self.get_ref().0;
 
         target_link.prior_slot()
     }
 
     fn prior_slot_mut(self: Pin<&mut Self>) -> &mut Option<NonNull<Self>> {
         // SAFETY: The `Link` is never moved.
-        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
+        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
 
         target_link.prior_slot_mut()
     }
@@ -826,46 +766,45 @@ unsafe impl<T> Backward for External<T> {
 // SAFETY: Abides by list logical invariants.
 unsafe impl<T> Forward for External<T> {
     fn next_slot(self: Pin<&Self>) -> &Option<NonNull<Self>> {
-        let Self(target_link, ..) = self.get_ref();
+        let target_link = &self.get_ref().0;
 
         target_link.next_slot()
     }
 
     fn next_slot_mut(self: Pin<&mut Self>) -> &mut Option<NonNull<Self>> {
         // SAFETY: The `Link` is never moved.
-        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
+        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
 
         target_link.next_slot_mut()
     }
 }
 
-#[test]
-fn insertion_and_removal() {
-    let mut v = External::node(0);
-    let mut v2 = External::node(1);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let value = unsafe { Pin::new_unchecked(&mut v) };
-    let value2 = unsafe { Pin::new_unchecked(&mut v2) };
+    #[test]
+    fn insertion_and_removal() {
+        let mut v = External::node(0);
+        let mut v2 = External::node(1);
 
-    let mut list = IntrusiveList::new();
+        // SAFETY: The nodes remain pinned for the duration of the test and are not moved.
+        let value = unsafe { Pin::new_unchecked(&mut v) };
+        // SAFETY: The nodes remain pinned for the duration of the test and are not moved.
+        let value2 = unsafe { Pin::new_unchecked(&mut v2) };
 
-    let first_handle = unsafe {
-        list.try_insert_back(value)
-            .expect("node is not in another list")
-    };
+        let mut list = IntrusiveList::new();
 
-    let second_handle = unsafe {
-        list.try_insert_back(value2)
-            .expect("node is not in another list")
-    };
+        // SAFETY: Each node is freshly initialized and not linked into another list.
+        let first_handle = unsafe { list.try_insert_back(value).expect("node is not in another list") };
 
-    let first = list
-        .try_remove(first_handle)
-        .expect("handle belongs to this list");
-    let second = list
-        .try_remove(second_handle)
-        .expect("handle belongs to this list");
+        // SAFETY: Each node is freshly initialized and not linked into another list.
+        let second_handle = unsafe { list.try_insert_back(value2).expect("node is not in another list") };
 
-    assert_eq!(**first, 0);
-    assert_eq!(**second, 1);
+        let first = list.try_remove(first_handle).expect("handle belongs to this list");
+        let second = list.try_remove(second_handle).expect("handle belongs to this list");
+
+        assert_eq!(**first, 0);
+        assert_eq!(**second, 1);
+    }
 }

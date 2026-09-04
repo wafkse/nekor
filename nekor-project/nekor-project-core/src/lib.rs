@@ -1,13 +1,5 @@
 #![cfg_attr(not(any(test, miri)), no_std)]
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
+
 //! Parsing, validation, and expansion infrastructure for `nekor-project`.
 //!
 //! This crate is the implementation component behind

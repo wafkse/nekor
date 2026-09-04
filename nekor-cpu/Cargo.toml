@@ -2,6 +2,12 @@
 name = "nekor-cpu"
 version.workspace = true
 edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 default = ["maximum-core-count-16"]
@@ -26,7 +32,6 @@ nekor-aal = { workspace = true }
 nekor-domain = { workspace = true }
 nekor-structure = { workspace = true }
 
-tokel = { workspace = true }
 
 [lints]
 workspace = true

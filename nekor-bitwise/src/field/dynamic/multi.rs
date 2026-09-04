@@ -86,9 +86,8 @@ impl<'a, B> Counterpart for FieldDyn<'a, B>
 where
     B: BitOp,
 {
-    type Mut = FieldDynMut<'a, B>;
-
     type Immut = Self;
+    type Mut = FieldDynMut<'a, B>;
 }
 
 /// A managed mutable handle to a runtime-selected bit field in `B`.
@@ -167,9 +166,8 @@ impl<'a, B> Counterpart for FieldDynMut<'a, B>
 where
     B: BitOp,
 {
-    type Mut = Self;
-
     type Immut = FieldDyn<'a, B>;
+    type Mut = Self;
 }
 
 #[cfg(test)]

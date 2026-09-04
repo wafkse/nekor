@@ -18,7 +18,6 @@
 use nekor_bitwise_extract_macro_impl::{
     delegate::Delegate, extract::Extract, implement::Implement, metadata::Metadata,
 };
-
 use proc_macro::TokenStream;
 
 /// Generate a metadata trait for bitwise extraction operations.
@@ -65,7 +64,7 @@ pub fn metadata(input: TokenStream) -> TokenStream {
                 Ok(tokens) => tokens,
                 Err(tokens) => TokenStream::from(tokens),
             }
-        }
+        },
         Err(error) => error.to_compile_error().into(),
     }
 }
@@ -115,7 +114,7 @@ pub fn implement(input: TokenStream) -> TokenStream {
                 Ok(tokens) => tokens,
                 Err(tokens) => TokenStream::from(tokens),
             }
-        }
+        },
         Err(error) => error.to_compile_error().into(),
     }
 }
@@ -178,7 +177,7 @@ pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
                 Ok(tokens) => tokens,
                 Err(tokens) => TokenStream::from(tokens),
             }
-        }
+        },
         Err(error) => error.to_compile_error().into(),
     }
 }
@@ -243,7 +242,7 @@ pub fn extract(input: proc_macro::TokenStream) -> TokenStream {
                 Ok(tokens) => tokens,
                 Err(tokens) => TokenStream::from(tokens),
             }
-        }
+        },
         Err(error) => error.to_compile_error().into(),
     }
 }

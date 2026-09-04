@@ -27,10 +27,7 @@ where
     /// Create a new chain for the target structure.
     #[inline]
     pub const fn chain(target_value: S) -> Self {
-        Self(
-            [MaybeUninit::new(target_value), MaybeUninit::uninit()],
-            false,
-        )
+        Self([MaybeUninit::new(target_value), MaybeUninit::uninit()], false)
     }
 }
 

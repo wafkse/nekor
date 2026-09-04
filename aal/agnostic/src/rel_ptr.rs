@@ -1,6 +1,6 @@
 //! Relative-addressing pointers.
 
-use core::{marker, mem::MaybeUninit, pin::Pin};
+use core::{marker, mem::MaybeUninit, pin::Pin, ptr};
 
 /// A base-relative pointer to an instance of `T`.
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -39,7 +39,7 @@ impl<T> RelPtr<T> {
     #[inline]
     #[must_use]
     pub fn base(self: Pin<&Self>) -> *const T {
-        let base_address = core::ptr::from_ref::<Self>(self.get_ref());
+        let base_address = ptr::from_ref::<Self>(self.get_ref());
 
         let base_address = base_address.addr();
 
@@ -86,7 +86,7 @@ impl<T> RelPtrMut<T> {
     #[inline]
     #[must_use]
     pub fn base(self: Pin<&Self>) -> *mut T {
-        let base_address = core::ptr::from_ref::<Self>(self.get_ref());
+        let base_address = ptr::from_ref::<Self>(self.get_ref());
 
         let base_address = base_address.addr();
 

@@ -9,8 +9,7 @@
 //! field may contain at most one `project(pin)` attribute. Invalid syntax is
 //! returned as `syn::Error` before item expansion begins.
 
-use alloc::format;
-use alloc::vec::Vec;
+use alloc::{format, vec::Vec};
 
 use syn::{Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Index, Type, Visibility};
 
@@ -183,11 +182,8 @@ impl ProjectField {
         for project_attribute in project_attribute_list {
             match project_attribute {
                 ProjectAttribute::Pin if field_pinned => {
-                    return Err(syn::Error::new_spanned(
-                        field_type,
-                        "duplicate project pin attribute",
-                    ));
-                }
+                    return Err(syn::Error::new_spanned(field_type, "duplicate project pin attribute"));
+                },
                 ProjectAttribute::Pin => field_pinned = true,
                 ProjectAttribute::UnsafeClause(target) => {
                     let target_name = match target {
@@ -201,14 +197,11 @@ impl ProjectField {
                         field_type,
                         format!("unsafe {target_name} clauses are only valid on a type"),
                     ));
-                }
+                },
             }
         }
 
-        let field_name = field_name.map_or_else(
-            || IdentOrIndex::Index(Index::from(field_index)),
-            IdentOrIndex::Ident,
-        );
+        let field_name = field_name.map_or_else(|| IdentOrIndex::Index(Index::from(field_index)), IdentOrIndex::Ident);
 
         Ok(Self {
             visibility: field_visibility,

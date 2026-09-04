@@ -3,9 +3,7 @@
 use core::iter;
 
 use proc_macro2::{Span, TokenStream, TokenTree};
-
 use quote::ToTokens;
-
 use syn::{
     Ident,
     parse::{Parse, ParseStream},
@@ -196,9 +194,6 @@ impl Parse for Primitive {
 
 impl ToTokens for Primitive {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(iter::once(TokenTree::Ident(Ident::new(
-            self.as_str(),
-            self.span(),
-        ))));
+        tokens.extend(iter::once(TokenTree::Ident(Ident::new(self.as_str(), self.span()))));
     }
 }

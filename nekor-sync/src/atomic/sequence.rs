@@ -1,7 +1,9 @@
 //! Sequence tracking through atomic integer primitives.
 
-use core::ptr;
-use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+use core::{
+    ptr,
+    sync::atomic::{AtomicUsize, Ordering::SeqCst},
+};
 
 use nekor_aal_signal::{monitor::MonitorGuard, prelude::Monitor};
 
@@ -30,7 +32,7 @@ impl AtomicSequence {
     /// Creates a snapshot of this [`AtomicSequence`].
     #[inline]
     pub fn snapshot(&self) -> Sequence<'_> {
-        let Self(target_state) = self;
+        let &Self(ref target_state) = self;
 
         let target_guard = target_state.access();
 
@@ -75,16 +77,14 @@ impl Sequence<'_> {
     /// [`AtomicSequence`] provided, this will yield `None`.
     #[inline]
     pub fn changed(self, target_sequence: &AtomicSequence) -> Option<bool> {
-        let AtomicSequence(left_sequence) = target_sequence;
+        let &AtomicSequence(ref left_sequence) = target_sequence;
 
         let Self(right_sequence, right_snapshot) = self;
 
-        if ptr::addr_eq(target_sequence, right_sequence.as_ref()) {
+        ptr::addr_eq(target_sequence, right_sequence.as_ref()).then(|| {
             let left_snapshot = left_sequence.load(SeqCst);
 
-            Some(left_snapshot != right_snapshot)
-        } else {
-            None
-        }
+            left_snapshot != right_snapshot
+        })
     }
 }

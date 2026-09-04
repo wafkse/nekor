@@ -1,7 +1,6 @@
 //! - *Machine-Stop Critical Sections* (*`MsCS`*):
 //!     - Machine-wide interrupt disable.
-//!     - Places all other cores in a `halt` loop or makes them momentarily
-//!       offline.
+//!     - Places all other cores in a `halt` loop or makes them momentarily offline.
 //!
 //! Moderate delay, used for microcode updates and microarchitectural
 //! instruction set modifications.
@@ -24,15 +23,13 @@
 //!
 //! *`MsCS`* is appropriate when:
 //!
-//! - The machine must stop immediately (microcode updates, critical hardware
-//!   reconfig)
+//! - The machine must stop immediately (microcode updates, critical hardware reconfig)
 //! - Stablepoint-based synchronization is too slow
 //! - All cores must be in a known state simultaneously
 //!
 //! *`MsCS`* should not be used when:
 //!
-//! - Code patching is needed (use *`SpCS`* instead, safer for self-modifying
-//!   code)
+//! - Code patching is needed (use *`SpCS`* instead, safer for self-modifying code)
 //! - Fine-grained locking suffices (use *GCS* or *LCS*)
 //! - The operation can wait for stablepoints
 

@@ -8,14 +8,13 @@
 )]
 //! Per-architecture storage container definitions.
 
-use core::sync::atomic::Ordering;
 use core::{
     any, arch,
     cell::UnsafeCell,
     fmt, marker,
     mem::{self, MaybeUninit},
     ptr::NonNull,
-    sync::atomic::AtomicU8,
+    sync::atomic::{AtomicU8, Ordering},
 };
 
 use crate::{domain::Domain, prelude::Preset, store::Store};
@@ -33,10 +32,9 @@ impl Header {
     /// Determine the stored [`InitializationStage`] in the header.
     #[inline]
     pub fn load(&self) -> InitializationStage {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
-        let Some(target_stage) = InitializationStage::raw(target_value.load(Ordering::Acquire))
-        else {
+        let Some(target_stage) = InitializationStage::raw(target_value.load(Ordering::Acquire)) else {
             unreachable!()
         };
 
@@ -51,7 +49,7 @@ impl Header {
     /// [`InitializationStage::Initialized`] is provided.
     #[inline]
     pub unsafe fn store(&self, target_stage: InitializationStage) {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value.store(target_stage as u8, Ordering::Release);
     }
@@ -73,7 +71,7 @@ impl Header {
         expected_stage: InitializationStage,
         next_stage: InitializationStage,
     ) -> Option<InitializationStage> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         match target_value.compare_exchange(
             expected_stage as u8,
@@ -124,7 +122,7 @@ impl InitializationStage {
                 };
 
                 Some(target_stage)
-            }
+            },
             _ => None,
         }
     }
@@ -337,12 +335,12 @@ where
 /// This symbol does the following, in mention order:
 ///
 /// - Reserve enough space to accomodate a `T` inline.
-/// - Emit a single *initialization byte* to lazily initialize `T` in a
-///   concurrent and lock-free manner.
-/// - Emit a pc-relative relocation to a specific per-`T` symbol:
-///   [`TypeId::of<T>`] to ensure uniqueness of monomorphized [`storage`]
-///   symbols (particularly when different `T`s coincidentally have the same
-///   size) against agressive optimization, both compiler-wise and linker-wise.
+/// - Emit a single *initialization byte* to lazily initialize `T` in a concurrent and lock-free
+///   manner.
+/// - Emit a pc-relative relocation to a specific per-`T` symbol: [`TypeId::of<T>`] to ensure
+///   uniqueness of monomorphized [`storage`] symbols (particularly when different `T`s
+///   coincidentally have the same size) against agressive optimization, both compiler-wise and
+///   linker-wise.
 ///
 /// # Safety
 ///
@@ -379,6 +377,7 @@ where
         stage_uninitialized = const InitializationStage::uninitialized(),
         type_alignment = const mem::align_of::<T>(),
         type_size = const mem::size_of::<T>(),
+        options(att_syntax),
     )
 }
 
@@ -401,8 +400,7 @@ pub(crate) mod miri {
         sync::atomic::{AtomicPtr, Ordering},
     };
 
-    use crate::arch::Container;
-    use crate::store::Store;
+    use crate::{arch::Container, store::Store};
 
     // NOTE: Copied verbatim off the `miri` repository.
     unsafe extern "Rust" {
@@ -515,8 +513,7 @@ pub(crate) mod miri {
             // `extern` block. Size and alignment are correctly specified.
             let slab_alloc: &'static mut MaybeUninit<Slab> = unsafe {
                 let alloc_ptr =
-                    NonNull::new(miri_alloc(mem::size_of::<Slab>(), mem::align_of::<Slab>()))
-                        .expect("allocate");
+                    NonNull::new(miri_alloc(mem::size_of::<Slab>(), mem::align_of::<Slab>())).expect("allocate");
 
                 miri_static_root(alloc_ptr.as_ptr().cast_const());
 
@@ -556,7 +553,7 @@ pub(crate) mod miri {
                         // SAFETY: Has been sourced from a `&'static Slab`
                         unsafe { nonnull.as_ref() },
                     )
-                }
+                },
             }
         }
 
@@ -645,11 +642,11 @@ pub(crate) mod miri {
                                 }
 
                                 last_slab = new_last
-                            }
+                            },
                             None => break new_slab,
                         }
                     }
-                }
+                },
             }
         }
     }
@@ -687,14 +684,14 @@ pub(crate) mod miri {
 
             let alloc_align = mem::align_of::<Whole<T>>();
 
-            let align_padding =
-                mem::align_of::<Whole<T>>().saturating_sub(mem::size_of::<TypelessAllocation>());
+            let align_padding = mem::align_of::<Whole<T>>().saturating_sub(mem::size_of::<TypelessAllocation>());
 
-            let alloc_ptr =
-                // SAFETY: Safe, only requires unsafe due to being inside an `extern` block.
-                //
-                // Note that this follows the same alignment as `T`. The `Header` alignment is not required as it is a single byte and thus universally aligned.
-                NonNull::new(unsafe { miri_alloc(alloc_size + align_padding, alloc_align ) }).expect("failed to alloc using built-in miri allocator");
+            // SAFETY: Safe, only requires unsafe due to being inside an `extern` block.
+            //
+            // Note that this follows the same alignment as `T`. The `Header` alignment is not
+            // required as it is a single byte and thus universally aligned.
+            let alloc_ptr = NonNull::new(unsafe { miri_alloc(alloc_size + align_padding, alloc_align) })
+                .expect("failed to alloc using built-in miri allocator");
 
             // SAFETY: The allocation behaves exactly like a regular `static`
             // value. Also required to prevent memory leak errors at the end of
@@ -703,25 +700,18 @@ pub(crate) mod miri {
                 miri_static_root(alloc_ptr.as_ptr().cast_const());
             };
 
-            let uninit_whole = unsafe {
-                alloc_ptr
-                    .cast::<MaybeUninit<UnsafeCell<Whole<T>>>>()
-                    .as_mut()
-            };
+            let uninit_whole = unsafe { alloc_ptr.cast::<MaybeUninit<UnsafeCell<Whole<T>>>>().as_mut() };
 
             let scratch = Whole {
-                allocation: TypelessAllocation(
-                    align_padding.saturating_add(mem::size_of::<TypelessAllocation>()),
-                ),
+                allocation: TypelessAllocation(align_padding.saturating_add(mem::size_of::<TypelessAllocation>())),
                 // NOTE: This initializes the header in the container.
                 container: MaybeUninit::zeroed(),
             };
 
             let target_whole = uninit_whole.write(UnsafeCell::new(scratch));
 
-            let allocation_handle = unsafe {
-                NonNull::new_unchecked(target_whole as *mut _ as *mut TypelessAllocation)
-            };
+            let allocation_handle =
+                unsafe { NonNull::new_unchecked(target_whole as *mut _ as *mut TypelessAllocation) };
 
             Self(allocation_handle)
         }

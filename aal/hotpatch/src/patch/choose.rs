@@ -45,8 +45,7 @@ where
     pub fn patchsite() -> Pin<&'static Patchsite<D, I, O>> {
         let target_patchsite: unsafe extern "sysv64-unwind" fn(
             <D::Target as Delegated>::Input,
-        )
-            -> <D::Target as Delegated>::Output = Patch::<D, D::Value>::patchsite;
+        ) -> <D::Target as Delegated>::Output = Patch::<D, D::Value>::patchsite;
         let target_patchsite: *const ffi::c_void = target_patchsite as *const ffi::c_void;
 
         let target_address: *mut RelPtrMut<Patchsite<D, I, O>> = target_patchsite.cast_mut().cast();

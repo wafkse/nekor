@@ -1,9 +1,10 @@
 //! Atomic implementation diversion.
 
-use core::{arch, convert, ffi, marker, mem, pin::Pin, sync::atomic::Ordering};
-
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use core::sync::atomic::AtomicU64;
+use core::{arch, convert, ffi, hint::unreachable_unchecked, marker, mem, pin::Pin, ptr, sync::atomic::Ordering};
+
+use nekor_bitwise::prelude::{Counterpart, Field};
 
 use crate::patch::{
     choose::Chosen,
@@ -11,12 +12,15 @@ use crate::patch::{
     pod::Pod,
 };
 
-use nekor_bitwise::prelude::{Counterpart, Field};
-
+/// The input type associated with a delegated implementation.
 type DelegatedInput<D> = <<D as Delegator>::Target as Delegated>::Input;
+/// The output type associated with a delegated implementation.
 type DelegatedOutput<D> = <<D as Delegator>::Target as Delegated>::Output;
+/// The patchsite type associated with a delegator.
 type PatchsiteFor<D> = Patchsite<D, DelegatedInput<D>, DelegatedOutput<D>>;
+/// A static reference to a delegator's patchsite.
 type StaticPatchsite<D> = Pin<&'static PatchsiteFor<D>>;
+/// The identity function type used to reserve patchsite storage.
 type PatchIdentity<D, I, O> = fn() -> (D, I, O);
 
 /// The architecture-specific diversion instruction used for detours to a
@@ -32,44 +36,19 @@ pub struct Diversion(
 /// An uninhabited enum to serve as a namespace for `x86{,-64}`-specific
 /// constants.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-pub enum X86 {}
+pub enum X86 {
+    /// An impossible marker variant; `X86` is used only as a namespace.
+    __Variant(convert::Infallible),
+}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl X86 {
-    /// The start bit index for the 32-bit relative immediate operand of a `jmp
-    /// rel32` instruction.
-    const JMP_REL32_OPERAND_START: usize =
-        mem::size_of_val(&Self::OPCODE_JMP_REL32) * u8::BITS as usize;
-
     /// The end bit index for the 32-bit relative immediate operand of a `jmp
     /// rel32` instruction.
     const JMP_REL32_OPERAND_END: usize = Self::JMP_REL32_OPERAND_START + u32::BITS as usize - 1;
-
-    /// The size of a full `jmp rel32` instruction mnemonic.
-    const MNEMONIC_JMP_REL32_SIZE: usize = mem::size_of_val(&Self::OPCODE_JMP_REL32) /* opcode */ + mem::size_of::<u32>() /* rel32 */;
-
-    /// The Operation Code for the `x86` `jmp rel32` instruction mnemonic.
-    ///
-    /// Reference: <https://www.felixcloutier.com/x86/jmp>
-    const OPCODE_JMP_REL32: u8 = 0xE9;
-
-    /// The Operation Code for the `x86` `int3` instruction mnemonic.
-    ///
-    /// Reference: <https://www.felixcloutier.com/x86/intn:into:int3:int1>
-    const OPCODE_INT3: u8 = 0xCC;
-
-    /// The Operation Code for the `x86` `nop` instruction mnemonic.
-    ///
-    /// Reference: <https://www.felixcloutier.com/x86/nop>
-    const OPCODE_NOP: u8 = 0x90;
-
-    /// The Operation Code for the `x86` `ud2` instruction mnemonic.
-    ///
-    /// This resides in the non-default `0F` extended Operation Code map.
-    ///
-    /// Reference: <https://www.felixcloutier.com/x86/ud>
-    const OPCODE_UD2: u16 = 0x0B0F;
-
+    /// The start bit index for the 32-bit relative immediate operand of a `jmp
+    /// rel32` instruction.
+    const JMP_REL32_OPERAND_START: usize = mem::size_of_val(&Self::OPCODE_JMP_REL32) * u8::BITS as usize;
     /// The associated template instruction for the `x86` architecture.
     ///
     /// This is to be used with the [`JmpRel32`] type.
@@ -77,13 +56,32 @@ impl X86 {
         << (u8::BITS as usize * (Self::MNEMONIC_JMP_REL32_SIZE + mem::size_of::<u16>()))
         | (Self::OPCODE_UD2 as u64) << (u8::BITS as usize * Self::MNEMONIC_JMP_REL32_SIZE)
         | (Self::OPCODE_JMP_REL32 as u64);
+    /// The size of a full `jmp rel32` instruction mnemonic.
+    const MNEMONIC_JMP_REL32_SIZE: usize = mem::size_of_val(&Self::OPCODE_JMP_REL32) + mem::size_of::<u32>();
+    /// The Operation Code for the `x86` `int3` instruction mnemonic.
+    ///
+    /// Reference: <https://www.felixcloutier.com/x86/intn:into:int3:int1>
+    const OPCODE_INT3: u8 = 0xCC;
+    /// The Operation Code for the `x86` `jmp rel32` instruction mnemonic.
+    ///
+    /// Reference: <https://www.felixcloutier.com/x86/jmp>
+    const OPCODE_JMP_REL32: u8 = 0xE9;
+    /// The Operation Code for the `x86` `nop` instruction mnemonic.
+    ///
+    /// Reference: <https://www.felixcloutier.com/x86/nop>
+    const OPCODE_NOP: u8 = 0x90;
+    /// The Operation Code for the `x86` `ud2` instruction mnemonic.
+    ///
+    /// This resides in the non-default `0F` extended Operation Code map.
+    ///
+    /// Reference: <https://www.felixcloutier.com/x86/ud>
+    const OPCODE_UD2: u16 = 0x0B0F;
 }
 
 /// The [`Field`] for the 32-bit relative immediate operand of a
 /// `jmp rel32` instruction.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-type JmpRel32<'a> =
-    Field<'a, { X86::JMP_REL32_OPERAND_START }, { X86::JMP_REL32_OPERAND_END }, u64, u32>;
+type JmpRel32<'a> = Field<'a, { X86::JMP_REL32_OPERAND_START }, { X86::JMP_REL32_OPERAND_END }, u64, u32>;
 
 /// The mutable counterpart to [`JmpRel32`].
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -115,7 +113,7 @@ where
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         return {
-            let base_address = core::ptr::from_ref(target_patchsite.get_ref()).addr();
+            let base_address = ptr::from_ref(target_patchsite.get_ref()).addr();
 
             // NOTE: This is the architectural Program Counter value for `x86`.
             let base_address = base_address.wrapping_add(X86::MNEMONIC_JMP_REL32_SIZE);
@@ -133,7 +131,7 @@ where
             let Ok(relative_address) = relative_address else {
                 // SAFETY: The small code model guarantees that the linked
                 // addresses differ by a signed 32-bit displacement.
-                unsafe { core::hint::unreachable_unchecked() }
+                unsafe { unreachable_unchecked() }
             };
             let relative_address = u32::from_ne_bytes(relative_address.to_ne_bytes());
 
@@ -190,11 +188,8 @@ where
     /// Returns the previously installed diversion when another contender
     /// changes the patchsite before this operation completes.
     #[inline]
-    pub unsafe fn stale(
-        self: Pin<&'static Self>,
-        target_chosen: Chosen<D, I, O>,
-    ) -> Result<Diversion, Diversion> {
-        let Self(atomic_variable, ..) = self.get_ref();
+    pub unsafe fn stale(self: Pin<&'static Self>, target_chosen: Chosen<D, I, O>) -> Result<Diversion, Diversion> {
+        let atomic_variable = &self.get_ref().0;
 
         let target_template = Chosen::template(target_chosen);
 
@@ -216,7 +211,7 @@ where
                 } else {
                     Err(target_value)
                 }
-            }
+            },
         }
     }
 
@@ -247,13 +242,9 @@ where
     /// "Rust" ABI instead. This is safe as it is a simple trampoline.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.trampoline"))]
     #[unsafe(naked)]
-    #[allow(
-        clippy::needless_pass_by_value,
-        reason = "the trampoline preserves the delegated function ABI"
-    )]
     // FIXME(unstable): Use "custom" ABI when available.
     pub unsafe extern "sysv64-unwind" fn trampoline(
-        target_value: <T::Target as Delegated>::Input,
+        _target_value: <T::Target as Delegated>::Input,
     ) -> <T::Target as Delegated>::Output {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         arch::naked_asm!(
@@ -278,18 +269,13 @@ where
     /// This associated function must never be called.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.offset"))]
     #[unsafe(naked)]
-    #[allow(
-        clippy::needless_pass_by_value,
-        named_asm_labels,
-        reason = "the patchsite preserves its ABI and defines global symbols"
-    )]
     // FIXME: As we are dealing with a mixed code model, we need to have all
     // sections and subsections under the "KERNEL_PATCH_STORAGE_SECTION" reside in
     // RAM and not memory-mapped flash to be able to actually patch properly.
     // Execute-in-place storage cannot satisfy these writable patching needs.
     // FIXME(unstable): Use "custom" ABI when available.
     pub unsafe extern "sysv64-unwind" fn patchsite(
-        target_value: <T::Target as Delegated>::Input,
+        _target_value: <T::Target as Delegated>::Input,
     ) -> <T::Target as Delegated>::Output {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -363,81 +349,79 @@ where
     }
 }
 
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        cmc::Publish,
-        patch::{
-            choose::Chosen,
-            delegate::{Delegated, Delegator, Single},
-        },
-    };
-
-    /// A simple delegated implementation for testing.
-    #[derive(Debug, Copy, Clone)]
-    struct TestImpl;
-
-    impl Delegated for TestImpl {
-        type Input = u32;
-        type Output = u32;
-
-        fn implementation(input: Self::Input) -> Self::Output {
-            input.wrapping_add(42)
-        }
-    }
-
-    /// A simple delegated implementation for testing.
-    #[derive(Debug, Copy, Clone)]
-    struct TestImpl2;
-
-    impl Delegated for TestImpl2 {
-        type Input = u32;
-        type Output = u32;
-
-        fn implementation(input: Self::Input) -> Self::Output {
-            input.wrapping_add(52)
-        }
-    }
-
-    /// A simple Pod value for testing.
-    #[derive(Debug, Copy, Clone)]
-    struct TestPod;
-
-    type TestDelegator = Single<TestImpl, TestPod>;
-
-    #[derive(Copy, Clone, Debug)]
-    struct TestDelegator2 {}
-
-    unsafe impl Delegator for TestDelegator2 {
-        type Target = TestImpl;
-
-        type Value = ();
-
-        fn choose(
-            target_value: &'static Self::Value,
-        ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>
-        {
-            Chosen::delegated::<TestImpl2>()
-        }
-    }
-
-    #[test]
-    fn patchsite_and_delegator_integration() {
-        dbg!(Patch::<TestDelegator2, ()>::run(10));
-
-        // Verify delegator choice mechanism
-        let chosen = TestDelegator2::choose(&());
-
-        // Verify patchsite can be retrieved
-        let patchsite = Chosen::<TestDelegator2, u32, u32>::patchsite();
-
-        println!("{patchsite:?}");
-
-        let _ = unsafe { Patchsite::stale(patchsite, chosen) };
-
-        dbg!(Patch::<TestDelegator2, ()>::run(10));
-    }
-}
-*/
+// #[cfg(test)]
+// mod tests {
+// use super::*;
+// use crate::{
+// cmc::Publish,
+// patch::{
+// choose::Chosen,
+// delegate::{Delegated, Delegator, Single},
+// },
+// };
+//
+// A simple delegated implementation for testing.
+// #[derive(Debug, Copy, Clone)]
+// struct TestImpl;
+//
+// impl Delegated for TestImpl {
+// type Input = u32;
+// type Output = u32;
+//
+// fn implementation(input: Self::Input) -> Self::Output {
+// input.wrapping_add(42)
+// }
+// }
+//
+// A simple delegated implementation for testing.
+// #[derive(Debug, Copy, Clone)]
+// struct TestImpl2;
+//
+// impl Delegated for TestImpl2 {
+// type Input = u32;
+// type Output = u32;
+//
+// fn implementation(input: Self::Input) -> Self::Output {
+// input.wrapping_add(52)
+// }
+// }
+//
+// A simple Pod value for testing.
+// #[derive(Debug, Copy, Clone)]
+// struct TestPod;
+//
+// type TestDelegator = Single<TestImpl, TestPod>;
+//
+// #[derive(Copy, Clone, Debug)]
+// struct TestDelegator2 {}
+//
+// unsafe impl Delegator for TestDelegator2 {
+// type Target = TestImpl;
+//
+// type Value = ();
+//
+// fn choose(
+// target_value: &'static Self::Value,
+// ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>
+// {
+// Chosen::delegated::<TestImpl2>()
+// }
+// }
+//
+// #[test]
+// fn patchsite_and_delegator_integration() {
+// dbg!(Patch::<TestDelegator2, ()>::run(10));
+//
+// Verify delegator choice mechanism
+// let chosen = TestDelegator2::choose(&());
+//
+// Verify patchsite can be retrieved
+// let patchsite = Chosen::<TestDelegator2, u32, u32>::patchsite();
+//
+// println!("{patchsite:?}");
+//
+// let _ = unsafe { Patchsite::stale(patchsite, chosen) };
+//
+// dbg!(Patch::<TestDelegator2, ()>::run(10));
+// }
+// }

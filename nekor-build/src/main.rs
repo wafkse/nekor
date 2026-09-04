@@ -1,21 +1,11 @@
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
 //! The build orchestration crate for the Nekor Unikernel.
 
-use std::{
+use core::{
     error::Error,
     fmt::{self, Debug, Display},
 };
 
 use clap::Parser;
-
 use nekor_build::invoke::{Invoke, InvokeError};
 
 /// A new-type that forwards the [`Debug`] implementation as the [`Display`]
@@ -30,7 +20,7 @@ where
     D: Display + Error,
 {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        let Self(source_error) = self;
+        let &Self(ref source_error) = self;
 
         source_error.source()
     }
@@ -45,7 +35,7 @@ where
     D: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         <D as Display>::fmt(target_value, f)
     }
@@ -56,7 +46,7 @@ where
     D: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         <D as Display>::fmt(target_value, f)
     }
@@ -74,7 +64,7 @@ where
     E: Error + Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         writeln!(f, "{target_value}")?;
 
@@ -91,8 +81,5 @@ where
 }
 
 fn main() -> Result<(), DisplayAsDebug<ErrorChain<InvokeError>>> {
-    Invoke::parse()
-        .run()
-        .map_err(ErrorChain)
-        .map_err(DisplayAsDebug)
+    Invoke::parse().run().map_err(ErrorChain).map_err(DisplayAsDebug)
 }

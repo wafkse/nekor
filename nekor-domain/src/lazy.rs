@@ -53,7 +53,7 @@ where
     /// needed.
     #[inline]
     pub fn value(&self) -> &'static T {
-        let Self(ptr, ..) = self;
+        let &Self(ref ptr, ..) = self;
 
         if let Some(target_value) = NonNull::new(ptr.load(Ordering::Relaxed)) {
             // SAFETY: The pointer is valid due to type invariants.
@@ -84,7 +84,7 @@ where
     /// output.
     #[inline]
     pub fn cache(&self) -> Option<&'static T> {
-        let Self(ptr, ..) = self;
+        let &Self(ref ptr, ..) = self;
 
         match NonNull::new(ptr.load(Ordering::Relaxed)) {
             // SAFETY: The pointer is valid due to type invariants.
@@ -106,7 +106,7 @@ where
     #[inline]
     #[must_use]
     pub fn duplicate(&self) -> Self {
-        let Self(ptr, ..) = self;
+        let &Self(ref ptr, ..) = self;
 
         Self(
             // NOTE(atomic): Prefer to not require stronger ordering here, as a
@@ -180,10 +180,7 @@ where
     where
         D: Domain,
     {
-        Self(
-            Static::value_default_in::<T, D>,
-            AtomicPtr::new(ptr::null_mut()),
-        )
+        Self(Static::value_default_in::<T, D>, AtomicPtr::new(ptr::null_mut()))
     }
 
     /// Access the pointer to the underlying `T`, lazily initializing it as
@@ -200,7 +197,7 @@ where
 
             match ptr.compare_exchange(
                 ptr::null_mut::<T>(),
-                core::ptr::from_ref::<T>(target_value).cast_mut(),
+                ptr::from_ref::<T>(target_value).cast_mut(),
                 // NOTE(atomic): No ordering requirements, any posterior
                 // thread that reads a stale (null, there is no
                 // re-initialization) value causes no harm.
@@ -221,7 +218,7 @@ where
     /// output.
     #[inline]
     pub fn cache(&self) -> Option<&'static T> {
-        let Self(.., ptr) = self;
+        let &Self(.., ref ptr) = self;
 
         match NonNull::new(ptr.load(Ordering::Relaxed)) {
             // SAFETY: The pointer is valid due to type invariants.

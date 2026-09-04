@@ -4,12 +4,7 @@
 //! The type of utmost importance in this module is the [`Static`] type. Defer
 //! to its documentation for further guidance.
 
-use core::{
-    cell::UnsafeCell,
-    hint,
-    mem::{self, MaybeUninit},
-    ptr::NonNull,
-};
+use core::{cell::UnsafeCell, hint, mem::MaybeUninit, ptr::NonNull};
 
 use crate::{
     arch::{Container, Header, InitializationStage},
@@ -65,8 +60,8 @@ where
 /// A brief description of the associated functions present in this type are the
 /// following:
 ///
-/// - [`Static::value<T>`]: Retrieve a [`Default`]-initialized `&'static T`
-///   stored in the default ([`Preset`]) domain.
+/// - [`Static::value<T>`]: Retrieve a [`Default`]-initialized `&'static T` stored in the default
+///   ([`Preset`]) domain.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Static {}
 
@@ -132,8 +127,8 @@ impl Static {
     ///
     /// # Safety
     ///
-    /// - The caller of this method must ensure that they **actually have**
-    ///   exclusive access to the static variable of type `T`.
+    /// - The caller of this method must ensure that they **actually have** exclusive access to the
+    ///   static variable of type `T`.
     #[inline]
     #[must_use]
     pub unsafe fn raw_value_mut_in<T, D>() -> &'static mut MaybeUninit<T>
@@ -181,8 +176,7 @@ impl Static {
     ///
     /// # Safety
     ///
-    ///  - The yielded [`Header`] must only be subjected to atomic loads, i.e,
-    ///    never mutated.
+    ///  - The yielded [`Header`] must only be subjected to atomic loads, i.e, never mutated.
     #[inline]
     #[must_use]
     pub unsafe fn raw_header_in<T, D>() -> &'static Header
@@ -192,7 +186,7 @@ impl Static {
     {
         // SAFETY: The reference is valid and is correct to share between
         // threads.
-        let Container { value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
+        let &Container { ref value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
 
         value_header
     }
@@ -219,7 +213,7 @@ impl Static {
     {
         // SAFETY: The reference is valid and is correct to share between
         // threads.
-        let Container { value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
+        let &Container { ref value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
 
         value_header.load()
     }
@@ -323,31 +317,34 @@ impl Static {
         /// superceded.
         ///
         /// [`forget`]: core::mem::forget
-        #[repr(transparent)]
-        struct Guard<'a>(&'a Header);
+        struct Guard<'a>(&'a Header, bool);
+
+        impl Guard<'_> {
+            #[inline]
+            const fn disarm(&mut self) {
+                self.1 = true;
+            }
+        }
 
         impl Drop for Guard<'_> {
             #[inline]
             fn drop(&mut self) {
-                let &mut Self(target_header) = self;
+                let &mut Self(target_header, disarmed) = self;
 
-                // SAFETY: The stored stage is not the `Initialized` variant.
-                unsafe { target_header.store(InitializationStage::Uninitialized) };
+                if !disarmed {
+                    // SAFETY: The stored stage is not the `Initialized` variant.
+                    unsafe { target_header.store(InitializationStage::Uninitialized) };
+                }
             }
         }
 
         // SAFETY: The reference is valid and is correct to share between
         // threads.
-        let Container { value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
+        let &Container { ref value_header, .. } = unsafe { Container::<T>::address_in::<D>().as_ref() };
 
+        // SAFETY: The to-migrate stage is not the `Initialized` variant.
         let target_migrate =
-            // SAFETY: The to-migrate stage is not the `Initialized` variant.
-            unsafe {
-            value_header.migrate(
-                InitializationStage::Uninitialized,
-                InitializationStage::Pending,
-            )
-        };
+            unsafe { value_header.migrate(InitializationStage::Uninitialized, InitializationStage::Pending) };
 
         match target_migrate {
             None => {
@@ -355,19 +352,19 @@ impl Static {
                 // storage due to the `compare_exchange`'s success.
                 let target_value = unsafe { Self::raw_value_mut_in::<T, D>() };
 
-                let target_guard: Guard<'_> = Guard(value_header);
+                let mut target_guard: Guard<'_> = Guard(value_header, false);
 
                 let target_value: &T = target_value.write(target_predicate());
 
-                // NOTE(drop): No failure point remains, so explicitly prohibit
-                // the `Guard` from being dropped.
-                mem::forget(target_guard);
+                // NOTE(drop): No failure point remains, so explicitly disarm
+                // the `Guard` before it is dropped.
+                target_guard.disarm();
 
                 // SAFETY: The value associated has been initialized.
                 unsafe { value_header.store(InitializationStage::Initialized) };
 
                 target_value
-            }
+            },
             Some(target_stage) => match target_stage {
                 InitializationStage::Pending => {
                     loop {
@@ -377,38 +374,27 @@ impl Static {
 
                                 // SAFETY: The value is guaranteed to have been
                                 // initialized due to an initialization signal.
-                                let target_value = unsafe {
-                                    target_value
-                                        .get()
-                                        .as_ref()
-                                        .unwrap_unchecked()
-                                        .assume_init_ref()
-                                };
+                                let target_value =
+                                    unsafe { target_value.get().as_ref().unwrap_unchecked().assume_init_ref() };
 
                                 break target_value;
-                            }
+                            },
                             InitializationStage::Uninitialized => {
                                 // NOTE: The initializing thread has possibly
                                 // panicked, so we just retry.
                                 break Self::value_with_in::<T, D, F>(target_predicate);
-                            }
+                            },
                             InitializationStage::Pending => hint::spin_loop(),
                         }
                     }
-                }
+                },
                 InitializationStage::Initialized => {
                     let target_value = Self::raw_value_in::<T, D>();
 
                     // SAFETY: The value is guaranteed to have been initialized
                     // due to an initialization signal.
-                    unsafe {
-                        target_value
-                            .get()
-                            .as_ref()
-                            .unwrap_unchecked()
-                            .assume_init_ref()
-                    }
-                }
+                    unsafe { target_value.get().as_ref().unwrap_unchecked().assume_init_ref() }
+                },
                 InitializationStage::Uninitialized => unreachable!(),
             },
         }

@@ -53,14 +53,12 @@ pub unsafe trait Delegated: Pod {
 /// For a delegator to be deemed safe, it must satisfy all of the following
 /// requirements:
 ///
-/// * The selection based on the input value must be performed in a way that it
-///   is deterministic and side-effect free. Particularly, [`Delegator::choose`]
-///   must be a *pure function*.
-/// * If an output delegate can cause Undefined Behavior due to missmatching
-///   machine state or missing architectural features, the selection of such
-///   delegate must be guarded from. For instance, if a delegate has a baseline
-///   requirement on a specific architectural feature, the respective delegator
-///   must guard and verify the existence of such feature.
+/// * The selection based on the input value must be performed in a way that it is deterministic and
+///   side-effect free. Particularly, [`Delegator::choose`] must be a *pure function*.
+/// * If an output delegate can cause Undefined Behavior due to missmatching machine state or
+///   missing architectural features, the selection of such delegate must be guarded from. For
+///   instance, if a delegate has a baseline requirement on a specific architectural feature, the
+///   respective delegator must guard and verify the existence of such feature.
 pub unsafe trait Delegator: Pod {
     /// The type of delegated implementation that is a target of this
     /// [`Delegator`].
@@ -93,7 +91,6 @@ where
     P: Pod,
 {
     type Target = D;
-
     type Value = P;
 
     #[inline]
@@ -122,7 +119,6 @@ where
     F: Delegated<Input = T::Input, Output = T::Output>,
 {
     type Target = F;
-
     type Value = bool;
 
     #[inline]
@@ -144,7 +140,6 @@ where
     F: Delegated<Input = T::Input, Output = T::Output>,
 {
     type Target = T;
-
     type Value = bool;
 
     #[inline]

@@ -11,8 +11,7 @@
 //!
 //! Reference: <https://cr.openjdk.org/~jrose/jvm/hotspot-cmc.html>
 
-use core::num::NonZero;
-use core::ptr::NonNull;
+use core::{convert::Infallible, num::NonZero, ptr::NonNull};
 
 use nekor_aal_cache::line::Cacheline;
 
@@ -22,7 +21,10 @@ pub struct Target(NonNull<Cacheline>, NonZero<usize>);
 
 /// An umbrella type for the *CMC-Publish* abstract operation.
 #[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub enum Publish {}
+pub enum Publish {
+    /// An impossible marker variant; this type is used only as a namespace.
+    __Variant(Infallible),
+}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl Publish {

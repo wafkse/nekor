@@ -110,10 +110,10 @@ where
     /// # Safety
     ///
     /// By instantiating this token, the caller guarantees that:
-    /// * The token will **only ever be accessed or used** in an execution
-    ///   context where the *Current Privilege Level* exactly matches `N`.
-    /// * The token must never be sent, leaked, or accessed across privilege
-    ///   boundaries (e.g., accessed by Ring 3 code if `N` is 0).
+    /// * The token will **only ever be accessed or used** in an execution context where the
+    ///   *Current Privilege Level* exactly matches `N`.
+    /// * The token must never be sent, leaked, or accessed across privilege boundaries (e.g.,
+    ///   accessed by Ring 3 code if `N` is 0).
     #[inline]
     pub const unsafe fn assert(target_value: T) -> Self {
         Self(target_value, marker::PhantomData)

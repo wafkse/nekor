@@ -54,9 +54,7 @@ pub enum ProfileError {
 #[derive(Debug, Error)]
 pub enum TypeError {
     /// A reserved annotation was applied to the wrong scalar kind.
-    #[error(
-        "annotation `{annotation:?}` at `{origin}` requires `{expected:?}` but found `{actual:?}`"
-    )]
+    #[error("annotation `{annotation:?}` at `{origin}` requires `{expected:?}` but found `{actual:?}`")]
     ScalarKind {
         /// The classified representation annotation.
         annotation: TypeAnnotation,

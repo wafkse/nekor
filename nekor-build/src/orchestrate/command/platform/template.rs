@@ -1,4 +1,6 @@
-use std::{collections::BTreeMap, fmt, fs, io};
+use alloc::collections::BTreeMap;
+use core::fmt;
+use std::{fs, io, path::StripPrefixError};
 
 use cargo_metadata::camino::{Utf8Path, Utf8PathBuf};
 use clap::Subcommand;
@@ -9,7 +11,7 @@ use serde::Serialize;
 use crate::{
     invoke::InvokeContext,
     manifest::PlatformDesc,
-    orchestrate::command::{Execute, Output, OutputOptions, OutputStructured},
+    orchestrate::command::{Execute, Output, OutputError, OutputOptions, OutputStructured},
     platform::{Platform, PlatformFileError},
 };
 
@@ -25,8 +27,8 @@ pub enum PlatformTemplateCommand {
 
 impl Execute for PlatformTemplateCommand {
     type Data<'a> = (&'a Platform, &'a PlatformDesc);
-    type Output<'a> = PlatformTemplateOutput;
     type Error = PlatformTemplateError;
+    type Output<'a> = PlatformTemplateOutput;
 
     fn command<'a>(
         self,
@@ -42,10 +44,7 @@ impl Execute for PlatformTemplateCommand {
 
 impl PlatformTemplateCommand {
     /// Render every `MiniJinja` template belonging to the selected platform.
-    fn build(
-        context: &InvokeContext,
-        platform: &Platform,
-    ) -> Result<PlatformTemplateOutput, PlatformTemplateError> {
+    fn build(context: &InvokeContext, platform: &Platform) -> Result<PlatformTemplateOutput, PlatformTemplateError> {
         let mut environment = Environment::new();
         let workspace = context.root().to_string();
         let platform_root = platform.root().to_string();
@@ -59,11 +58,9 @@ impl PlatformTemplateCommand {
 
         for path in &sources {
             let name = Self::template_name(platform.root(), path.as_path())?;
-            let source = fs::read_to_string(path.as_std_path()).map_err(|error| {
-                PlatformTemplateError::Io {
-                    path: path.clone(),
-                    error,
-                }
+            let source = fs::read_to_string(path.as_std_path()).map_err(|error| PlatformTemplateError::Io {
+                path: path.clone(),
+                error,
             })?;
 
             environment.add_template_owned(name, source)?;
@@ -77,19 +74,15 @@ impl PlatformTemplateCommand {
             let rendered = template.render(platform.document())?;
             let output = Self::output_path(path.as_path());
 
-            fs::write(output.as_std_path(), rendered).map_err(|error| {
-                PlatformTemplateError::Io {
-                    path: output.clone(),
-                    error,
-                }
+            fs::write(output.as_std_path(), rendered).map_err(|error| PlatformTemplateError::Io {
+                path: output.clone(),
+                error,
             })?;
 
             _ = processed.insert(name, output.to_string());
         }
 
-        Ok(PlatformTemplateOutput::Build {
-            template: processed,
-        })
+        Ok(PlatformTemplateOutput::Build { template: processed })
     }
 
     /// Remove generated outputs corresponding to platform templates.
@@ -117,9 +110,10 @@ impl PlatformTemplateCommand {
     fn template_name(root: &Utf8Path, path: &Utf8Path) -> Result<String, PlatformTemplateError> {
         path.strip_prefix(root)
             .map(Utf8Path::to_string)
-            .map_err(|_| PlatformTemplateError::TemplatePath {
+            .map_err(|error| PlatformTemplateError::TemplatePath {
                 root: root.to_path_buf(),
                 path: path.to_path_buf(),
+                error,
             })
     }
 
@@ -143,13 +137,16 @@ pub enum PlatformTemplateError {
     MiniJinja(minijinja::Error),
 
     /// A template path cannot be made relative to the platform root.
-    #[error("template `{path}` is outside platform root `{root}`")]
+    #[error("template `{path}` is outside platform root `{root}` with {error}")]
     TemplatePath {
         /// The platform root.
         root: Utf8PathBuf,
 
         /// The template path.
         path: Utf8PathBuf,
+
+        /// The path prefix failure.
+        error: StripPrefixError,
     },
     /// A platform template file operation failed.
     #[error("template file operation failed for `{path}` with {error}")]
@@ -183,19 +180,18 @@ impl Output for PlatformTemplateOutput {
     fn output<W>(
         self,
         writer: &mut W,
-        &OutputOptions {
-            structured,
-            verbose,
-        }: &OutputOptions,
-    ) -> fmt::Result
+        &OutputOptions { structured, verbose }: &OutputOptions,
+    ) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
         match structured {
             Some(OutputStructured::Json) => {
-                let value = serde_json::to_string(&self).expect("could not serialize output");
-                writer.write_str(value.as_str())
-            }
+                let value = serde_json::to_string(&self)?;
+                writer.write_str(value.as_str())?;
+
+                Ok(())
+            },
             None => match self {
                 Self::Build { template } => {
                     if verbose {
@@ -205,7 +201,7 @@ impl Output for PlatformTemplateOutput {
                     }
 
                     Ok(())
-                }
+                },
                 Self::Clean { files } => {
                     if verbose {
                         for file in files {
@@ -214,7 +210,7 @@ impl Output for PlatformTemplateOutput {
                     }
 
                     Ok(())
-                }
+                },
             },
         }
     }

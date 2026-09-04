@@ -1,13 +1,5 @@
 #![no_std]
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
+
 //! Pin projection traits and derive support.
 //!
 //! This crate provides the [`Project`] derive macro and the traits implemented
@@ -21,8 +13,8 @@
 //! # Basic use
 //!
 //! ```rust
-//! use core::marker::PhantomPinned;
-//! use core::pin::Pin;
+//! use core::{marker::PhantomPinned, pin::Pin};
+//!
 //! use nekor_project::Project;
 //!
 //! #[derive(Project)]
@@ -77,6 +69,7 @@
 //!
 //! ```rust
 //! use core::marker::PhantomPinned;
+//!
 //! use nekor_project::Project;
 //!
 //! #[derive(Project)]
@@ -162,8 +155,8 @@
 //! forwarding in a way that can move a pinned field.
 //!
 //! ```rust
-//! use core::marker::PhantomPinned;
-//! use core::pin::Pin;
+//! use core::{marker::PhantomPinned, pin::Pin};
+//!
 //! use nekor_project::{PinnedDrop, Project};
 //!
 //! #[derive(Project)]

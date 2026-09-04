@@ -1,0 +1,2 @@
+[workspace.metadata.dylint]
+libraries = [{ git = "https://github.com/wafkse/lint.git", rev = "1b2da97944047f764240a158c12a50fc53672704" }]

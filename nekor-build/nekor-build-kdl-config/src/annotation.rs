@@ -1,6 +1,6 @@
 //! KDL annotation types.
 
-use std::fmt;
+use core::fmt;
 
 /// An application-defined KDL annotation identifier.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,7 +18,7 @@ impl Annotation {
     #[inline]
     #[must_use]
     pub const fn as_str(&self) -> &str {
-        let Self(value) = self;
+        let &Self(ref value) = self;
 
         value.as_str()
     }
@@ -46,7 +46,7 @@ impl NodeAnnotation {
     #[inline]
     #[must_use]
     pub const fn annotation(&self) -> &Annotation {
-        let Self(annotation) = self;
+        let &Self(ref annotation) = self;
 
         annotation
     }

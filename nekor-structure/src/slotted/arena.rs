@@ -8,7 +8,7 @@ use nekor_sync::atomic::bitmap::{
     AtomicBitmap,
     at::At,
     mode::{
-        cooperative::Cooperative,
+        cooperative::{Cooperative, Snapshot},
         exclusive::{Exclusive, Outcome, Reason},
     },
     typeutil::{BitMapUsize, InBound},
@@ -87,7 +87,7 @@ where
             }
         }
 
-        let Self { arena_state, .. } = self;
+        let arena_state = &self.arena_state;
 
         let reserve_state = SlotState::reserve(arena_state);
 
@@ -100,11 +100,11 @@ where
                 Some(ref at_bit) => match at_bit.one_with::<Exclusive>(&mut target_state) {
                     Outcome::Success(..) => {
                         break Some(Reserve(reserve_state, At::index(at_bit)));
-                    }
+                    },
                     Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => {
                         unreachable!()
-                    }
+                    },
                 },
                 None => break None,
             }
@@ -116,11 +116,8 @@ where
     /// This will return `None` if the reservation is not for this arena.
     #[inline]
     pub fn slot(&self, reserve: &Reserve) -> Option<&UnsafeCell<MaybeUninit<T>>> {
-        let Self {
-            arena_state,
-            arena_storage,
-            ..
-        } = self;
+        let arena_state = &self.arena_state;
+        let arena_storage = &self.arena_storage;
 
         let &Reserve(reserve_bitmap, reserve_index) = reserve;
 
@@ -139,11 +136,8 @@ where
     /// Returns the original value when every arena slot is reserved.
     #[inline]
     pub fn allocate(&self, value: T) -> Result<InArena<'_, T>, T> {
-        let Self {
-            arena_storage,
-            arena_state,
-            ..
-        } = self;
+        let arena_storage = &self.arena_storage;
+        let arena_state = &self.arena_state;
 
         match Self::reserve(self) {
             Some(target_reserve) => {
@@ -174,7 +168,7 @@ where
                         .write(value)
                 };
 
-                let _ = InitializationState::bitmap(SlotState::initialization(arena_state))
+                let _: Snapshot = InitializationState::bitmap(SlotState::initialization(arena_state))
                     .at(target_reserve.index())
                     .one::<Cooperative>();
 
@@ -183,7 +177,7 @@ where
                     target_reserve,
                     SlotState::initialization(arena_state),
                 ))
-            }
+            },
             None => Err(value),
         }
     }
@@ -222,7 +216,7 @@ where
         let init_snapshot = arena_state.initialization().snapshot();
 
         for slot_index in 0..N {
-            let slot_mask = 1usize << slot_index;
+            let slot_mask = 1_usize << slot_index;
 
             if (init_snapshot & slot_mask) != 0 {
                 // SAFETY: The initialization bit guarantees this slot contains
@@ -230,7 +224,7 @@ where
                 unsafe {
                     let target_slot = arena_storage.get_unchecked_mut(slot_index).get_mut();
 
-                    let _ = target_slot.assume_init_read();
+                    drop(target_slot.assume_init_read());
                 }
             }
         }
@@ -257,7 +251,7 @@ impl Drop for Reserve<'_> {
     fn drop(&mut self) {
         let &mut Self(reserve_state, alloc_index, ..) = self;
 
-        let _ = ReserveState::bitmap(reserve_state)
+        let _: Snapshot = ReserveState::bitmap(reserve_state)
             .at(alloc_index)
             .zero::<Cooperative>();
     }
@@ -282,7 +276,7 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn data(&self) -> &T {
-        let Self(target_data, ..) = self;
+        let target_data = &self.0;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
         // `InArena` type.
@@ -293,7 +287,7 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn data_mut(&mut self) -> &mut T {
-        let &mut Self(ref mut target_data, ..) = self;
+        let target_data = &mut self.0;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
         // `InArena` type.
@@ -304,9 +298,7 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn allocation(&self) -> &Reserve<'_> {
-        let Self(_, allocation, ..) = self;
-
-        allocation
+        &self.1
     }
 }
 
@@ -327,7 +319,7 @@ impl<T> Drop for InArena<'_, T> {
         // NOTE: This mirrors the slotted teardown order: the initialization
         // bit is cleared first, and the reservation bit is cleared by the
         // `Reserve` field drop that follows.
-        let _ = InitializationState::bitmap(initialization_state)
+        let _: Snapshot = InitializationState::bitmap(initialization_state)
             .at(Reserve::index(target_reserve))
             .zero::<Cooperative>();
     }
@@ -335,6 +327,8 @@ impl<T> Drop for InArena<'_, T> {
 
 #[cfg(test)]
 mod tests {
+    use core::mem::ManuallyDrop;
+
     use super::*;
 
     #[test]
@@ -385,7 +379,7 @@ mod tests {
         assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 1);
 
         // A forgotten handle leaves its value for the arena to clean up.
-        core::mem::forget(leaked);
+        let _leaked = ManuallyDrop::new(leaked);
 
         drop(arena);
         assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 2);

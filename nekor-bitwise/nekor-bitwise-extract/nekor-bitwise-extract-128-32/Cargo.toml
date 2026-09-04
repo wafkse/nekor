@@ -2,6 +2,12 @@
 name = "nekor-bitwise-extract-128-32"
 version.workspace = true
 edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 nekor-bitwise-extract-core = { workspace = true }

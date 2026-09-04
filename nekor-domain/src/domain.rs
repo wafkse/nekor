@@ -22,8 +22,8 @@ pub mod arbitrary;
 ///
 /// # Safety
 ///
-/// - The adaptor must be `repr(transparent)` over [`Adapter::Target`], i.e.,
-///   have an identical layout and ABI constraints.
+/// - The adaptor must be `repr(transparent)` over [`Adapter::Target`], i.e., have an identical
+///   layout and ABI constraints.
 pub unsafe trait Adapter: Store {
     /// The target type of this adapter.
     type Target;

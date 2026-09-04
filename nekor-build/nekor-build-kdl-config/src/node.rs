@@ -26,9 +26,9 @@ impl ScalarList {
     #[inline]
     #[must_use]
     pub const fn len(&self) -> usize {
-        let Self(values) = self;
+        let &Self(ref value_list) = self;
 
-        values.len()
+        value_list.len()
     }
 
     /// Determine whether the list contains no elements.
@@ -42,7 +42,7 @@ impl ScalarList {
     #[inline]
     #[must_use]
     pub const fn as_slice(&self) -> &[Scalar] {
-        let Self(values) = self;
+        let &Self(ref values) = self;
 
         values.as_slice()
     }
@@ -86,7 +86,7 @@ impl Node {
     #[inline]
     #[must_use]
     pub const fn annotation(&self) -> Option<&NodeAnnotation> {
-        let Self { annotation, .. } = self;
+        let &Self { ref annotation, .. } = self;
 
         annotation.as_ref()
     }
@@ -95,7 +95,7 @@ impl Node {
     #[inline]
     #[must_use]
     pub const fn kind(&self) -> &NodeKind {
-        let Self { kind, .. } = self;
+        let &Self { ref kind, .. } = self;
 
         kind
     }
@@ -104,18 +104,14 @@ impl Node {
     #[inline]
     #[must_use]
     pub const fn origin(&self) -> &Origin {
-        let Self { origin, .. } = self;
+        let &Self { ref origin, .. } = self;
 
         origin
     }
 
     /// Construct a node after parsing and type interpretation have succeeded.
     #[inline]
-    pub(crate) const fn from_parts(
-        annotation: Option<NodeAnnotation>,
-        kind: NodeKind,
-        origin: Origin,
-    ) -> Self {
+    pub(crate) const fn from_parts(annotation: Option<NodeAnnotation>, kind: NodeKind, origin: Origin) -> Self {
         Self {
             annotation,
             kind,
@@ -130,9 +126,9 @@ impl NodeKind {
     #[must_use]
     pub const fn structure(&self) -> StructureKind {
         match self {
-            Self::Scalar(..) => StructureKind::Scalar,
-            Self::Object(..) => StructureKind::Object,
-            Self::List(..) => StructureKind::List,
+            &Self::Scalar(..) => StructureKind::Scalar,
+            &Self::Object(..) => StructureKind::Object,
+            &Self::List(..) => StructureKind::List,
         }
     }
 }
@@ -161,7 +157,7 @@ impl Merge for Node {
                     existing: origin,
                     incoming: incoming_origin,
                 });
-            }
+            },
             (Some(annotation), _) | (None, Some(annotation)) => Some(annotation),
             (None, None) => None,
         };
@@ -169,16 +165,14 @@ impl Merge for Node {
         let expected = kind.structure();
         let actual = incoming_kind.structure();
         let kind = match (kind, incoming_kind) {
-            (NodeKind::Object(existing), NodeKind::Object(incoming)) => {
-                NodeKind::Object(existing.merge(incoming)?)
-            }
+            (NodeKind::Object(existing), NodeKind::Object(incoming)) => NodeKind::Object(existing.merge(incoming)?),
             (left, right) if left.structure() == right.structure() => {
                 return Err(MergeError::DuplicateValue {
                     path: Path::new(),
                     existing: origin,
                     incoming: incoming_origin,
                 });
-            }
+            },
             _ => {
                 return Err(MergeError::Structure {
                     path: Path::new(),
@@ -187,7 +181,7 @@ impl Merge for Node {
                     existing: origin,
                     incoming: incoming_origin,
                 });
-            }
+            },
         };
 
         Ok(Self {
@@ -222,7 +216,7 @@ impl Overlay for Node {
                     inherited: origin,
                     derived: derived_origin,
                 });
-            }
+            },
             (Some(annotation), _) | (None, Some(annotation)) => Some(annotation),
             (None, None) => None,
         };
@@ -230,12 +224,8 @@ impl Overlay for Node {
         let expected = kind.structure();
         let actual = derived_kind.structure();
         let kind = match (kind, derived_kind) {
-            (NodeKind::Object(inherited), NodeKind::Object(derived)) => {
-                NodeKind::Object(inherited.overlay(derived)?)
-            }
-            (NodeKind::Scalar(inherited), NodeKind::Scalar(derived)) => {
-                NodeKind::Scalar(inherited.overlay(derived)?)
-            }
+            (NodeKind::Object(inherited), NodeKind::Object(derived)) => NodeKind::Object(inherited.overlay(derived)?),
+            (NodeKind::Scalar(inherited), NodeKind::Scalar(derived)) => NodeKind::Scalar(inherited.overlay(derived)?),
             (NodeKind::List(_), NodeKind::List(derived)) => NodeKind::List(derived),
             _ => {
                 return Err(OverlayError::Structure {
@@ -245,7 +235,7 @@ impl Overlay for Node {
                     inherited: origin,
                     derived: derived_origin,
                 });
-            }
+            },
         };
 
         Ok(Self {

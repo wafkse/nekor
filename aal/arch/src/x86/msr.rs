@@ -76,7 +76,7 @@ impl Msr {
                 in("ecx") target_register as u32,
                 lateout("edx") high,
                 lateout("eax") low,
-                options(nostack, nomem, preserves_flags)
+                options(nostack, nomem, preserves_flags, att_syntax)
             );
         }
 
@@ -103,8 +103,7 @@ impl Msr {
     /// function.
     #[inline]
     pub unsafe fn write(target_register: Self, target_value: MsrValue) {
-        let [low_0, low_1, low_2, low_3, high_0, high_1, high_2, high_3] =
-            target_value.to_le_bytes();
+        let [low_0, low_1, low_2, low_3, high_0, high_1, high_2, high_3] = target_value.to_le_bytes();
         let low = u32::from_le_bytes([low_0, low_1, low_2, low_3]);
         let high = u32::from_le_bytes([high_0, high_1, high_2, high_3]);
 
@@ -115,7 +114,7 @@ impl Msr {
                 in("ecx") target_register as u32,
                 in("edx") high,
                 in("eax") low,
-                options(nostack, preserves_flags, nomem)
+                options(nostack, preserves_flags, nomem, att_syntax)
             );
         }
     }

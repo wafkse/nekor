@@ -64,10 +64,7 @@ impl RawHead {
 
         let block_size = Le::<u64>::new(mem::size_of::<Block<R>>() as u64);
 
-        Self {
-            slug_id,
-            block_size,
-        }
+        Self { slug_id, block_size }
     }
 }
 

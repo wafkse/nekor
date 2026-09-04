@@ -12,8 +12,8 @@ use core::{
 /// The caller must have *I/O Privileges* as per their current `CPL`.
 #[inline]
 pub unsafe fn cli() {
-    /* NOTE(ordering): Do not allow reordering across a critical section
-     * boundary. */
+    // NOTE(ordering): Do not allow reordering across a critical section
+    // boundary.
     compiler_fence(Ordering::SeqCst);
 
     // SAFETY: IO privileges guaranteed by caller.
@@ -36,8 +36,8 @@ pub unsafe fn cli() {
 /// The caller must have *I/O Privileges* as per their current `CPL`.
 #[inline]
 pub unsafe fn sti() {
-    /* NOTE(ordering): Do not allow reordering across a critical section
-     * boundary. */
+    // NOTE(ordering): Do not allow reordering across a critical section
+    // boundary.
     compiler_fence(Ordering::SeqCst);
 
     // SAFETY: IO privileges guaranteed by caller.

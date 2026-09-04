@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use clap::Subcommand;
 use fack::prelude::Error;
@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::{
     invoke::InvokeContext,
     manifest::PlatformDesc,
-    orchestrate::command::{Execute, Output, OutputOptions, OutputStructured},
+    orchestrate::command::{Execute, Output, OutputError, OutputOptions, OutputStructured},
     platform::Platform,
 };
 
@@ -42,31 +42,25 @@ pub enum PlatformShowOutput<'a> {
 }
 
 impl Output for PlatformShowOutput<'_> {
-    fn output<W>(
-        self,
-        writer: &mut W,
-        OutputOptions {
-            structured,
-            verbose,
-        }: &OutputOptions,
-    ) -> fmt::Result
+    fn output<W>(self, writer: &mut W, &OutputOptions { structured, .. }: &OutputOptions) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
-        let _ = verbose;
-
         match structured {
             Some(OutputStructured::Json) => {
-                let value = serde_json::to_string(&self).expect("could not serialize output");
-                writer.write_str(value.as_str())
-            }
+                let value = serde_json::to_string(&self)?;
+                writer.write_str(value.as_str())?;
+
+                Ok(())
+            },
             None => self.output_human(writer),
         }
     }
 }
 
 impl PlatformShowOutput<'_> {
-    fn output_human<W>(self, writer: &mut W) -> fmt::Result
+    /// Write the human-readable representation of the platform output.
+    fn output_human<W>(self, writer: &mut W) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
@@ -75,12 +69,13 @@ impl PlatformShowOutput<'_> {
             Self::All { platform, metadata } => {
                 Self::write_metadata(writer, metadata)?;
                 Self::write_platform(writer, platform)
-            }
+            },
             Self::Resolved { platform } => Self::write_platform(writer, platform),
         }
     }
 
-    fn write_metadata<W>(writer: &mut W, metadata: &PlatformDesc) -> fmt::Result
+    /// Write platform registration metadata.
+    fn write_metadata<W>(writer: &mut W, metadata: &PlatformDesc) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
@@ -94,18 +89,21 @@ impl PlatformShowOutput<'_> {
         writeln!(
             writer,
             "Base {}",
-            metadata
-                .base()
-                .map_or("(no platform)", |base| base.as_str())
-        )
+            metadata.base().map_or("(no platform)", |base| base.as_str())
+        )?;
+
+        Ok(())
     }
 
-    fn write_platform<W>(writer: &mut W, platform: &Platform) -> fmt::Result
+    /// Write the resolved platform data.
+    fn write_platform<W>(writer: &mut W, platform: &Platform) -> Result<(), OutputError>
     where
         W: fmt::Write,
     {
-        let value = serde_json::to_string_pretty(platform).expect("could not serialize platform");
-        writeln!(writer, "{value}")
+        let value = serde_json::to_string_pretty(platform)?;
+        writeln!(writer, "{value}")?;
+
+        Ok(())
     }
 }
 
@@ -123,8 +121,8 @@ pub enum PlatformShowCommand {
 
 impl Execute for PlatformShowCommand {
     type Data<'a> = (&'a Platform, &'a PlatformDesc);
-    type Output<'a> = PlatformShowOutput<'a>;
     type Error = PlatformShowError;
+    type Output<'a> = PlatformShowOutput<'a>;
 
     fn command<'a>(
         self,

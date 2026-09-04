@@ -6,15 +6,14 @@ use nekor_primitive::prelude::Scalar;
 #[cfg(target_pointer_width = "16")]
 #[doc(inline)]
 pub use self::Bits16 as Native;
-
 #[cfg(target_pointer_width = "32")]
 #[doc(inline)]
 pub use self::Bits32 as Native;
-
 #[cfg(target_pointer_width = "64")]
 #[doc(inline)]
 pub use self::Bits64 as Native;
 
+/// Private sealing implementation for [`Mode`].
 mod private {
     /// A trait to act as a seal supertrait to [`Mode`].
     ///

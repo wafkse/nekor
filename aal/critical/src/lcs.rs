@@ -1,6 +1,5 @@
-//! - *Local Critical Sections* (*LCS*) are those that are native to the
-//!   currently-active core, and thus correspond to *disabling interrupts* for
-//!   the current core.
+//! - *Local Critical Sections* (*LCS*) are those that are native to the currently-active core, and
+//!   thus correspond to *disabling interrupts* for the current core.
 //!
 //! Very little delay, used for processor initialization and for contexts that
 //! are non preemptable.
@@ -29,19 +28,17 @@ impl Lcs {
     ///
     /// # Safety
     ///
-    /// - A call to this function must be matched with a posterior
-    ///   [`Lcs::release`] call.
+    /// - A call to this function must be matched with a posterior [`Lcs::release`] call.
     /// - The output [`LcsToken`] must not outlive the actual *LCS*.
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
     ///     - [`Gcs`]: *Global Critical Section*
     ///     - [`MsCs`]: *Machine-Stop Critical Section*
     ///
-    /// - The code region the [`LcsToken`] is linked with must be surrounded by
-    ///   a [`SeqCst`] [`compiler fence`].
+    /// - The code region the [`LcsToken`] is linked with must be surrounded by a [`SeqCst`]
+    ///   [`compiler fence`].
     ///
-    /// - In `x86`, the calling core must^[1] have *I/O Privileges* as per their
-    ///   current `CPL`.
+    /// - In `x86`, the calling core must^[1] have *I/O Privileges* as per their current `CPL`.
     ///
     /// [1]: This is not required when the `usermode` crate feature is enabled.
     ///
@@ -73,16 +70,15 @@ impl Lcs {
     ///
     /// # Safety
     ///
-    /// - A call to this function must be matched with an ulterior
-    ///   [`Lcs::acquire`] call.
+    /// - A call to this function must be matched with an ulterior [`Lcs::acquire`] call.
     /// - The output [`LcsToken`] must not outlive the actual *LCS*.
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
     ///     - [`Gcs`]: *Global Critical Section*
     ///     - [`MsCs`]: *Machine-Stop Critical Section*
     ///
-    /// - In `x86`, the calling core must<sup>[1]</sup> have *I/O Privileges* as
-    ///   per their current `CPL`.
+    /// - In `x86`, the calling core must<sup>[1]</sup> have *I/O Privileges* as per their current
+    ///   `CPL`.
     ///
     /// [1]: This is not required when the `usermode` crate feature is enabled.
     ///
@@ -112,8 +108,8 @@ impl Lcs {
     ///     - [`Gcs`]: *Global Critical Section*
     ///     - [`MsCs`]: *Machine-Stop Critical Section*
     ///
-    /// - In `x86`, the calling core must<sup>1</sup> have *I/O Privileges* as
-    ///   per their current `CPL`.
+    /// - In `x86`, the calling core must<sup>1</sup> have *I/O Privileges* as per their current
+    ///   `CPL`.
     ///
     /// `1`: This is not required when the `usermode` crate feature is enabled.
     #[inline]

@@ -59,7 +59,7 @@ impl Retry {
     #[inline]
     #[must_use]
     pub const fn limit(&self) -> Option<&Limit> {
-        let Self(target_limit, ..) = self;
+        let &Self(ref target_limit, ..) = self;
 
         target_limit.as_ref()
     }
@@ -68,7 +68,7 @@ impl Retry {
     #[inline]
     #[must_use]
     pub const fn backoff(&self) -> Backoff {
-        let Self(.., target_state) = self;
+        let &Self(.., ref target_state) = self;
 
         target_state.strategy()
     }
@@ -78,14 +78,11 @@ impl Retry {
     /// This yields either:
     ///
     /// - [`ControlFlow::Break`] if the operation cannot be retried further.
-    /// - [`ControlFlow::Continue`] if the operation can indeed continue
-    ///   further. The closure embedded within the continue variant must be used
-    ///   to engage in backoff.
+    /// - [`ControlFlow::Continue`] if the operation can indeed continue further. The closure
+    ///   embedded within the continue variant must be used to engage in backoff.
     #[inline]
-    pub fn attempt(
-        &mut self,
-    ) -> ControlFlow<NonZero<usize>, impl FnOnce() -> Option<NonZero<usize>> + use<'_>> {
-        let Self(limit_state, backoff_state) = self;
+    pub fn attempt(&mut self) -> ControlFlow<NonZero<usize>, impl FnOnce() -> Option<NonZero<usize>> + use<'_>> {
+        let &mut Self(ref mut limit_state, ref mut backoff_state) = self;
 
         let target_closure = || -> Option<NonZero<usize>> {
             Backoff::cycle(backoff_state);

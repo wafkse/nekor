@@ -48,14 +48,12 @@ macro_rules! bitindex {
 bitindex!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-bitindex!(
-    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
-);
+bitindex!(16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
 
 #[cfg(target_pointer_width = "64")]
 bitindex!(
-    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-    56, 57, 58, 59, 60, 61, 62, 63
+    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+    61, 62, 63
 );
 
 /// The default bit map type for a given bit count.
@@ -89,14 +87,12 @@ macro_rules! bitmap {
 bitmap!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-bitmap!(
-    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-);
+bitmap!(17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
 
 #[cfg(target_pointer_width = "64")]
 bitmap!(
-    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-    57, 58, 59, 60, 61, 62, 63, 64
+    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+    62, 63, 64
 );
 
 #[cfg(test)]
@@ -105,35 +101,55 @@ mod tests {
 
     // Test that BitIndex implements InBound for valid indices
     #[test]
-    fn test_bitindex_0_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_0_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitIndex<0>>();
     }
 
     #[test]
-    fn test_bitindex_15_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_15_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitIndex<15>>();
     }
 
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
-    fn test_bitindex_31_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_31_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitIndex<31>>();
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn test_bitindex_63_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_63_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitIndex<63>>();
     }
 
     // Test all 16-bit valid indices
     #[test]
-    fn test_bitindex_all_16bit_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_all_16bit_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitIndex<0>>();
         assert_in_bound::<BitIndex<1>>();
@@ -155,8 +171,12 @@ mod tests {
 
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
-    fn test_bitindex_32bit_extended_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_32bit_extended_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitIndex<16>>();
         assert_in_bound::<BitIndex<17>>();
@@ -168,8 +188,12 @@ mod tests {
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn test_bitindex_64bit_extended_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_64bit_extended_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitIndex<32>>();
         assert_in_bound::<BitIndex<40>>();
@@ -180,35 +204,55 @@ mod tests {
 
     // Test BitMap implementations
     #[test]
-    fn test_bitmap_1_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_1_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitMap<1>>();
     }
 
     #[test]
-    fn test_bitmap_16_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_16_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitMap<16>>();
     }
 
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
-    fn test_bitmap_32_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_32_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitMap<32>>();
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn test_bitmap_64_is_in_bound() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_64_is_in_bound() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitMap<64>>();
     }
 
     // Test all 16-bit valid bitmap sizes
     #[test]
-    fn test_bitmap_all_16bit_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_all_16bit_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitMap<1>>();
         assert_in_bound::<BitMap<2>>();
@@ -230,8 +274,12 @@ mod tests {
 
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
-    fn test_bitmap_32bit_extended_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_32bit_extended_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitMap<17>>();
         assert_in_bound::<BitMap<20>>();
@@ -242,8 +290,12 @@ mod tests {
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn test_bitmap_64bit_extended_valid() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_64bit_extended_valid() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
 
         assert_in_bound::<BitMap<33>>();
         assert_in_bound::<BitMap<40>>();
@@ -254,39 +306,53 @@ mod tests {
 
     // Test boundary conditions
     #[test]
-    fn test_bitindex_boundary_min() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitindex_boundary_min() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitIndex<0>>();
     }
 
     #[test]
-    fn test_bitmap_boundary_min() {
-        fn assert_in_bound<T: InBound>() {}
+    fn bitmap_boundary_min() {
+        fn assert_in_bound<T>()
+        where
+            T: InBound,
+        {
+        }
         assert_in_bound::<BitMap<1>>();
     }
 
     // Test that sealed trait cannot be implemented externally
     #[test]
-    fn test_sealed_trait_prevents_external_impl() {
+    fn sealed_trait_prevents_external_impl() {
         // This test just verifies the types exist and are properly sealed
         // The actual sealing is enforced at compile time
-        fn check_sealed<T: detail::Sealed>() {}
+        fn check_sealed<T>()
+        where
+            T: detail::Sealed,
+        {
+        }
         check_sealed::<BitIndex<0>>();
         check_sealed::<BitMap<1>>();
     }
 
     // Test usage with actual bitmap operations
     #[test]
-    fn test_bitindex_with_actual_bitmap() {
-        use crate::atomic::bitmap::AtomicBitmap;
-        use crate::atomic::bitmap::mode::cooperative::Cooperative;
+    fn bitindex_with_actual_bitmap() {
+        use crate::atomic::bitmap::{
+            AtomicBitmap,
+            mode::cooperative::{Cooperative, Snapshot},
+        };
 
         let bitmap = AtomicBitmap::zeroed();
 
         // These should compile because BitIndex<N> is InBound
-        let _ = bitmap.static_at::<0>().one::<Cooperative>();
-        let _ = bitmap.static_at::<5>().one::<Cooperative>();
-        let _ = bitmap.static_at::<15>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<0>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<5>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<15>().one::<Cooperative>();
 
         let expected = (1 << 0) | (1 << 5) | (1 << 15);
         assert_eq!(bitmap.snapshot(), expected);
@@ -294,14 +360,16 @@ mod tests {
 
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
-    fn test_bitindex_32bit_with_bitmap() {
-        use crate::atomic::bitmap::AtomicBitmap;
-        use crate::atomic::bitmap::mode::cooperative::Cooperative;
+    fn bitindex_32bit_with_bitmap() {
+        use crate::atomic::bitmap::{
+            AtomicBitmap,
+            mode::cooperative::{Cooperative, Snapshot},
+        };
 
         let bitmap = AtomicBitmap::zeroed();
 
-        let _ = bitmap.static_at::<16>().one::<Cooperative>();
-        let _ = bitmap.static_at::<31>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<16>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<31>().one::<Cooperative>();
 
         let expected = (1 << 16) | (1 << 31);
         assert_eq!(bitmap.snapshot(), expected);
@@ -309,22 +377,24 @@ mod tests {
 
     #[cfg(target_pointer_width = "64")]
     #[test]
-    fn test_bitindex_64bit_with_bitmap() {
-        use crate::atomic::bitmap::AtomicBitmap;
-        use crate::atomic::bitmap::mode::cooperative::Cooperative;
+    fn bitindex_64bit_with_bitmap() {
+        use crate::atomic::bitmap::{
+            AtomicBitmap,
+            mode::cooperative::{Cooperative, Snapshot},
+        };
 
         let bitmap = AtomicBitmap::zeroed();
 
-        let _ = bitmap.static_at::<32>().one::<Cooperative>();
-        let _ = bitmap.static_at::<63>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<32>().one::<Cooperative>();
+        let _: Snapshot = bitmap.static_at::<63>().one::<Cooperative>();
 
-        let expected = (1usize << 32) | (1usize << 63);
+        let expected = (1_usize << 32) | (1_usize << 63);
         assert_eq!(bitmap.snapshot(), expected);
     }
 
     // Test const evaluation
     #[test]
-    fn test_bitindex_const_context() {
+    fn bitindex_const_context() {
         const fn test_const<const N: u32>() -> u32
         where
             BitIndex<N>: InBound,
@@ -338,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bitmap_const_context() {
+    fn bitmap_const_context() {
         const fn test_const<const N: u32>() -> u32
         where
             BitMap<N>: InBound,

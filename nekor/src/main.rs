@@ -8,13 +8,13 @@ fn main() {
     nekor::entry();
 }
 
-#[cfg(not(usermode))]
+#[cfg(not(any(usermode, test)))]
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
     nekor::entry()
 }
 
-#[cfg(not(any(usermode, test)))]
+#[cfg(not(usermode))]
 #[panic_handler]
 pub fn panic(info: &PanicInfo) -> ! {
     let _ = info;

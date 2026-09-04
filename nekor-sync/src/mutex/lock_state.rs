@@ -11,7 +11,6 @@ use core::{
 };
 
 use nekor_aal_signal::prelude::{Monitor, Monitored};
-
 use nekor_backoff::prelude::{Backoff, Retry};
 
 use crate::atomic::bitmap::{
@@ -60,7 +59,7 @@ impl Waiting<'_> {
     #[inline]
     #[must_use]
     pub unsafe fn wait(self) -> Waited {
-        let Self(LockState(bitqueue_state, owner_state), queue_bitmask) = self;
+        let Self(&LockState(ref bitqueue_state, ref owner_state), queue_bitmask) = self;
 
         let bitmask_value = NonZero::get(queue_bitmask);
 
@@ -91,7 +90,7 @@ impl Waiting<'_> {
                         }
                         Monitored::wait(target_monitor);
                     };
-                }
+                },
             }
         }
     }
@@ -115,10 +114,7 @@ impl LockState {
     #[inline]
     #[must_use]
     pub const fn desolate() -> Self {
-        Self(
-            AtomicBitmap::zeroed(),
-            Monitor::new(AtomicUsize::new(usize::MIN)),
-        )
+        Self(AtomicBitmap::zeroed(), Monitor::new(AtomicUsize::new(usize::MIN)))
     }
 
     /// Construct a [`LockState`] in a state where exactly `N` future contenders
@@ -129,7 +125,7 @@ impl LockState {
         Self(
             AtomicBitmap::raw(AtomicUsize::new(
                 const {
-                    const BITS: usize = usize::BITS as _;
+                    const BITS: usize = usize::BITS as usize;
 
                     match N {
                         BITS => usize::MAX,
@@ -148,10 +144,9 @@ impl LockState {
     /// should therefore not be relied upon.
     #[inline]
     pub fn snapshot(&self) -> Observed {
-        let Self(target_state, ..) = self;
+        let &Self(ref target_state, ..) = self;
 
-        NonZero::<usize>::new(AtomicBitmap::snapshot(target_state))
-            .map_or(Observed::Desolate, Observed::Occupied)
+        NonZero::<usize>::new(AtomicBitmap::snapshot(target_state)).map_or(Observed::Desolate, Observed::Occupied)
     }
 }
 
@@ -186,14 +181,12 @@ impl LockState {
     /// possibly-contended resource, not a complete acquisition attempt.
     #[inline]
     pub fn acquire_with_state(&self, retry_state: &mut Retry) -> Option<Waiting<'_>> {
-        let Self(target_state, ..) = self;
+        let &Self(ref target_state, ..) = self;
         let full_backoff = &mut Backoff::state(Backoff::minimal());
 
         loop {
-            let bit_selected = AtomicBitmap::at_leftmost(target_state).map_or_else(
-                || Some(AtomicBitmap::static_at::<0>(target_state)),
-                At::left,
-            );
+            let bit_selected = AtomicBitmap::at_leftmost(target_state)
+                .map_or_else(|| Some(AtomicBitmap::static_at::<0>(target_state)), At::left);
 
             if let Some(locked_target) = bit_selected.as_ref() {
                 match locked_target.one_with::<Exclusive>(retry_state) {
@@ -204,7 +197,7 @@ impl LockState {
                             // cannot be zero.
                             unsafe { NonZero::new_unchecked(1 << At::index(locked_target)) },
                         ));
-                    }
+                    },
                     Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => break None,
                 }
@@ -226,7 +219,7 @@ impl LockState {
     /// The provided [`Waited`] structure must be from this same [`LockState`].
     #[inline]
     pub unsafe fn release(&self, Waited(allocated_slot): Waited) -> Observed {
-        let Self(lock_state, owner_state) = self;
+        let &Self(ref lock_state, ref owner_state) = self;
 
         let Snapshot(observed_state) = lock_state
             .at(usize::trailing_zeros(NonZero::get(allocated_slot)))
@@ -240,10 +233,11 @@ impl LockState {
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
+    use core::sync::atomic::{AtomicUsize, Ordering, fence};
+    use std::{sync::Barrier, thread};
+
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering, fence};
-    use std::sync::{Arc, Barrier};
-    use std::thread;
 
     /// Test basic acquire and release cycle
     #[test]
@@ -271,7 +265,7 @@ mod tests {
         // Snapshot should return a valid Observed value (but we can't rely on
         // specific values due to Relaxed ordering)
         match lock_state.snapshot() {
-            Observed::Desolate | Observed::Occupied(_) => {}
+            Observed::Desolate | Observed::Occupied(_) => {},
         }
 
         let waiting = lock_state.acquire();
@@ -280,15 +274,15 @@ mod tests {
 
         // Snapshot still returns valid values
         match lock_state.snapshot() {
-            Observed::Desolate | Observed::Occupied(_) => {}
+            Observed::Desolate | Observed::Occupied(_) => {},
         }
 
         // SAFETY: waited is from this lock_state
-        let _ = unsafe { lock_state.release(waited) };
+        let _: Observed = unsafe { lock_state.release(waited) };
 
         // Still valid after release
         match lock_state.snapshot() {
-            Observed::Desolate | Observed::Occupied(_) => {}
+            Observed::Desolate | Observed::Occupied(_) => {},
         }
     }
 
@@ -315,7 +309,7 @@ mod tests {
                 // SAFETY: waiting is from this lock_state
                 let waited = unsafe { waiting.wait() };
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
@@ -325,7 +319,7 @@ mod tests {
         // Verify snapshot returns a valid value (Relaxed ordering means we
         // can't make specific assertions about the state)
         match lock_state.snapshot() {
-            Observed::Desolate | Observed::Occupied(_) => {}
+            Observed::Desolate | Observed::Occupied(_) => {},
         }
 
         for handle in handles {
@@ -354,7 +348,7 @@ mod tests {
                 counter.fetch_add(1, Ordering::SeqCst);
 
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
@@ -395,13 +389,13 @@ mod tests {
                 assert_eq!(count, 0, "multiple threads in critical section!");
 
                 // Do some work
-                std::thread::yield_now();
+                thread::yield_now();
 
                 // Decrement before releasing
                 active_count.fetch_sub(1, Ordering::SeqCst);
 
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
@@ -421,7 +415,7 @@ mod tests {
             // SAFETY: waiting is from this lock_state
             let waited = unsafe { waiting.wait() };
             // SAFETY: waited is from this lock_state
-            let _ = unsafe { lock_state.release(waited) };
+            let _: Observed = unsafe { lock_state.release(waited) };
         }
 
         // Should still work - slots are being reused
@@ -429,7 +423,7 @@ mod tests {
         // SAFETY: waiting is from this lock_state
         let waited = unsafe { waiting.wait() };
         // SAFETY: waited is from this lock_state
-        let _ = unsafe { lock_state.release(waited) };
+        let _: Observed = unsafe { lock_state.release(waited) };
     }
 
     /// Test that unlimited acquire always succeeds (when slots available)
@@ -443,7 +437,7 @@ mod tests {
             // SAFETY: waiting is from this lock_state
             let waited = unsafe { waiting.wait() };
             // SAFETY: waited is from this lock_state
-            let _ = unsafe { lock_state.release(waited) };
+            let _: Observed = unsafe { lock_state.release(waited) };
         }
     }
 
@@ -455,7 +449,7 @@ mod tests {
         // The constructor should create state with 3 bits, but due to Relaxed
         // ordering in snapshot(), we can't reliably assert the exact value
         // The important test is that it compiles and runs without panicking
-        let _ = lock_state.snapshot();
+        lock_state.snapshot();
 
         // We can verify the underlying bitmap directly if needed for testing
         // but snapshot() itself doesn't provide strong guarantees
@@ -482,7 +476,7 @@ mod tests {
                 counter.store(value + 1, Ordering::SeqCst);
 
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
@@ -523,21 +517,21 @@ mod tests {
 
         // Release first
         // SAFETY: waited1 is from this lock_state
-        let _ = unsafe { lock_state.release(waited1) };
+        let _: Observed = unsafe { lock_state.release(waited1) };
 
         // Second thread can now proceed
         // SAFETY: w2 is from this lock_state
         let waited2 = unsafe { w2.wait() };
 
         // SAFETY: waited2 is from this lock_state
-        let _ = unsafe { lock_state.release(waited2) };
+        let _: Observed = unsafe { lock_state.release(waited2) };
 
         // Third thread can now proceed
         // SAFETY: w3 is from this lock_state
         let waited3 = unsafe { w3.wait() };
 
         // SAFETY: waited3 is from this lock_state
-        let _ = unsafe { lock_state.release(waited3) };
+        let _: Observed = unsafe { lock_state.release(waited3) };
     }
 
     /// Test that release returns a valid Observed value
@@ -557,7 +551,7 @@ mod tests {
         match observed {
             Observed::Desolate | Observed::Occupied(_) => {
                 // Both are valid - depends on what other bits were set
-            }
+            },
         }
     }
 
@@ -585,7 +579,7 @@ mod tests {
                 counter.fetch_add(1, Ordering::SeqCst);
 
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
@@ -623,7 +617,7 @@ mod tests {
                 // SAFETY: waiting is from this lock_state
                 let waited = unsafe { waiting.wait() };
                 // SAFETY: waited is from this lock_state
-                let _ = unsafe { lock_state.release(waited) };
+                let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 

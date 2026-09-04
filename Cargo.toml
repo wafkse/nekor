@@ -48,6 +48,12 @@ exclude = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+description = "An async-first no-std, no-alloc unikernel written in Rust."
+license = "AGPL-3.0-only"
+repository = "https://github.com/wafkse/nekor"
+readme = "README.md"
+keywords = ["kernel", "unikernel", "no-std"]
+categories = ["no-std"]
 
 [workspace.dependencies]
 camino = "1.2.2"
@@ -107,9 +113,94 @@ nekor-project-derive = { path = "nekor-project/nekor-project-derive" }
 nekor-structure = { path = "nekor-structure" }
 nekor-sync = { path = "nekor-sync" }
 
-[workspace.lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(usermode)"] }
-
 # NOTE: This is required to specify the top-level Nekor Manifest for the build system.
 [workspace.metadata.nekor]
 manifest = "nekor.toml"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(usermode)"] }
+unstable_features = "forbid"
+invalid_reference_casting = "forbid"
+named_asm_labels = "allow"
+# The architecture and synchronization layers necessarily contain audited
+# unsafe operations; the unsafe-code policy is enforced by their API safety
+# contracts and the dedicated unsafe-operation lints below.
+unsafe_code = "allow"
+unknown_lints = "allow"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+absolute_paths = "deny"
+alloc_instead_of_core = "deny"
+std_instead_of_alloc = "deny"
+std_instead_of_core = "deny"
+str_to_string = "deny"
+string_lit_chars_any = "deny"
+undocumented_unsafe_blocks = "deny"
+todo = "deny"
+suspicious_xor_used_as_pow = "deny"
+tests_outside_test_module = "deny"
+unimplemented = "deny"
+unseparated_literal_suffix = "deny"
+unneeded_field_pattern = "deny"
+unwrap_in_result = "deny"
+verbose_file_reads = "deny"
+redundant_type_annotations = "deny"
+redundant_test_prefix = "deny"
+pattern_type_mismatch = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+non_zero_suggestions = "deny"
+needless_raw_strings = "deny"
+mod_module_files = "deny"
+mixed_read_write_in_expression = "deny"
+missing_docs_in_private_items = "deny"
+missing_asserts_for_indexing = "deny"
+missing_assert_message = "deny"
+map_with_unused_argument_over_ranges = "deny"
+mem_forget = "deny"
+map_err_ignore = "deny"
+lossy_float_literal = "deny"
+let_underscore_untyped = "deny"
+inline_asm_x86_intel_syntax = "deny"
+inline_trait_bounds = "deny"
+if_then_some_else_none = "deny"
+get_unwrap = "deny"
+error_impl_error = "deny"
+empty_structs_with_brackets = "deny"
+empty_enum_variants_with_brackets = "deny"
+empty_drop = "deny"
+else_if_without_else = "deny"
+deref_by_slicing = "deny"
+decimal_literal_representation = "deny"
+dbg_macro = "deny"
+clone_on_ref_ptr = "deny"
+cfg_not_test = "deny"
+as_underscore = "deny"
+as_pointer_underscore = "deny"
+cast_lossless = "deny"
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+cast_sign_loss = "deny"
+char_lit_as_u8 = "deny"
+fn_to_numeric_cast = "deny"
+fn_to_numeric_cast_with_truncation = "deny"
+ptr_as_ptr = "deny"
+unnecessary_cast = "deny"
+cargo_common_metadata = "deny"
+missing_safety_doc = "deny"
+cast_possible_truncation = "allow"
+match_bool = "allow"
+single_match = "allow"
+single_match_else = "allow"
+must_use_candidate = "allow"
+needless_borrowed_reference = "allow"
+match_ref_pats = "allow"
+manual_let_else = "allow"
+allow_attributes = "warn"
+
+[workspace.lints.rustdoc]
+all = "deny"

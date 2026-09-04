@@ -71,12 +71,8 @@ impl WakeList {
     /// node linked concurrently with an earlier wake pass is outside that pass
     /// and requires independent event-state synchronization.
     #[inline]
-    pub fn link(
-        &'static self,
-        target_node: Pin<&'static mut WakeNode>,
-        target_waker: WakeTarget,
-    ) -> LinkedNode {
-        let Self(head) = self;
+    pub fn link(&'static self, target_node: Pin<&'static mut WakeNode>, target_waker: WakeTarget) -> LinkedNode {
+        let head = &self.0;
 
         // SAFETY: The node has static storage and remains pinned. Converting the
         // exclusive reference to raw pointers lets its unique borrow end before
@@ -94,12 +90,7 @@ impl WakeList {
                 ptr::write(next_address, current_head);
             }
 
-            match head.compare_exchange(
-                current_head,
-                node_address,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
+            match head.compare_exchange(current_head, node_address, Ordering::AcqRel, Ordering::Acquire) {
                 Ok(_) => break,
                 Err(observed_head) => current_head = observed_head,
             }
@@ -128,7 +119,7 @@ impl WakeList {
     /// Returns the number of active targets claimed and invoked.
     #[inline]
     pub fn wake_all(&'static self) -> usize {
-        let Self(head) = self;
+        let head = &self.0;
 
         let mut current_node = head.load(Ordering::Acquire);
         let mut wake_count = usize::MIN;
@@ -138,7 +129,8 @@ impl WakeList {
             // address points to an initialized static node whose fields remain
             // valid permanently.
             let target_node = unsafe { node_address.as_ref() };
-            let WakeNode { next, waker, .. } = target_node;
+            let next = &target_node.next;
+            let waker = &target_node.waker;
 
             // SAFETY: Publication made this pointer immutable before any reader
             // could reach the node. The acquire head load observes that release
@@ -246,9 +238,7 @@ impl LinkedNode {
     #[inline]
     #[must_use]
     pub const fn list(&self) -> &'static WakeList {
-        let Self { list, .. } = self;
-
-        list
+        self.list
     }
 
     /// Arms this node and checks whether its event is already ready.
@@ -272,8 +262,9 @@ impl LinkedNode {
     where
         F: FnOnce() -> bool,
     {
-        let &mut Self { node, target, .. } = self;
-        let WakeNode { waker, .. } = node;
+        let node = self.node;
+        let target = self.target;
+        let waker = &node.waker;
 
         let _replaced_target = AtomicWaker::arm(waker, target);
 
@@ -297,8 +288,8 @@ impl LinkedNode {
     #[inline]
     #[must_use]
     pub fn cancel(&mut self) -> bool {
-        let &mut Self { node, .. } = self;
-        let WakeNode { waker, .. } = node;
+        let node = self.node;
+        let waker = &node.waker;
 
         AtomicWaker::cancel(waker)
     }
@@ -307,8 +298,8 @@ impl LinkedNode {
     #[inline]
     #[must_use]
     pub fn is_armed(&self) -> bool {
-        let Self { node, .. } = self;
-        let WakeNode { waker, .. } = *node;
+        let node = self.node;
+        let waker = &node.waker;
 
         AtomicWaker::is_armed(waker)
     }
@@ -317,8 +308,8 @@ impl LinkedNode {
 impl Drop for LinkedNode {
     #[inline]
     fn drop(&mut self) {
-        let &mut Self { node, .. } = self;
-        let WakeNode { waker, .. } = node;
+        let node = self.node;
+        let waker = &node.waker;
 
         let _was_armed = AtomicWaker::cancel(waker);
     }
@@ -343,21 +334,16 @@ pub enum WaitState {
 
 #[cfg(test)]
 mod tests {
-    use super::{LinkedNode, WaitState, WakeList, WakeNode};
-
+    use alloc::{boxed::Box, sync::Arc};
     use core::{
         pin::Pin,
         ptr,
         sync::atomic::{AtomicUsize, Ordering},
         task::{RawWaker, RawWakerVTable, Waker},
     };
+    use std::{sync::Barrier, thread};
 
-    use std::{
-        boxed::Box,
-        sync::{Arc, Barrier},
-        thread,
-    };
-
+    use super::{LinkedNode, WaitState, WakeList, WakeNode};
     use crate::wake::{TEST_VTABLE, WakeTarget};
 
     #[repr(C, align(8))]
@@ -369,9 +355,7 @@ mod tests {
         }
 
         fn count(&self) -> usize {
-            let Self(wake_count) = self;
-
-            wake_count.load(Ordering::SeqCst)
+            self.0.load(Ordering::SeqCst)
         }
     }
 
@@ -575,10 +559,7 @@ mod tests {
             return;
         };
 
-        assert!(matches!(
-            register_state,
-            WaitState::Armed | WaitState::Notified
-        ));
+        assert!(matches!(register_state, WaitState::Armed | WaitState::Notified));
         assert!(wake_count <= 1);
         assert_eq!(target_counter.count(), 1);
         assert!(!target_link.is_armed());

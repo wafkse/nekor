@@ -1,9 +1,7 @@
 //! Extract trait implementation macros.
 
 use proc_macro2::{Span, TokenStream};
-
 use quote::quote;
-
 use syn::{
     Ident, LitInt, Path, Token,
     parse::{Parse, ParseStream},
@@ -201,12 +199,7 @@ impl Parse for Extract {
 
             let forwarded = input.parse()?;
 
-            Ok(Self::Forward(
-                trait_token,
-                target_trait,
-                for_token,
-                forwarded,
-            ))
+            Ok(Self::Forward(trait_token, target_trait, for_token, forwarded))
         } else {
             let target_trait = input.parse()?;
 
@@ -217,12 +210,7 @@ impl Parse for Extract {
 
             let forwarded_list = content.parse_terminated(Forwarded::parse, Token![,])?;
 
-            Ok(Self::Splitoff(
-                target_trait,
-                for_token,
-                bracket_token,
-                forwarded_list,
-            ))
+            Ok(Self::Splitoff(target_trait, for_token, bracket_token, forwarded_list))
         }
     }
 }
@@ -276,10 +264,8 @@ impl Extract {
                 Ok(quote! {
                     #(#modules)*
                 })
-            }
-            Self::Forward(_trait_token, target_trait, _for_token, forwarded) => {
-                forwarded.expand(&target_trait)
-            }
+            },
+            Self::Forward(_trait_token, target_trait, _for_token, forwarded) => forwarded.expand(&target_trait),
         }
     }
 }

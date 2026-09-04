@@ -4,6 +4,7 @@ use core::{mem, ptr};
 
 use nekor_primitive::scalar::Scalar;
 
+/// Private sealing implementation for [`Volatile`].
 mod private {
     /// A trait to act as a seal supertrait for the [`Volatile`] trait.
     ///

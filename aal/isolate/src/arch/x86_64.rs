@@ -8,13 +8,12 @@ pub mod xstate;
 
 pub mod fsgsbase;
 
-use self::register::{Base, Gpr, Rflags};
-
 use core::{arch, mem};
 
 use nekor_aal_arch::x86::segmentation::{RawCodeSegment, RawDataSegment};
-
 use nekor_aal_hotpatch::prelude::Patch;
+
+use self::register::{Base, Gpr, Rflags};
 
 /// A helper macro to define a Xsave area with a feature-guided size.
 macro_rules! area {
@@ -23,7 +22,9 @@ macro_rules! area {
         $(
             #[$target_meta:meta]
         )*
-        use $target_feature:literal for $target_vis:vis $target_ident:ident($($target_size:literal),+ $(,)?)
+        use $target_feature:literal for $target_vis:vis $target_ident:ident(
+            $(($target_size:literal, $target_feature_size:literal)),+ $(,)?
+        )
     ) => {
         tokel::stream!(
             $(
@@ -33,12 +34,14 @@ macro_rules! area {
                 [
                     u8;
                     const {
-                        #[deny(unreachable_code, reason = "mutual exclusion of xsave-related crate features")]
-                        'a: {
-                            $(
-                                // NOTE: Flatten due to None-delimited groups.
-                                #[cfg(feature = [< $target_feature "-" [< $target_size >]:to_string >]:flatten:concatenate)] break 'a $target_size;
-                            )+
+                        $(
+                            // NOTE: Flatten due to None-delimited groups.
+                            if cfg!(feature = [< $target_feature "-" $target_feature_size >]:flatten:concatenate) {
+                                $target_size
+                            } else
+                        )+
+                        {
+                            0
                         }
                     }
                 ]
@@ -48,13 +51,13 @@ macro_rules! area {
                 all(
                    $(
                        // NOTE: Flatten due to None-delimited groups.
-                       not(feature = [< $target_feature "-" [< $target_size >]:to_string >]:flatten:concatenate)
+                       not(feature = [< $target_feature "-" $target_feature_size >]:flatten:concatenate)
                    ),+
                 )
             )]
             compile_error!(
                 [<
-                    "a single feature from (" $([< " `" [< $target_feature "-" [< $target_size >]:to_string >]:flatten:concatenate "` " >]:concatenate)+ ") must be present"
+                    "a single feature from (" $([< " `" [< $target_feature "-" $target_feature_size >]:flatten:concatenate "` " >]:concatenate)+ ") must be present"
                 >]:concatenate);
         );
     };
@@ -78,7 +81,14 @@ area!(
     /// An area for the `xsave` family of instructions.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     #[repr(C, align(64) /* architecturally required to be 64-byte aligned */)]
-    use "arch-x86_64-xsave" for pub XsaveArea(512, 1024, 2048, 4096, 8192, 16384)
+    use "arch-x86_64-xsave" for pub XsaveArea(
+        (512, "512"),
+        (1024, "1024"),
+        (2048, "2048"),
+        (4096, "4096"),
+        (8192, "8192"),
+        (0x4000, "16384"),
+    )
 );
 
 /// An Interrupt Return Frame.
@@ -111,7 +121,7 @@ impl IRetFrame {
     #[inline]
     #[must_use]
     pub const fn rip(&self) -> &Gpr {
-        let Self { rip, .. } = self;
+        let &Self { ref rip, .. } = self;
 
         rip
     }
@@ -119,7 +129,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the 64-bit extended "ip" register.
     #[inline]
     pub const fn rip_mut(&mut self) -> &mut Gpr {
-        let Self { rip, .. } = self;
+        let &mut Self { ref mut rip, .. } = self;
 
         rip
     }
@@ -128,7 +138,7 @@ impl IRetFrame {
     #[inline]
     #[must_use]
     pub const fn cs(&self) -> &RawCodeSegment {
-        let Self { cs, .. } = self;
+        let &Self { ref cs, .. } = self;
 
         cs
     }
@@ -136,7 +146,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the "cs" segment selector.
     #[inline]
     pub const fn cs_mut(&mut self) -> &mut RawCodeSegment {
-        let Self { cs, .. } = self;
+        let &mut Self { ref mut cs, .. } = self;
 
         cs
     }
@@ -145,7 +155,7 @@ impl IRetFrame {
     #[inline]
     #[must_use]
     pub const fn rflags(&self) -> &Rflags {
-        let Self { rflags, .. } = self;
+        let &Self { ref rflags, .. } = self;
 
         rflags
     }
@@ -153,7 +163,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the architectural flags register.
     #[inline]
     pub const fn rflags_mut(&mut self) -> &mut Rflags {
-        let Self { rflags, .. } = self;
+        let &mut Self { ref mut rflags, .. } = self;
 
         rflags
     }
@@ -162,7 +172,7 @@ impl IRetFrame {
     #[inline]
     #[must_use]
     pub const fn rsp(&self) -> &Gpr {
-        let Self { rsp, .. } = self;
+        let &Self { ref rsp, .. } = self;
 
         rsp
     }
@@ -170,7 +180,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the 64-bit extended "sp" register.
     #[inline]
     pub const fn rsp_mut(&mut self) -> &mut Gpr {
-        let Self { rsp, .. } = self;
+        let &mut Self { ref mut rsp, .. } = self;
 
         rsp
     }
@@ -179,7 +189,7 @@ impl IRetFrame {
     #[inline]
     #[must_use]
     pub const fn ss(&self) -> &RawDataSegment {
-        let Self { ss, .. } = self;
+        let &Self { ref ss, .. } = self;
 
         ss
     }
@@ -187,7 +197,7 @@ impl IRetFrame {
     /// Resolve a mutable reference to the "ss" segment selector.
     #[inline]
     pub const fn ss_mut(&mut self) -> &mut RawDataSegment {
-        let Self { ss, .. } = self;
+        let &mut Self { ref mut ss, .. } = self;
 
         ss
     }
@@ -256,7 +266,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn gsbase(&self) -> &Base {
-        let Self { gsbase, .. } = self;
+        let &Self { ref gsbase, .. } = self;
 
         gsbase
     }
@@ -265,7 +275,7 @@ impl Context {
     /// base of this trap context.
     #[inline]
     pub const fn gsbase_mut(&mut self) -> &mut Base {
-        let Self { gsbase, .. } = self;
+        let &mut Self { ref mut gsbase, .. } = self;
 
         gsbase
     }
@@ -275,7 +285,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn fsbase(&self) -> &Base {
-        let Self { fsbase, .. } = self;
+        let &Self { ref fsbase, .. } = self;
 
         fsbase
     }
@@ -284,7 +294,7 @@ impl Context {
     /// base of this trap context.
     #[inline]
     pub const fn fsbase_mut(&mut self) -> &mut Base {
-        let Self { fsbase, .. } = self;
+        let &mut Self { ref mut fsbase, .. } = self;
 
         fsbase
     }
@@ -293,7 +303,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rax(&self) -> &Gpr {
-        let Self { rax, .. } = self;
+        let &Self { ref rax, .. } = self;
 
         rax
     }
@@ -301,7 +311,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "ax" register.
     #[inline]
     pub const fn rax_mut(&mut self) -> &mut Gpr {
-        let Self { rax, .. } = self;
+        let &mut Self { ref mut rax, .. } = self;
 
         rax
     }
@@ -310,7 +320,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rbx(&self) -> &Gpr {
-        let Self { rbx, .. } = self;
+        let &Self { ref rbx, .. } = self;
 
         rbx
     }
@@ -318,7 +328,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "bx" register.
     #[inline]
     pub const fn rbx_mut(&mut self) -> &mut Gpr {
-        let Self { rbx, .. } = self;
+        let &mut Self { ref mut rbx, .. } = self;
 
         rbx
     }
@@ -327,7 +337,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rcx(&self) -> &Gpr {
-        let Self { rcx, .. } = self;
+        let &Self { ref rcx, .. } = self;
 
         rcx
     }
@@ -335,7 +345,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "cx" register.
     #[inline]
     pub const fn rcx_mut(&mut self) -> &mut Gpr {
-        let Self { rcx, .. } = self;
+        let &mut Self { ref mut rcx, .. } = self;
 
         rcx
     }
@@ -344,7 +354,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rdx(&self) -> &Gpr {
-        let Self { rdx, .. } = self;
+        let &Self { ref rdx, .. } = self;
 
         rdx
     }
@@ -352,7 +362,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "dx" register.
     #[inline]
     pub const fn rdx_mut(&mut self) -> &mut Gpr {
-        let Self { rdx, .. } = self;
+        let &mut Self { ref mut rdx, .. } = self;
 
         rdx
     }
@@ -361,7 +371,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rsi(&self) -> &Gpr {
-        let Self { rsi, .. } = self;
+        let &Self { ref rsi, .. } = self;
 
         rsi
     }
@@ -369,7 +379,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "si" register.
     #[inline]
     pub const fn rsi_mut(&mut self) -> &mut Gpr {
-        let Self { rsi, .. } = self;
+        let &mut Self { ref mut rsi, .. } = self;
 
         rsi
     }
@@ -378,7 +388,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rdi(&self) -> &Gpr {
-        let Self { rdi, .. } = self;
+        let &Self { ref rdi, .. } = self;
 
         rdi
     }
@@ -386,7 +396,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "di" register.
     #[inline]
     pub const fn rdi_mut(&mut self) -> &mut Gpr {
-        let Self { rdi, .. } = self;
+        let &mut Self { ref mut rdi, .. } = self;
 
         rdi
     }
@@ -395,7 +405,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rbp(&self) -> &Gpr {
-        let Self { rbp, .. } = self;
+        let &Self { ref rbp, .. } = self;
 
         rbp
     }
@@ -403,7 +413,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "bp" register.
     #[inline]
     pub const fn rbp_mut(&mut self) -> &mut Gpr {
-        let Self { rbp, .. } = self;
+        let &mut Self { ref mut rbp, .. } = self;
 
         rbp
     }
@@ -412,7 +422,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r8(&self) -> &Gpr {
-        let Self { r8, .. } = self;
+        let &Self { ref r8, .. } = self;
 
         r8
     }
@@ -420,7 +430,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "8" register.
     #[inline]
     pub const fn r8_mut(&mut self) -> &mut Gpr {
-        let Self { r8, .. } = self;
+        let &mut Self { ref mut r8, .. } = self;
 
         r8
     }
@@ -429,7 +439,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r9(&self) -> &Gpr {
-        let Self { r9, .. } = self;
+        let &Self { ref r9, .. } = self;
 
         r9
     }
@@ -437,7 +447,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "9" register.
     #[inline]
     pub const fn r9_mut(&mut self) -> &mut Gpr {
-        let Self { r9, .. } = self;
+        let &mut Self { ref mut r9, .. } = self;
 
         r9
     }
@@ -446,7 +456,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r10(&self) -> &Gpr {
-        let Self { r10, .. } = self;
+        let &Self { ref r10, .. } = self;
 
         r10
     }
@@ -454,7 +464,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "10" register.
     #[inline]
     pub const fn r10_mut(&mut self) -> &mut Gpr {
-        let Self { r10, .. } = self;
+        let &mut Self { ref mut r10, .. } = self;
 
         r10
     }
@@ -463,7 +473,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r11(&self) -> &Gpr {
-        let Self { r11, .. } = self;
+        let &Self { ref r11, .. } = self;
 
         r11
     }
@@ -471,7 +481,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "11" register.
     #[inline]
     pub const fn r11_mut(&mut self) -> &mut Gpr {
-        let Self { r11, .. } = self;
+        let &mut Self { ref mut r11, .. } = self;
 
         r11
     }
@@ -480,7 +490,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r12(&self) -> &Gpr {
-        let Self { r12, .. } = self;
+        let &Self { ref r12, .. } = self;
 
         r12
     }
@@ -488,7 +498,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "12" register.
     #[inline]
     pub const fn r12_mut(&mut self) -> &mut Gpr {
-        let Self { r12, .. } = self;
+        let &mut Self { ref mut r12, .. } = self;
 
         r12
     }
@@ -497,7 +507,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r13(&self) -> &Gpr {
-        let Self { r13, .. } = self;
+        let &Self { ref r13, .. } = self;
 
         r13
     }
@@ -505,7 +515,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "13" register.
     #[inline]
     pub const fn r13_mut(&mut self) -> &mut Gpr {
-        let Self { r13, .. } = self;
+        let &mut Self { ref mut r13, .. } = self;
 
         r13
     }
@@ -514,7 +524,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r14(&self) -> &Gpr {
-        let Self { r14, .. } = self;
+        let &Self { ref r14, .. } = self;
 
         r14
     }
@@ -522,7 +532,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "14" register.
     #[inline]
     pub const fn r14_mut(&mut self) -> &mut Gpr {
-        let Self { r14, .. } = self;
+        let &mut Self { ref mut r14, .. } = self;
 
         r14
     }
@@ -531,7 +541,7 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn r15(&self) -> &Gpr {
-        let Self { r15, .. } = self;
+        let &Self { ref r15, .. } = self;
 
         r15
     }
@@ -539,7 +549,7 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "15" register.
     #[inline]
     pub const fn r15_mut(&mut self) -> &mut Gpr {
-        let Self { r15, .. } = self;
+        let &mut Self { ref mut r15, .. } = self;
 
         r15
     }
@@ -548,8 +558,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rip(&self) -> &Gpr {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame.rip()
@@ -558,8 +568,9 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "ip" register.
     #[inline]
     pub const fn rip_mut(&mut self) -> &mut Gpr {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame.rip_mut()
@@ -569,8 +580,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn cs(&self) -> &RawCodeSegment {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame.cs()
@@ -579,8 +590,9 @@ impl Context {
     /// Resolve a mutable reference to the "cs" segment selector.
     #[inline]
     pub const fn cs_mut(&mut self) -> &mut RawCodeSegment {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame.cs_mut()
@@ -590,8 +602,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rflags(&self) -> &Rflags {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame.rflags()
@@ -600,8 +612,9 @@ impl Context {
     /// Resolve a mutable reference to the architectural flags register.
     #[inline]
     pub const fn rflags_mut(&mut self) -> &mut Rflags {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame.rflags_mut()
@@ -611,8 +624,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn rsp(&self) -> &Gpr {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame.rsp()
@@ -621,8 +634,9 @@ impl Context {
     /// Resolve a mutable reference to the 64-bit extended "sp" register.
     #[inline]
     pub const fn rsp_mut(&mut self) -> &mut Gpr {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame.rsp_mut()
@@ -632,8 +646,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn ss(&self) -> &RawDataSegment {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame.ss()
@@ -642,8 +656,9 @@ impl Context {
     /// Resolve a mutable reference to the "ss" segment selector.
     #[inline]
     pub const fn ss_mut(&mut self) -> &mut RawDataSegment {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame.ss_mut()
@@ -653,8 +668,8 @@ impl Context {
     #[inline]
     #[must_use]
     pub const fn interrupt_frame(&self) -> &IRetFrame {
-        let Self {
-            interrupt_frame, ..
+        let &Self {
+            ref interrupt_frame, ..
         } = self;
 
         interrupt_frame
@@ -664,8 +679,9 @@ impl Context {
     /// within this trap context.
     #[inline]
     pub const fn interrupt_frame_mut(&mut self) -> &mut IRetFrame {
-        let Self {
-            interrupt_frame, ..
+        let &mut Self {
+            ref mut interrupt_frame,
+            ..
         } = self;
 
         interrupt_frame

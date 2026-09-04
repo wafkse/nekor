@@ -19,10 +19,9 @@ use crate::atomic::bitmap::mode::{InMode, Mode};
 /// A Finalizer Operation always has an *engagement* [`Mode`] associated to it.
 /// The engagement mode determines whether the Finalizer Operation is:
 ///
-/// - [`Exclusive`]: The engaged bit is guaranteed to have been uniquely
-///   interacted by us.
-/// - [`Cooperative`]: The engaged bit is guaranteed to have been interacted by
-///   us, but there is no guarantee that it was uniquely interacted by us.
+/// - [`Exclusive`]: The engaged bit is guaranteed to have been uniquely interacted by us.
+/// - [`Cooperative`]: The engaged bit is guaranteed to have been interacted by us, but there is no
+///   guarantee that it was uniquely interacted by us.
 ///
 /// This kind of distinction is required for subtle concurrency and
 /// synchronization needs. For instance, an [`Exclusive`] engagement mode is
@@ -74,9 +73,7 @@ impl<'a> At<'a> {
 
         match bit_index + 1 {
             USIZE_BITS.. => None,
-            leftwards_bit @ 0..USIZE_BITS => {
-                Some(Self(target_value, state_snapshot, leftwards_bit))
-            }
+            leftwards_bit @ 0..USIZE_BITS => Some(Self(target_value, state_snapshot, leftwards_bit)),
         }
     }
 
@@ -113,9 +110,10 @@ impl At<'_> {
     /// [`Backoff::minimal()`].
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
-    pub fn zero<M: Mode>(self) -> M::Signal
+    pub fn zero<M>(self) -> M::Signal
     where
         M::State: Default,
+        M: Mode,
     {
         Self::zero_with::<M>(self, &mut Default::default())
     }
@@ -133,7 +131,10 @@ impl At<'_> {
     /// [`AtomicBitmap`] is under contention and the operation warrants a retry.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
-    pub fn zero_with<M: Mode>(self, target_state: &mut M::State) -> M::Signal {
+    pub fn zero_with<M>(self, target_state: &mut M::State) -> M::Signal
+    where
+        M: Mode,
+    {
         // SAFETY: We are in an engagement finalizer.
         let in_mode = &unsafe { InMode::affirmative() };
 
@@ -156,9 +157,10 @@ impl At<'_> {
     /// [`Backoff::minimal()`].
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
-    pub fn one<M: Mode>(self) -> M::Signal
+    pub fn one<M>(self) -> M::Signal
     where
         M::State: Default,
+        M: Mode,
     {
         Self::one_with::<M>(self, &mut Default::default())
     }
@@ -176,7 +178,10 @@ impl At<'_> {
     /// [`AtomicBitmap`] is under contention and the operation warrants a retry.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
-    pub fn one_with<M: Mode>(self, target_state: &mut M::State) -> M::Signal {
+    pub fn one_with<M>(self, target_state: &mut M::State) -> M::Signal
+    where
+        M: Mode,
+    {
         // SAFETY: We are in an engagement finalizer.
         let in_mode = &unsafe { InMode::affirmative() };
 

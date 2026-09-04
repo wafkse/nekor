@@ -1,6 +1,6 @@
 //! Names and semantic document paths.
 
-use std::{borrow::Borrow, fmt};
+use core::{borrow::Borrow, fmt};
 
 /// A node name in a typed configuration document.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,7 +18,7 @@ impl Name {
     #[inline]
     #[must_use]
     pub const fn as_str(&self) -> &str {
-        let Self(value) = self;
+        let &Self(ref value) = self;
 
         value.as_str()
     }
@@ -53,7 +53,7 @@ impl Path {
     #[inline]
     #[must_use]
     pub fn child(&self, name: Name) -> Self {
-        let Self(parts) = self;
+        let &Self(ref parts) = self;
         let mut target = parts.clone();
 
         target.push(name);
@@ -76,7 +76,7 @@ impl Path {
     #[inline]
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        let Self(parts) = self;
+        let &Self(ref parts) = self;
 
         parts.is_empty()
     }
@@ -84,7 +84,7 @@ impl Path {
     /// Iterate over the names that form this path.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Name> {
-        let Self(parts) = self;
+        let &Self(ref parts) = self;
 
         parts.iter()
     }

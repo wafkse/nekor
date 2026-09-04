@@ -2,15 +2,14 @@
 
 use core::{arch, hash, marker, mem, num::NonZeroU32};
 
-use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
-
 use nekor_aal_agnostic::{partitioned::Partitioned, reserved::Reserved};
-
 use nekor_aal_arch::{
     x86::{privilege::PrivilegeLevel, segmentation::RawCodeSegment},
     x86_64::gate::GateType64,
 };
+use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
 
+/// Private sealing implementation for [`Vector`].
 mod private {
     /// A seal supertrait to the [`Vector`] trait.
     ///
@@ -81,8 +80,7 @@ pub type TypeAttributesGateTypeMut<'a> = <TypeAttributesGateType<'a> as Counterp
 
 /// The mutable bitwise field of the *Privilege Level* field of this
 /// [`RawTypeAttributes`].
-pub type TypeAttributesPrivilegeLevelMut<'a> =
-    <TypeAttributesPrivilegeLevel<'a> as Counterpart>::Mut;
+pub type TypeAttributesPrivilegeLevelMut<'a> = <TypeAttributesPrivilegeLevel<'a> as Counterpart>::Mut;
 
 /// The mutable bit of the *Present* field of this [`RawTypeAttributes`].
 pub type TypeAttributesPresentMut<'a> = <TypeAttributesPresent<'a> as Counterpart>::Mut;
@@ -115,7 +113,7 @@ impl RawTypeAttributes {
     #[inline]
     #[must_use]
     pub const fn gate_type(&self) -> TypeAttributesGateType<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         TypeAttributesGateType::wrap(target_value)
     }
@@ -134,7 +132,7 @@ impl RawTypeAttributes {
     #[inline]
     #[must_use]
     pub const fn privilege_level(&self) -> TypeAttributesPrivilegeLevel<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         TypeAttributesPrivilegeLevel::wrap(target_value)
     }
@@ -152,7 +150,7 @@ impl RawTypeAttributes {
     #[inline]
     #[must_use]
     pub const fn present(&self) -> TypeAttributesPresent<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         TypeAttributesPresent::wrap(target_value)
     }
@@ -174,13 +172,11 @@ impl RawTypeAttributes {
 
         let mut target_attributes = Self::zeroed();
 
-        target_attributes
-            .gate_type_mut()
-            .const_merge(gate_type as _);
+        target_attributes.gate_type_mut().const_merge(gate_type as u8);
 
         target_attributes
             .privilege_level_mut()
-            .const_merge(privilege_level as _);
+            .const_merge(privilege_level as u8);
 
         let target_state = if matches!(is_present, Present::Yes) {
             State::Set
@@ -237,7 +233,7 @@ impl RawGateDescriptor {
     #[inline]
     #[must_use]
     pub const fn segment(&self) -> &RawCodeSegment {
-        let Self { segment, .. } = self;
+        let &Self { ref segment, .. } = self;
 
         segment
     }
@@ -246,9 +242,7 @@ impl RawGateDescriptor {
     /// [`RawGateDescriptor`].
     #[inline]
     pub const fn segment_mut(&mut self) -> &mut RawCodeSegment {
-        let &mut Self {
-            ref mut segment, ..
-        } = self;
+        let &mut Self { ref mut segment, .. } = self;
 
         segment
     }
@@ -257,7 +251,7 @@ impl RawGateDescriptor {
     #[inline]
     #[must_use]
     pub const fn offset_0_15(&self) -> &Partitioned<0, 15, u64> {
-        let Self { offset_0_15, .. } = self;
+        let &Self { ref offset_0_15, .. } = self;
 
         offset_0_15
     }
@@ -267,8 +261,7 @@ impl RawGateDescriptor {
     #[inline]
     pub const fn offset_0_15_mut(&mut self) -> &mut Partitioned<0, 15, u64> {
         let &mut Self {
-            ref mut offset_0_15,
-            ..
+            ref mut offset_0_15, ..
         } = self;
 
         offset_0_15
@@ -278,7 +271,7 @@ impl RawGateDescriptor {
     #[inline]
     #[must_use]
     pub const fn offset_16_31(&self) -> &Partitioned<16, 31, u64> {
-        let Self { offset_16_31, .. } = self;
+        let &Self { ref offset_16_31, .. } = self;
 
         offset_16_31
     }
@@ -288,8 +281,7 @@ impl RawGateDescriptor {
     #[inline]
     pub const fn offset_16_31_mut(&mut self) -> &mut Partitioned<16, 31, u64> {
         let &mut Self {
-            ref mut offset_16_31,
-            ..
+            ref mut offset_16_31, ..
         } = self;
 
         offset_16_31
@@ -299,7 +291,7 @@ impl RawGateDescriptor {
     #[inline]
     #[must_use]
     pub const fn offset_32_63(&self) -> &Partitioned<32, 63, u64> {
-        let Self { offset_32_63, .. } = self;
+        let &Self { ref offset_32_63, .. } = self;
 
         offset_32_63
     }
@@ -309,8 +301,7 @@ impl RawGateDescriptor {
     #[inline]
     pub const fn offset_32_63_mut(&mut self) -> &mut Partitioned<32, 63, u64> {
         let &mut Self {
-            ref mut offset_32_63,
-            ..
+            ref mut offset_32_63, ..
         } = self;
 
         offset_32_63
@@ -338,8 +329,8 @@ impl RawGateDescriptor {
     #[inline]
     #[must_use]
     pub const fn type_attributes(&self) -> &RawTypeAttributes {
-        let Self {
-            type_attributes, ..
+        let &Self {
+            ref type_attributes, ..
         } = self;
 
         type_attributes
@@ -361,9 +352,15 @@ impl RawGateDescriptor {
 /// Assert that the this *Gate Descriptor* attribute is 16-bytes long and is
 /// aligned to a 8-byte boundary.
 const _: () = {
-    assert!(mem::size_of::<RawGateDescriptor>() == mem::size_of::<u128>());
+    assert!(
+        mem::size_of::<RawGateDescriptor>() == mem::size_of::<u128>(),
+        "raw gate descriptors must occupy 128 bits"
+    );
 
-    assert!(mem::align_of::<RawGateDescriptor>() == mem::align_of::<usize>());
+    assert!(
+        mem::align_of::<RawGateDescriptor>() == mem::align_of::<usize>(),
+        "raw gate descriptors must be naturally aligned"
+    );
 };
 
 impl Eq for RawGateDescriptor {}
@@ -402,7 +399,10 @@ impl PartialEq for RawGateDescriptor {
 
 impl hash::Hash for RawGateDescriptor {
     #[inline]
-    fn hash<H: hash::Hasher>(&self, target_state: &mut H) {
+    fn hash<H>(&self, target_state: &mut H)
+    where
+        H: hash::Hasher,
+    {
         let &Self {
             offset_0_15,
             segment,
@@ -467,11 +467,9 @@ impl Service {
     /// # Safety
     ///
     /// - The stack must be either:
-    ///     - Genuine to the standard stack layout and in an actual
-    ///       processor-invoked interrupt.
+    ///     - Genuine to the standard stack layout and in an actual processor-invoked interrupt.
     ///     - In the same format as a genuine one, within the guarantees of
-    ///       non-reentrancy<sup>1</sup> for the specific interrupt vector and
-    ///       gate type.
+    ///       non-reentrancy<sup>1</sup> for the specific interrupt vector and gate type.
     ///
     /// [1]: Does not apply to *non-maskable interrupts* when in a *pseudo-interrupt* (forged or otherwise simulated) context.
     ///
@@ -520,7 +518,7 @@ pub trait Forward: private::Sealed {
     #[doc(hidden/* reason = "this function must be a last resort" */)]
     #[unsafe(naked)]
     unsafe extern "C" fn raw(target_service: &Service) -> ! {
-        arch::naked_asm!("ud2")
+        arch::naked_asm!("ud2", options(att_syntax))
     }
 }
 
@@ -584,7 +582,8 @@ where
         arch::naked_asm!(
             "jmp {}",
             "ud2",
-            sym <Self::To as Forward>::raw
+            sym <Self::To as Forward>::raw,
+            options(att_syntax)
         )
     }
 

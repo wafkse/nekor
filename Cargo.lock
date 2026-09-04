@@ -693,7 +693,6 @@ dependencies = [
  "nekor-aal",
  "nekor-domain",
  "nekor-structure",
- "tokel",
 ]
 
 [[package]]
@@ -708,7 +707,6 @@ dependencies = [
  "nekor-domain",
  "nekor-structure",
  "nekor-sync",
- "tokel",
 ]
 
 [[package]]

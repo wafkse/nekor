@@ -1,13 +1,5 @@
 #![no_std]
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
+
 //! The boot protocol and base structure information to be implemented by
 //! bootloader crates.
 //!

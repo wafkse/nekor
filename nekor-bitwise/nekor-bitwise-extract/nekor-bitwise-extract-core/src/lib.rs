@@ -14,7 +14,6 @@
 
 #[doc(inline)]
 pub use nekor_bitwise_extract_macro::{delegate, extract, implement, metadata};
-
 use nekor_primitive::scalar::Scalar;
 
 mod detail {

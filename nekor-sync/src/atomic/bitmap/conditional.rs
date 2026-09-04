@@ -1,7 +1,6 @@
 //! Conditional operations on [`AtomicBitmap`].
 
-use core::fmt;
-use core::marker;
+use core::{fmt, marker};
 
 /// A condition to be applied to an [`AtomicBitmap`];
 pub trait Condition {
@@ -28,8 +27,10 @@ pub enum Status {
 impl fmt::Debug for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Unmet => write!(f, "Unmet"),
-            Self::Satisfied(target_snapshot) => write!(f, "Satisfied({target_snapshot:#066b})"),
+            &Self::Unmet => write!(f, "Unmet"),
+            &Self::Satisfied(target_snapshot) => {
+                write!(f, "Satisfied({target_snapshot:#066b})")
+            },
         }
     }
 }

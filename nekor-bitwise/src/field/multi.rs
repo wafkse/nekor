@@ -50,9 +50,8 @@ impl<'a, const N: usize, const M: usize, E, O> Counterpart for Field<'a, N, M, E
 where
     E: Extract<N, M, Output = O>,
 {
-    type Mut = FieldMut<'a, N, M, E, O>;
-
     type Immut = Self;
+    type Mut = FieldMut<'a, N, M, E, O>;
 }
 
 impl<const N: usize, const M: usize, E, O> Deref for Field<'_, N, M, E, O>
@@ -76,9 +75,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let &Self(target_value, ..) = self;
 
-        f.debug_tuple("Field")
-            .field(target_value)
-            .finish_non_exhaustive()
+        f.debug_tuple("Field").field(target_value).finish_non_exhaustive()
     }
 }
 
@@ -138,10 +135,7 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, E, O> Copy for Field<'_, N, M, E, O> where
-    E: Extract<N, M, Output = O> + Copy
-{
-}
+impl<const N: usize, const M: usize, E, O> Copy for Field<'_, N, M, E, O> where E: Extract<N, M, Output = O> + Copy {}
 
 impl<const N: usize, const M: usize, E, O> PartialEq for Field<'_, N, M, E, O>
 where
@@ -155,10 +149,7 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, E, O> Eq for Field<'_, N, M, E, O> where
-    E: Extract<N, M, Output = O> + Eq
-{
-}
+impl<const N: usize, const M: usize, E, O> Eq for Field<'_, N, M, E, O> where E: Extract<N, M, Output = O> + Eq {}
 
 /// A helper macro to implement the distinct combinations of the [`Field`]
 /// implementors.
@@ -249,9 +240,8 @@ impl<'a, const N: usize, const M: usize, E, O> Counterpart for FieldMut<'a, N, M
 where
     E: Extract<N, M, Output = O>,
 {
-    type Mut = Self;
-
     type Immut = Field<'a, N, M, E, O>;
+    type Mut = Self;
 }
 
 impl<const N: usize, const M: usize, E, O> Deref for FieldMut<'_, N, M, E, O>
@@ -275,9 +265,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(target_value, ..) = self;
 
-        f.debug_tuple("FieldMut")
-            .field(target_value)
-            .finish_non_exhaustive()
+        f.debug_tuple("FieldMut").field(target_value).finish_non_exhaustive()
     }
 }
 
@@ -339,10 +327,7 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, E, O> Eq for FieldMut<'_, N, M, E, O> where
-    E: Extract<N, M, Output = O> + Eq
-{
-}
+impl<const N: usize, const M: usize, E, O> Eq for FieldMut<'_, N, M, E, O> where E: Extract<N, M, Output = O> + Eq {}
 
 /// A helper macro to implement the distinct combinations of the [`FieldMut`]
 /// implementors.

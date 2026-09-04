@@ -1,6 +1,6 @@
 //! Source provenance for typed configuration values.
 
-use std::fmt;
+use core::fmt;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use miette::SourceSpan;
@@ -35,8 +35,8 @@ impl Source {
     #[must_use]
     pub fn path(&self) -> Option<&Utf8Path> {
         match self {
-            Self::Anonymous => None,
-            Self::File(path) => Some(path.as_path()),
+            &Self::Anonymous => None,
+            &Self::File(ref path) => Some(path.as_path()),
         }
     }
 }
@@ -44,8 +44,8 @@ impl Source {
 impl fmt::Display for Source {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Anonymous => formatter.write_str("<anonymous>"),
-            Self::File(path) => fmt::Display::fmt(path, formatter),
+            &Self::Anonymous => formatter.write_str("<anonymous>"),
+            &Self::File(ref path) => fmt::Display::fmt(path, formatter),
         }
     }
 }
@@ -53,7 +53,9 @@ impl fmt::Display for Source {
 /// The exact source location that supplied a semantic value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Origin {
+    /// The source identity associated with the span.
     source: Source,
+    /// The byte range within the source that supplied the value.
     span: SourceSpan,
 }
 
@@ -69,7 +71,7 @@ impl Origin {
     #[inline]
     #[must_use]
     pub const fn source(&self) -> &Source {
-        let Self { source, .. } = self;
+        let &Self { ref source, .. } = self;
 
         source
     }
@@ -78,15 +80,15 @@ impl Origin {
     #[inline]
     #[must_use]
     pub const fn span(&self) -> SourceSpan {
-        let Self { span, .. } = self;
+        let &Self { span, .. } = self;
 
-        *span
+        span
     }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { source, span } = self;
+        let &Self { ref source, span } = self;
 
         write!(formatter, "{}@{}+{}", source, span.offset(), span.len())
     }

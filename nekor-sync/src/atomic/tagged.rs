@@ -3,10 +3,9 @@
 //! This module separates three concepts.
 //!
 //! - [`Maskable`] describes tag bits guaranteed by a pointee's alignment.
-//! - [`TaggedPointer`] combines one non-null pointer with one validated logical
-//!   value from a [`Tag`] domain.
-//! - [`AtomicTaggedPointer`] stores either null or one tagged pointer
-//!   atomically.
+//! - [`TaggedPointer`] combines one non-null pointer with one validated logical value from a
+//!   [`Tag`] domain.
+//! - [`AtomicTaggedPointer`] stores either null or one tagged pointer atomically.
 //!
 //! Tags occupy address bits that are zero in the untagged pointer. Pointer
 //! encoding and decoding use strict-provenance address mapping rather than an
@@ -125,12 +124,11 @@ impl private::Sealed for TagField {}
 ///
 /// Implementors must uphold all of the following conditions.
 ///
-/// - `MASK` identifies every address bit used by this tag domain and no other
-///   address bit.
+/// - `MASK` identifies every address bit used by this tag domain and no other address bit.
 /// - `Type` selects the semantic category implemented by this domain.
 /// - `Value` is the logical value required by the selected category.
-/// - The mask and category remain context-independent for the lifetime of every
-///   tagged pointer using this domain.
+/// - The mask and category remain context-independent for the lifetime of every tagged pointer
+///   using this domain.
 pub unsafe trait Tag: Copy {
     /// The address-bit mask reserved by this tag domain.
     const MASK: usize;
@@ -180,10 +178,9 @@ pub unsafe trait Bitfield: Tag<Type = TagBitfield, Value = BitfieldSet<Self>> {
 /// - The [`Tag`] implementation uses [`TagField`] and `Self` as its value.
 /// - [`Tag::MASK`] is a contiguous low-bit mask.
 /// - [`Field::value`] never sets a bit outside [`Tag::MASK`].
-/// - [`Field::from_value`] rejects values with bits outside [`Tag::MASK`] and
-///   every unassigned field pattern.
-/// - Converting an inhabitant to its value and back returns the same
-///   inhabitant.
+/// - [`Field::from_value`] rejects values with bits outside [`Tag::MASK`] and every unassigned
+///   field pattern.
+/// - Converting an inhabitant to its value and back returns the same inhabitant.
 pub unsafe trait Field: Tag<Type = TagField, Value = Self> {
     /// Returns the complete packed value represented by this enum variant.
     fn value(self) -> usize;
@@ -261,7 +258,7 @@ where
     #[inline]
     #[must_use]
     pub fn contains(&self, target_bit: B) -> bool {
-        let Self { bits, .. } = self;
+        let &Self { ref bits, .. } = self;
         let Some(target_mask) = Self::variant_bit(target_bit) else {
             return false;
         };
@@ -364,20 +361,17 @@ where
 
 impl<B> fmt::Debug for BitfieldSet<B> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { bits, .. } = self;
+        let &Self { ref bits, .. } = self;
 
-        formatter
-            .debug_struct("BitfieldSet")
-            .field("bits", bits)
-            .finish()
+        formatter.debug_struct("BitfieldSet").field("bits", bits).finish()
     }
 }
 
 impl<B> PartialEq for BitfieldSet<B> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let Self { bits: left, .. } = self;
-        let Self { bits: right, .. } = other;
+        let &Self { bits: ref left, .. } = self;
+        let &Self { bits: ref right, .. } = other;
 
         left == right
     }
@@ -515,9 +509,7 @@ where
     #[must_use]
     pub fn pointer(self) -> NonNull<P> {
         let Self { tagged, .. } = self;
-        let target_pointer = tagged
-            .as_ptr()
-            .map_addr(|target_address| target_address & !T::MASK);
+        let target_pointer = tagged.as_ptr().map_addr(|target_address| target_address & !T::MASK);
 
         // SAFETY: The representation invariant guarantees that clearing the tag
         // recovers the original non-null pointer.
@@ -591,9 +583,7 @@ where
     T: Tag,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("TaggedPointer")
-            .finish_non_exhaustive()
+        formatter.debug_struct("TaggedPointer").finish_non_exhaustive()
     }
 }
 
@@ -602,8 +592,8 @@ where
     T: Tag,
 {
     fn eq(&self, other: &Self) -> bool {
-        let Self { tagged: left, .. } = self;
-        let Self { tagged: right, .. } = other;
+        let &Self { tagged: ref left, .. } = self;
+        let &Self { tagged: ref right, .. } = other;
 
         ptr::eq(left.as_ptr(), right.as_ptr())
     }
@@ -615,8 +605,7 @@ impl<P, T> Eq for TaggedPointer<P, T> where T: Tag {}
 ///
 /// Both the success and failure cases contain the optional value observed
 /// before the attempted exchange.
-pub type CompareExchangeResult<P, T> =
-    Result<Option<TaggedPointer<P, T>>, Option<TaggedPointer<P, T>>>;
+pub type CompareExchangeResult<P, T> = Result<Option<TaggedPointer<P, T>>, Option<TaggedPointer<P, T>>>;
 
 /// A nullable atomic [`TaggedPointer`].
 ///
@@ -669,7 +658,7 @@ where
     #[inline]
     #[must_use]
     pub fn load(&self, target_order: Ordering) -> Option<TaggedPointer<P, T>> {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
 
         Self::decode(pointer.load(target_order))
     }
@@ -677,7 +666,7 @@ where
     /// Stores an optional tagged pointer.
     #[inline]
     pub fn store(&self, target_pointer: Option<TaggedPointer<P, T>>, target_order: Ordering) {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
 
         pointer.store(Self::encode(target_pointer), target_order);
     }
@@ -689,7 +678,7 @@ where
         target_pointer: Option<TaggedPointer<P, T>>,
         target_order: Ordering,
     ) -> Option<TaggedPointer<P, T>> {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
         let previous_pointer = pointer.swap(Self::encode(target_pointer), target_order);
 
         Self::decode(previous_pointer)
@@ -708,7 +697,7 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> CompareExchangeResult<P, T> {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
 
         match pointer.compare_exchange(Self::encode(current), Self::encode(new), success, failure) {
             Ok(previous) => Ok(Self::decode(previous)),
@@ -730,14 +719,9 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> CompareExchangeResult<P, T> {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
 
-        match pointer.compare_exchange_weak(
-            Self::encode(current),
-            Self::encode(new),
-            success,
-            failure,
-        ) {
+        match pointer.compare_exchange_weak(Self::encode(current), Self::encode(new), success, failure) {
             Ok(previous) => Ok(Self::decode(previous)),
             Err(observed) => Err(Self::decode(observed)),
         }
@@ -747,7 +731,7 @@ where
     #[inline]
     #[must_use]
     pub fn is_null(&self, target_order: Ordering) -> bool {
-        let Self { pointer, .. } = self;
+        let &Self { ref pointer, .. } = self;
 
         pointer.load(target_order).is_null()
     }
@@ -785,20 +769,18 @@ where
     T: Tag,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("AtomicTaggedPointer")
-            .finish_non_exhaustive()
+        formatter.debug_struct("AtomicTaggedPointer").finish_non_exhaustive()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        AtomicTaggedPointer, Bitfield, BitfieldSet, Field, Maskable, Masked, Tag, TagBitfield,
-        TagEncoding, TagField, TaggedPointer,
-    };
-
     use core::{ptr::NonNull, sync::atomic::Ordering};
+
+    use super::{
+        AtomicTaggedPointer, Bitfield, BitfieldSet, Field, Maskable, Masked, Tag, TagBitfield, TagEncoding, TagField,
+        TaggedPointer,
+    };
 
     #[derive(Debug, Clone, Copy, Eq, PartialEq)]
     #[repr(usize)]
@@ -811,11 +793,10 @@ mod tests {
     // SAFETY: The contiguous two-bit mask reserves every bit used by this
     // domain. `TagField` interprets its logical value as one `TestTag`.
     unsafe impl Tag for TestTag {
-        const MASK: usize = 0b11;
-
         type Type = TagField;
-
         type Value = Self;
+
+        const MASK: usize = 0b11;
     }
 
     // SAFETY: The mask is one contiguous two-bit field. Every encoded variant
@@ -845,11 +826,10 @@ mod tests {
     // SAFETY: The mask is exactly the union of the one-hot bits at the assigned
     // variant indices. The logical tag value is their validated set.
     unsafe impl Tag for TestBit {
-        const MASK: usize = 0b101;
-
         type Type = TagBitfield;
-
         type Value = BitfieldSet<Self>;
+
+        const MASK: usize = 0b101;
     }
 
     // SAFETY: Each discriminant is a valid `usize` bit index. Index conversion
@@ -927,8 +907,7 @@ mod tests {
     fn tagged_pointer_round_trips_pointer_and_tag() {
         let mut target_value = AlignedBytes([0; 4]);
         let target_pointer = NonNull::from_mut(&mut target_value);
-        let tagged_pointer =
-            TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::Three);
+        let tagged_pointer = TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::Three);
 
         assert!(tagged_pointer.is_some());
 
@@ -956,8 +935,7 @@ mod tests {
         assert!(target_set.insert(TestBit::First));
         assert!(target_set.insert(TestBit::Third));
 
-        let tagged_pointer =
-            TaggedPointer::<AlignedBytes, TestBit>::new(target_pointer, target_set);
+        let tagged_pointer = TaggedPointer::<AlignedBytes, TestBit>::new(target_pointer, target_set);
 
         assert!(tagged_pointer.is_some());
 
@@ -1020,8 +998,7 @@ mod tests {
     fn atomic_tagged_pointer_supports_null_and_swap() {
         let mut target_value = AlignedBytes([0; 4]);
         let target_pointer = NonNull::from_mut(&mut target_value);
-        let tagged_pointer =
-            TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::One);
+        let tagged_pointer = TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::One);
 
         assert!(tagged_pointer.is_some());
 
@@ -1031,15 +1008,9 @@ mod tests {
         let target_atomic = AtomicTaggedPointer::null();
 
         assert!(target_atomic.is_null(Ordering::SeqCst));
-        assert_eq!(
-            target_atomic.swap(Some(tagged_pointer), Ordering::SeqCst),
-            None
-        );
+        assert_eq!(target_atomic.swap(Some(tagged_pointer), Ordering::SeqCst), None);
         assert_eq!(target_atomic.load(Ordering::SeqCst), Some(tagged_pointer));
-        assert_eq!(
-            target_atomic.swap(None, Ordering::SeqCst),
-            Some(tagged_pointer)
-        );
+        assert_eq!(target_atomic.swap(None, Ordering::SeqCst), Some(tagged_pointer));
         assert!(target_atomic.is_null(Ordering::SeqCst));
     }
 
@@ -1047,14 +1018,8 @@ mod tests {
     fn atomic_tagged_pointer_compares_complete_representation() {
         let mut first_value = AlignedBytes([0; 4]);
         let mut second_value = AlignedBytes([0; 4]);
-        let first = TaggedPointer::<AlignedBytes, TestTag>::new(
-            NonNull::from_mut(&mut first_value),
-            TestTag::One,
-        );
-        let second = TaggedPointer::<AlignedBytes, TestTag>::new(
-            NonNull::from_mut(&mut second_value),
-            TestTag::Three,
-        );
+        let first = TaggedPointer::<AlignedBytes, TestTag>::new(NonNull::from_mut(&mut first_value), TestTag::One);
+        let second = TaggedPointer::<AlignedBytes, TestTag>::new(NonNull::from_mut(&mut second_value), TestTag::Three);
 
         assert!(first.is_some());
         assert!(second.is_some());
@@ -1066,17 +1031,11 @@ mod tests {
             return;
         };
         let target_atomic = AtomicTaggedPointer::new(Some(first));
-        let failed =
-            target_atomic.compare_exchange(Some(second), None, Ordering::SeqCst, Ordering::SeqCst);
+        let failed = target_atomic.compare_exchange(Some(second), None, Ordering::SeqCst, Ordering::SeqCst);
 
         assert_eq!(failed, Err(Some(first)));
         assert_eq!(
-            target_atomic.compare_exchange(
-                Some(first),
-                Some(second),
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-            ),
+            target_atomic.compare_exchange(Some(first), Some(second), Ordering::SeqCst, Ordering::SeqCst,),
             Ok(Some(first))
         );
         assert_eq!(target_atomic.load(Ordering::SeqCst), Some(second));

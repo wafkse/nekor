@@ -33,9 +33,6 @@ impl Scheduler {
     /// This will fail if the runqueue is full.
     #[inline]
     pub fn try_schedule(target_task: &'static Task) -> Result<(), &'static Task> {
-        target_task
-            .queue()
-            .enqueue(target_task)
-            .map_err(BusyOrFull::unwrap)
+        target_task.queue().enqueue(target_task).map_err(BusyOrFull::unwrap)
     }
 }

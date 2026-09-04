@@ -50,9 +50,8 @@
 //! the annotated type. See the facade crate documentation for complete safety
 //! contracts and examples.
 
-use proc_macro::TokenStream;
-
 use nekor_project_core::ProjectItem;
+use proc_macro::TokenStream;
 use syn::{DeriveInput, parse_macro_input};
 
 /// Derive immutable and mutable pin projections.

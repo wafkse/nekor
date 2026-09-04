@@ -31,11 +31,10 @@ impl<'a, T> RawMutexGuard<'a, T> {
     /// The [`Occupied`] slot must have been acquired from the same [`Mutex`].
     #[inline]
     pub const unsafe fn new(target_mutex: &'a Mutex<T>, waited_state: Waited) -> Self {
-        let Mutex { target_value, .. } = target_mutex;
+        let &Mutex { ref target_value, .. } = target_mutex;
 
         // SAFETY: The guard has been acquired for the mutex.
-        let target_pointer =
-            unsafe { NonNull::new(UnsafeCell::get(target_value)).unwrap_unchecked() };
+        let target_pointer = unsafe { NonNull::new(UnsafeCell::get(target_value)).unwrap_unchecked() };
 
         Self(target_mutex, target_pointer, waited_state)
     }
@@ -69,7 +68,7 @@ impl<'a, T> RawMutexGuard<'a, T> {
     #[inline]
     #[must_use]
     pub fn unlock(self) -> Observed {
-        let Self(Mutex { lock_state, .. }, .., target_occupied) = self;
+        let Self(&Mutex { ref lock_state, .. }, .., target_occupied) = self;
 
         // SAFETY: The `Waited` was sourced from the same `LockState`.
         unsafe { lock_state.release(target_occupied) }
@@ -98,7 +97,7 @@ impl<'a, T> Guard<'a, T> {
     #[inline]
     #[must_use]
     pub const fn raw(&self) -> &RawMutexGuard<'a, T> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // SAFETY: [invariant] Always initialized before an unlock.
         unsafe { target_value.assume_init_ref() }
@@ -163,6 +162,6 @@ impl<T> Drop for Guard<'_, T> {
         // `Drop`.
         let target_guard = unsafe { target_value.assume_init_read() };
 
-        let _ = RawMutexGuard::unlock(target_guard);
+        let _: Observed = RawMutexGuard::unlock(target_guard);
     }
 }

@@ -12,13 +12,12 @@
 //!
 //! In usermode builds, the native thread local mechanism is used instead.
 
-use crate::area::Area;
-
 #[cfg(not(usermode))]
 use core::arch;
-
 #[cfg(usermode)]
 use core::cell::Cell;
+
+use crate::area::Area;
 
 #[cfg(usermode)]
 thread_local!(static CPU_AREA: Cell<Area> = Cell::new(Area::local()));

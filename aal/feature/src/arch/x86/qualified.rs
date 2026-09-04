@@ -1,11 +1,11 @@
 //! An umbrella module for fully qualified features.
 
-use crate::feature::{Feature, Present, Signal};
-
-#[allow(unused_imports, reason = "allow all output registers to be imported")]
-use crate::arch::x86::{Cached, CpuidReg, Eax, Ebx, Ecx, Edx};
-
 use nekor_bitwise::prelude::BitAt;
+
+use crate::{
+    arch::x86::{Cached, CpuidReg, Eax, Ebx, Ecx, Edx},
+    feature::{Feature, Present, Signal},
+};
 
 /// A macro to expand to a [`Feature`] implementor for a specific [`CpuId`]
 /// invocation.

@@ -17,8 +17,8 @@ pub mod downstream {
     pub use nekor_bitwise_extract_8_8::MetadataU8U8;
 }
 
-use crate::downstream::MetadataU8U8;
-
 use nekor_bitwise_extract_core::delegate;
+
+use crate::downstream::MetadataU8U8;
 
 delegate!(become u8 as MetadataU8 for [u8 become MetadataU8U8]);

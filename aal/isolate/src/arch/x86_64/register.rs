@@ -43,7 +43,7 @@ impl Gpr {
     #[inline]
     #[must_use]
     pub const fn low8(&self) -> GprLow8<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         GprLow8::wrap(target_value)
     }
@@ -52,7 +52,7 @@ impl Gpr {
     #[inline]
     #[must_use]
     pub const fn high8(&self) -> GprHigh8<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         GprHigh8::wrap(target_value)
     }
@@ -61,7 +61,7 @@ impl Gpr {
     #[inline]
     #[must_use]
     pub const fn val16(&self) -> GprVal16<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         GprVal16::wrap(target_value)
     }
@@ -70,7 +70,7 @@ impl Gpr {
     #[inline]
     #[must_use]
     pub const fn val32(&self) -> GprVal32<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         GprVal32::wrap(target_value)
     }
@@ -79,7 +79,7 @@ impl Gpr {
     #[inline]
     #[must_use]
     pub const fn val64(&self) -> GprVal64<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         GprVal64::wrap(target_value)
     }
@@ -88,7 +88,7 @@ impl Gpr {
     /// general-purpose register.
     #[inline]
     pub const fn low8_mut(&mut self) -> GprLow8Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         GprLow8Mut::wrap(target_value)
     }
@@ -97,7 +97,7 @@ impl Gpr {
     /// general-purpose register.
     #[inline]
     pub const fn high8_mut(&mut self) -> GprHigh8Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         GprHigh8Mut::wrap(target_value)
     }
@@ -106,7 +106,7 @@ impl Gpr {
     /// general-purpose register.
     #[inline]
     pub const fn val16_mut(&mut self) -> GprVal16Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         GprVal16Mut::wrap(target_value)
     }
@@ -115,7 +115,7 @@ impl Gpr {
     /// general-purpose register.
     #[inline]
     pub const fn val32_mut(&mut self) -> GprVal32Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         GprVal32Mut::wrap(target_value)
     }
@@ -124,7 +124,7 @@ impl Gpr {
     /// general-purpose register.
     #[inline]
     pub const fn val64_mut(&mut self) -> GprVal64Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         GprVal64Mut::wrap(target_value)
     }
@@ -170,7 +170,7 @@ impl Base {
     #[inline]
     #[must_use]
     pub const fn low8(&self) -> BaseLow8<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         BaseLow8::wrap(target_value)
     }
@@ -179,7 +179,7 @@ impl Base {
     #[inline]
     #[must_use]
     pub const fn high8(&self) -> BaseHigh8<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         BaseHigh8::wrap(target_value)
     }
@@ -188,7 +188,7 @@ impl Base {
     #[inline]
     #[must_use]
     pub const fn val16(&self) -> BaseVal16<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         BaseVal16::wrap(target_value)
     }
@@ -197,7 +197,7 @@ impl Base {
     #[inline]
     #[must_use]
     pub const fn val32(&self) -> BaseVal32<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         BaseVal32::wrap(target_value)
     }
@@ -206,7 +206,7 @@ impl Base {
     #[inline]
     #[must_use]
     pub const fn val64(&self) -> BaseVal64<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         BaseVal64::wrap(target_value)
     }
@@ -215,7 +215,7 @@ impl Base {
     /// segment register base.
     #[inline]
     pub const fn low8_mut(&mut self) -> BaseLow8Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         BaseLow8Mut::wrap(target_value)
     }
@@ -224,7 +224,7 @@ impl Base {
     /// segment register base.
     #[inline]
     pub const fn high8_mut(&mut self) -> BaseHigh8Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         BaseHigh8Mut::wrap(target_value)
     }
@@ -233,7 +233,7 @@ impl Base {
     /// segment register base.
     #[inline]
     pub const fn val16_mut(&mut self) -> BaseVal16Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         BaseVal16Mut::wrap(target_value)
     }
@@ -242,7 +242,7 @@ impl Base {
     /// segment register base.
     #[inline]
     pub const fn val32_mut(&mut self) -> BaseVal32Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         BaseVal32Mut::wrap(target_value)
     }
@@ -251,7 +251,7 @@ impl Base {
     /// segment register base.
     #[inline]
     pub const fn val64_mut(&mut self) -> BaseVal64Mut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         BaseVal64Mut::wrap(target_value)
     }
@@ -369,7 +369,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_cf(&self) -> FlagCf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagCf::wrap(target_value)
     }
@@ -378,7 +378,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_pf(&self) -> FlagPf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagPf::wrap(target_value)
     }
@@ -387,7 +387,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_af(&self) -> FlagAf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagAf::wrap(target_value)
     }
@@ -396,7 +396,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_zf(&self) -> FlagZf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagZf::wrap(target_value)
     }
@@ -405,7 +405,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_sf(&self) -> FlagSf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagSf::wrap(target_value)
     }
@@ -414,7 +414,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_tf(&self) -> FlagTf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagTf::wrap(target_value)
     }
@@ -423,7 +423,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_if(&self) -> FlagIf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagIf::wrap(target_value)
     }
@@ -432,7 +432,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_df(&self) -> FlagDf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagDf::wrap(target_value)
     }
@@ -441,7 +441,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_of(&self) -> FlagOf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagOf::wrap(target_value)
     }
@@ -450,7 +450,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn field_iopl(&self) -> FieldIopl<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FieldIopl::wrap(target_value)
     }
@@ -459,7 +459,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_nt(&self) -> FlagNt<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagNt::wrap(target_value)
     }
@@ -468,7 +468,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_rf(&self) -> FlagRf<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagRf::wrap(target_value)
     }
@@ -477,7 +477,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_vm(&self) -> FlagVm<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagVm::wrap(target_value)
     }
@@ -486,7 +486,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_ac(&self) -> FlagAc<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagAc::wrap(target_value)
     }
@@ -495,7 +495,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_vif(&self) -> FlagVif<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagVif::wrap(target_value)
     }
@@ -504,7 +504,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_vip(&self) -> FlagVip<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagVip::wrap(target_value)
     }
@@ -513,7 +513,7 @@ impl Rflags {
     #[inline]
     #[must_use]
     pub const fn flag_id(&self) -> FlagId<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         FlagId::wrap(target_value)
     }
@@ -521,7 +521,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Carry Flag" (CF) state.
     #[inline]
     pub const fn flag_cf_mut(&mut self) -> FlagCfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagCfMut::wrap(target_value)
     }
@@ -529,7 +529,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Parity Flag" (PF) state.
     #[inline]
     pub const fn flag_pf_mut(&mut self) -> FlagPfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagPfMut::wrap(target_value)
     }
@@ -538,7 +538,7 @@ impl Rflags {
     /// state.
     #[inline]
     pub const fn flag_af_mut(&mut self) -> FlagAfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagAfMut::wrap(target_value)
     }
@@ -546,7 +546,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Zero Flag" (ZF) state.
     #[inline]
     pub const fn flag_zf_mut(&mut self) -> FlagZfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagZfMut::wrap(target_value)
     }
@@ -554,7 +554,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Sign Flag" (SF) state.
     #[inline]
     pub const fn flag_sf_mut(&mut self) -> FlagSfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagSfMut::wrap(target_value)
     }
@@ -562,7 +562,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Trap Flag" (TF) state.
     #[inline]
     pub const fn flag_tf_mut(&mut self) -> FlagTfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagTfMut::wrap(target_value)
     }
@@ -571,7 +571,7 @@ impl Rflags {
     /// state.
     #[inline]
     pub const fn flag_if_mut(&mut self) -> FlagIfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagIfMut::wrap(target_value)
     }
@@ -579,7 +579,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Direction Flag" (DF) state.
     #[inline]
     pub const fn flag_df_mut(&mut self) -> FlagDfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagDfMut::wrap(target_value)
     }
@@ -587,7 +587,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Overflow Flag" (OF) state.
     #[inline]
     pub const fn flag_of_mut(&mut self) -> FlagOfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagOfMut::wrap(target_value)
     }
@@ -596,7 +596,7 @@ impl Rflags {
     /// field.
     #[inline]
     pub const fn field_iopl_mut(&mut self) -> FieldIoplMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FieldIoplMut::wrap(target_value)
     }
@@ -604,7 +604,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Nested Task Flag" (NT) state.
     #[inline]
     pub const fn flag_nt_mut(&mut self) -> FlagNtMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagNtMut::wrap(target_value)
     }
@@ -612,7 +612,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "Resume Flag" (RF) state.
     #[inline]
     pub const fn flag_rf_mut(&mut self) -> FlagRfMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagRfMut::wrap(target_value)
     }
@@ -621,7 +621,7 @@ impl Rflags {
     /// state.
     #[inline]
     pub const fn flag_vm_mut(&mut self) -> FlagVmMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagVmMut::wrap(target_value)
     }
@@ -630,7 +630,7 @@ impl Rflags {
     /// state.
     #[inline]
     pub const fn flag_ac_mut(&mut self) -> FlagAcMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagAcMut::wrap(target_value)
     }
@@ -639,7 +639,7 @@ impl Rflags {
     /// state.
     #[inline]
     pub const fn flag_vif_mut(&mut self) -> FlagVifMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagVifMut::wrap(target_value)
     }
@@ -648,7 +648,7 @@ impl Rflags {
     /// (VIP) state.
     #[inline]
     pub const fn flag_vip_mut(&mut self) -> FlagVipMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagVipMut::wrap(target_value)
     }
@@ -656,7 +656,7 @@ impl Rflags {
     /// Resolve a mutable reference to the "ID Flag" (ID) state.
     #[inline]
     pub const fn flag_id_mut(&mut self) -> FlagIdMut<'_> {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         FlagIdMut::wrap(target_value)
     }

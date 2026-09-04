@@ -2,9 +2,8 @@
 //!
 //! See [`Preset`] for further information.
 
-use crate::store::Store;
-
 use super::{Adapter, Domain};
+use crate::store::Store;
 
 /// The default implicit [`Domain`] for all type `T`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

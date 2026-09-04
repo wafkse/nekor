@@ -1,9 +1,8 @@
 pub mod platform;
 
-use std::fmt;
+use core::fmt;
 
 use clap::{Parser, Subcommand, ValueEnum};
-
 use fack::prelude::Error;
 use serde::Serialize;
 
@@ -70,11 +69,7 @@ pub trait Execute {
     /// # Errors
     ///
     /// Returns an error when the command cannot produce its output.
-    fn command<'a>(
-        self,
-        context: &'a InvokeContext,
-        data: Self::Data<'a>,
-    ) -> Result<Self::Output<'a>, Self::Error>;
+    fn command<'a>(self, context: &'a InvokeContext, data: Self::Data<'a>) -> Result<Self::Output<'a>, Self::Error>;
 }
 
 /// A hint to tell the program in which output format should
@@ -111,7 +106,31 @@ pub trait Output: Serialize {
     /// # Errors
     ///
     /// Returns an error when writing formatted output fails.
-    fn output<W>(self, writer: &mut W, options: &OutputOptions) -> fmt::Result
+    fn output<W>(self, writer: &mut W, options: &OutputOptions) -> Result<(), OutputError>
     where
         W: fmt::Write;
+}
+
+/// An error produced while formatting command output.
+#[derive(Debug, Error)]
+pub enum OutputError {
+    /// Writing formatted output failed.
+    #[error(transparent(0))]
+    Format(fmt::Error),
+
+    /// Serializing structured output failed.
+    #[error(transparent(0))]
+    Json(serde_json::Error),
+}
+
+impl From<fmt::Error> for OutputError {
+    fn from(error: fmt::Error) -> Self {
+        Self::Format(error)
+    }
+}
+
+impl From<serde_json::Error> for OutputError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::Json(error)
+    }
 }

@@ -9,7 +9,7 @@ use nekor_domain::{
 };
 
 /// A processor context.
-pub struct CpuContext {}
+pub struct CpuContext;
 
 /// An allocated processor stack.
 #[cfg_attr(any(target_arch = "x86", target_arch = "x86_64"), repr(C, align(16)))]
@@ -62,7 +62,7 @@ impl StackArea {
     where
         T: Tiable,
     {
-        let Stack(target_value) = Zeroed::explicit_in::<Stack<N>, Arbitrary<T>>();
+        let &Stack(ref target_value) = Zeroed::explicit_in::<Stack<N>, Arbitrary<T>>();
 
         Self(
             const { NonZero::<usize>::new(N).expect("cannot have zero-sized stack") },

@@ -28,8 +28,11 @@ pub enum ScalarKind {
 pub struct Scalar {
     // NOTE(invariant): When `annotation` is a reserved representation,
     // `value` has already been range checked for that representation.
+    /// The optional reserved or application-defined annotation.
     annotation: Option<TypeAnnotation>,
+    /// The scalar value after applying any reserved representation.
     value: ScalarValue,
+    /// The source location that supplied the scalar.
     origin: Origin,
 }
 
@@ -188,11 +191,7 @@ impl TypeAnnotation {
 impl Scalar {
     /// Construct a scalar after type interpretation has succeeded.
     #[inline]
-    pub(crate) const fn from_parts(
-        annotation: Option<TypeAnnotation>,
-        value: ScalarValue,
-        origin: Origin,
-    ) -> Self {
+    pub(crate) const fn from_parts(annotation: Option<TypeAnnotation>, value: ScalarValue, origin: Origin) -> Self {
         Self {
             annotation,
             value,
@@ -204,7 +203,7 @@ impl Scalar {
     #[inline]
     #[must_use]
     pub const fn annotation(&self) -> Option<&TypeAnnotation> {
-        let Self { annotation, .. } = self;
+        let &Self { ref annotation, .. } = self;
 
         annotation.as_ref()
     }
@@ -213,7 +212,7 @@ impl Scalar {
     #[inline]
     #[must_use]
     pub const fn value(&self) -> &ScalarValue {
-        let Self { value, .. } = self;
+        let &Self { ref value, .. } = self;
 
         value
     }
@@ -222,7 +221,7 @@ impl Scalar {
     #[inline]
     #[must_use]
     pub const fn origin(&self) -> &Origin {
-        let Self { origin, .. } = self;
+        let &Self { ref origin, .. } = self;
 
         origin
     }
@@ -234,23 +233,23 @@ impl ScalarValue {
     #[must_use]
     pub const fn kind(&self) -> ScalarKind {
         match self {
-            Self::Null => ScalarKind::Null,
-            Self::Bool(..) => ScalarKind::Bool,
-            Self::String(..) => ScalarKind::String,
-            Self::Integer(..)
-            | Self::I8(..)
-            | Self::I16(..)
-            | Self::I32(..)
-            | Self::I64(..)
-            | Self::I128(..)
-            | Self::Isize(..)
-            | Self::U8(..)
-            | Self::U16(..)
-            | Self::U32(..)
-            | Self::U64(..)
-            | Self::U128(..)
-            | Self::Usize(..) => ScalarKind::Integer,
-            Self::F32(..) | Self::F64(..) => ScalarKind::Float,
+            &Self::Null => ScalarKind::Null,
+            &Self::Bool(..) => ScalarKind::Bool,
+            &Self::String(..) => ScalarKind::String,
+            &Self::Integer(..)
+            | &Self::I8(..)
+            | &Self::I16(..)
+            | &Self::I32(..)
+            | &Self::I64(..)
+            | &Self::I128(..)
+            | &Self::Isize(..)
+            | &Self::U8(..)
+            | &Self::U16(..)
+            | &Self::U32(..)
+            | &Self::U64(..)
+            | &Self::U128(..)
+            | &Self::Usize(..) => ScalarKind::Integer,
+            &Self::F32(..) | &Self::F64(..) => ScalarKind::Float,
         }
     }
 }
@@ -259,11 +258,7 @@ impl Overlay for Scalar {
     type Error = OverlayError;
 
     fn overlay(self, derived: Self) -> Result<Self, Self::Error> {
-        let Self {
-            annotation,
-            value: _,
-            origin,
-        } = self;
+        let Self { annotation, origin, .. } = self;
         let Self {
             annotation: derived_annotation,
             value,
@@ -279,70 +274,62 @@ impl Overlay for Scalar {
                     inherited: origin,
                     derived: derived_origin,
                 });
-            }
+            },
             (Some(annotation), _) | (None, Some(annotation)) => Some(annotation),
             (None, None) => None,
         };
 
         let value = match (&annotation, value) {
-            (Some(TypeAnnotation::Integer(representation)), ScalarValue::Integer(value)) => {
-                representation.represent(value).ok_or_else(|| {
-                    OverlayError::ValueRepresentation {
-                        path: Path::new(),
-                        inherited: origin.clone(),
-                        derived: derived_origin.clone(),
-                        error: TypeError::IntegerRange {
-                            representation: *representation,
-                            value,
-                            origin: derived_origin.clone(),
-                        },
-                    }
-                })?
-            }
-            (Some(TypeAnnotation::Float(representation)), ScalarValue::F64(value)) => {
-                representation.represent(value).ok_or_else(|| {
-                    OverlayError::ValueRepresentation {
-                        path: Path::new(),
-                        inherited: origin.clone(),
-                        derived: derived_origin.clone(),
-                        error: TypeError::FloatRange {
-                            representation: *representation,
-                            value,
-                            origin: derived_origin.clone(),
-                        },
-                    }
-                })?
-            }
-            (Some(TypeAnnotation::Integer(representation)), value)
-                if value.kind() != ScalarKind::Integer =>
-            {
+            (&Some(TypeAnnotation::Integer(representation)), ScalarValue::Integer(value)) => representation
+                .represent(value)
+                .ok_or_else(|| OverlayError::ValueRepresentation {
+                    path: Path::new(),
+                    inherited: origin.clone(),
+                    derived: derived_origin.clone(),
+                    error: TypeError::IntegerRange {
+                        representation,
+                        value,
+                        origin: derived_origin.clone(),
+                    },
+                })?,
+            (&Some(TypeAnnotation::Float(representation)), ScalarValue::F64(value)) => representation
+                .represent(value)
+                .ok_or_else(|| OverlayError::ValueRepresentation {
+                    path: Path::new(),
+                    inherited: origin.clone(),
+                    derived: derived_origin.clone(),
+                    error: TypeError::FloatRange {
+                        representation,
+                        value,
+                        origin: derived_origin.clone(),
+                    },
+                })?,
+            (&Some(TypeAnnotation::Integer(representation)), value) if value.kind() != ScalarKind::Integer => {
                 return Err(OverlayError::ValueRepresentation {
                     path: Path::new(),
                     inherited: origin,
                     derived: derived_origin.clone(),
                     error: TypeError::ScalarKind {
-                        annotation: TypeAnnotation::Integer(*representation),
+                        annotation: TypeAnnotation::Integer(representation),
                         expected: ScalarKind::Integer,
                         actual: value.kind(),
                         origin: derived_origin,
                     },
                 });
-            }
-            (Some(TypeAnnotation::Float(representation)), value)
-                if value.kind() != ScalarKind::Float =>
-            {
+            },
+            (&Some(TypeAnnotation::Float(representation)), value) if value.kind() != ScalarKind::Float => {
                 return Err(OverlayError::ValueRepresentation {
                     path: Path::new(),
                     inherited: origin,
                     derived: derived_origin.clone(),
                     error: TypeError::ScalarKind {
-                        annotation: TypeAnnotation::Float(*representation),
+                        annotation: TypeAnnotation::Float(representation),
                         expected: ScalarKind::Float,
                         actual: value.kind(),
                         origin: derived_origin,
                     },
                 });
-            }
+            },
             (_, value) => value,
         };
 

@@ -28,20 +28,18 @@
 //! ## General Notes
 //!
 //! * [`Monitor::engage`] starts monitoring the memory location.
-//! * [`Monitored::wait`] suspends the thread until a possible wake event
-//!   occurs.
-//! * All monitor operations are **best-effort**; the monitored value must be
-//!   rechecked after wakeup.
-//! * Side-channel monitoring is highly efficient, while wake-up event
-//!   monitoring provides explicit guarantees across threads or cores.
-//! * Access guards must be used for *Wake-Up Based Event Monitoring* to
-//!   function.
+//! * [`Monitored::wait`] suspends the thread until a possible wake event occurs.
+//! * All monitor operations are **best-effort**; the monitored value must be rechecked after
+//!   wakeup.
+//! * Side-channel monitoring is highly efficient, while wake-up event monitoring provides explicit
+//!   guarantees across threads or cores.
+//! * Access guards must be used for *Wake-Up Based Event Monitoring* to function.
 //!
 //! [`Monitor`]: crate::monitor::Monitor
 //! [`Monitored::wait`]: crate::monitor::Monitored::wait
 
 use core::{
-    marker, mem,
+    marker,
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -80,7 +78,7 @@ impl<T> Monitor<T> {
     /// Access the underlying value through a dedicated RAII guard.
     #[inline]
     pub const fn access(&self) -> MonitorGuard<'_, T> {
-        let Self(target_value) = self;
+        let Self(ref target_value) = *self;
 
         MonitorGuard(target_value)
     }
@@ -94,28 +92,43 @@ impl<T> Monitor<T> {
     }
 
     /// Engage the monitor on the value.
+    #[cfg(not(all(
+        target_os = "none",
+        not(any(usermode, test, miri)),
+        any(target_arch = "x86", target_arch = "x86_64")
+    )))]
     #[inline]
-    #[allow(
-        clippy::missing_const_for_fn,
-        reason = "bare-metal builds execute a runtime architecture instruction"
-    )]
+    pub const fn engage(&self) -> Monitored<'_, T> {
+        let target_pointer = NonNull::from_ref(self);
+
+        Monitored(target_pointer, marker::PhantomData)
+    }
+
+    /// Engage the monitor on the value.
+    #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
+    #[inline]
     pub fn engage(&self) -> Monitored<'_, T> {
         let target_pointer = NonNull::from_ref(self);
 
-        #[cfg(all(
-            target_os = "none",
-            target_arch = "x86",
-            not(any(usermode, test, miri))
-        ))]
+        #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
         unsafe {
             arch::x86::monitor(target_pointer);
         };
 
-        #[cfg(all(
-            target_os = "none",
-            target_arch = "x86_64",
-            not(any(usermode, test, miri))
-        ))]
+        #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
+        unsafe {
+            arch::x86_64::monitor(target_pointer);
+        };
+
+        Monitored(target_pointer, marker::PhantomData)
+    }
+
+    /// Engage the monitor on the value.
+    #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
+    #[inline]
+    pub fn engage(&self) -> Monitored<'_, T> {
+        let target_pointer = NonNull::from_ref(self);
+
         unsafe {
             arch::x86_64::monitor(target_pointer);
         };
@@ -129,7 +142,7 @@ impl<T> Deref for Monitor<T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let Self(ref target_value) = *self;
 
         target_value
     }
@@ -162,34 +175,30 @@ impl<T> Monitored<'_, T> {
     /// This is done on a best-effort basis, if no monitor hardware capability
     /// is present, this is effectively an entry to an
     /// architecture-dependent optimized state.
+    #[cfg(not(all(
+        target_os = "none",
+        not(any(usermode, test, miri)),
+        any(target_arch = "x86", target_arch = "x86_64")
+    )))]
     #[inline]
-    #[allow(
-        clippy::missing_const_for_fn,
-        reason = "bare-metal builds execute a runtime architecture instruction"
-    )]
+    pub const fn wait(self) {}
+
+    /// Wait for a write to happen at the monitored location.
+    #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
+    #[inline]
     pub fn wait(self) {
-        #[cfg(all(
-            target_os = "none",
-            target_arch = "x86",
-            not(any(usermode, test, miri))
-        ))]
         unsafe {
             arch::x86::mwait();
         };
+    }
 
-        #[cfg(all(
-            target_os = "none",
-            target_arch = "x86_64",
-            not(any(usermode, test, miri))
-        ))]
+    /// Wait for a write to happen at the monitored location.
+    #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
+    #[inline]
+    pub fn wait(self) {
         unsafe {
             arch::x86_64::mwait();
         };
-
-        // TODO: Add umonitor and umwait support, but that requires runtime
-        // instruction specialization.
-        //
-        // Also add transient Relax::now, direct copy from Linux's cpu_relax
     }
 }
 
@@ -202,16 +211,11 @@ impl<T> Monitored<'_, T> {
 pub struct MonitorGuard<'a, T>(&'a T);
 
 impl<T> MonitorGuard<'_, T> {
-    /// Disallow use of `Monitor` on trivially-copyable types.
-    #[doc(hidden)]
-    #[allow(unused)]
-    const ASSERT_NEEDS_DROP: () = assert!(mem::needs_drop::<Self>());
-
     /// Access a reference to the monitor-guarded type.
     #[inline]
     #[must_use]
     pub const fn as_ref(&self) -> &'_ T {
-        let Self(target_value) = self;
+        let Self(target_value) = *self;
 
         target_value
     }
@@ -228,13 +232,6 @@ impl<T> Deref for MonitorGuard<'_, T> {
     }
 }
 
-impl<T> Drop for MonitorGuard<'_, T> {
-    #[inline]
-    fn drop(&mut self) {
-        // TODO: This `drop` is for signal-based monitoring only.
-    }
-}
-
 /// The store side of a monitored value.
 #[repr(transparent)]
 pub struct MonitorGuardMut<'a, T>(&'a mut T);
@@ -244,7 +241,7 @@ impl<T> Deref for MonitorGuardMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let Self(ref target_value) = *self;
 
         target_value
     }
@@ -256,12 +253,5 @@ impl<T> DerefMut for MonitorGuardMut<'_, T> {
         let &mut Self(ref mut target_value) = self;
 
         target_value
-    }
-}
-
-impl<T> Drop for MonitorGuardMut<'_, T> {
-    #[inline]
-    fn drop(&mut self) {
-        // TODO: This `drop` is for signal-based monitoring only.
     }
 }

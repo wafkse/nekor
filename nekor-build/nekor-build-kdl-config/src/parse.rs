@@ -1,5 +1,8 @@
 //! KDL parsing and reserved annotation interpretation.
 
+use indexmap::IndexMap;
+use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
+
 use crate::{
     annotation::{Annotation, NodeAnnotation},
     document::Document,
@@ -9,8 +12,6 @@ use crate::{
     scalar::{FloatType, IntegerType, Scalar, ScalarKind, ScalarValue, TypeAnnotation},
     source::{Origin, Source},
 };
-use indexmap::IndexMap;
-use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 
 /// Parse one KDL source into a semantic document.
 pub fn document(input: &str, source: &Source) -> Result<Document, LoadError> {
@@ -33,9 +34,7 @@ fn parse_document(parsed: &KdlDocument, source: &Source) -> Result<Document, Loa
         if let Some((index, existing_name, existing)) = fields.shift_remove_full(&name) {
             use crate::merge::Merge;
 
-            let merged = existing
-                .merge(target)
-                .map_err(|error| error.prefixed(name))?;
+            let merged = existing.merge(target).map_err(|error| error.prefixed(name))?;
             _ = fields.shift_insert(index, existing_name, merged);
         } else {
             _ = fields.insert(name, target);
@@ -59,14 +58,12 @@ fn parse_node(node: &KdlNode, source: &Source) -> Result<Node, LoadError> {
         .into());
     }
 
-    let annotation = node
-        .ty()
-        .map(|annotation| NodeAnnotation::new(annotation.value()));
+    let annotation = node.ty().map(|annotation| NodeAnnotation::new(annotation.value()));
 
     let kind = match (node.entries(), node.children()) {
-        ([], Some(children)) => parse_children(children, source, &name, &origin)?,
-        ([], None) => NodeKind::Object(Document::default()),
-        ([entry], None) => NodeKind::Scalar(parse_scalar(entry, source)?),
+        (&[], Some(children)) => parse_children(children, source, &name, &origin)?,
+        (&[], None) => NodeKind::Object(Document::default()),
+        (&[ref entry], None) => NodeKind::Scalar(parse_scalar(entry, source)?),
         (_, None) => {
             return Err(ProfileError::UnsupportedNodeShape {
                 name,
@@ -74,7 +71,7 @@ fn parse_node(node: &KdlNode, source: &Source) -> Result<Node, LoadError> {
                 origin,
             }
             .into());
-        }
+        },
         (_, Some(_)) => {
             return Err(ProfileError::UnsupportedNodeShape {
                 name,
@@ -82,7 +79,7 @@ fn parse_node(node: &KdlNode, source: &Source) -> Result<Node, LoadError> {
                 origin,
             }
             .into());
-        }
+        },
     };
 
     Ok(Node::from_parts(annotation, kind, origin))
@@ -95,20 +92,13 @@ fn parse_children(
     name: &Name,
     origin: &Origin,
 ) -> Result<NodeKind, LoadError> {
-    let has_list_entry = children
-        .nodes()
-        .iter()
-        .any(|child| child.name().value() == "-");
+    let has_list_entry = children.nodes().iter().any(|child| child.name().value() == "-");
 
     if !has_list_entry {
         return Ok(NodeKind::Object(parse_document(children, source)?));
     }
 
-    if children
-        .nodes()
-        .iter()
-        .any(|child| child.name().value() != "-")
-    {
+    if children.nodes().iter().any(|child| child.name().value() != "-") {
         return Err(ProfileError::UnsupportedNodeShape {
             name: name.clone(),
             shape: NodeShape::MixedListChildren,
@@ -131,11 +121,7 @@ fn parse_list_entry(node: &KdlNode, source: &Source, parent: &Name) -> Result<Sc
     let origin = Origin::new(source.clone(), node.span());
     let entries = node.entries();
 
-    if node.ty().is_some()
-        || node.children().is_some()
-        || entries.len() != 1
-        || entries[0].name().is_some()
-    {
+    if node.ty().is_some() || node.children().is_some() || entries.len() != 1 || entries[0].name().is_some() {
         return Err(ProfileError::UnsupportedNodeShape {
             name: parent.clone(),
             shape: NodeShape::InvalidListEntry,
@@ -150,9 +136,7 @@ fn parse_list_entry(node: &KdlNode, source: &Source, parent: &Name) -> Result<Sc
 /// Convert one KDL entry into an interpreted scalar.
 fn parse_scalar(entry: &KdlEntry, source: &Source) -> Result<Scalar, LoadError> {
     let origin = Origin::new(source.clone(), entry.span());
-    let annotation = entry
-        .ty()
-        .map(|annotation| classify_annotation(annotation.value()));
+    let annotation = entry.ty().map(|annotation| classify_annotation(annotation.value()));
 
     let value = interpret_value(entry.value(), annotation.as_ref(), &origin)?;
 
@@ -186,81 +170,69 @@ fn interpret_value(
     origin: &Origin,
 ) -> Result<ScalarValue, TypeError> {
     match annotation {
-        Some(TypeAnnotation::Integer(representation)) => {
-            let KdlValue::Integer(value) = value else {
+        Some(&TypeAnnotation::Integer(representation)) => {
+            let &KdlValue::Integer(value) = value else {
                 return Err(TypeError::ScalarKind {
-                    annotation: TypeAnnotation::Integer(*representation),
+                    annotation: TypeAnnotation::Integer(representation),
                     expected: ScalarKind::Integer,
                     actual: scalar_kind(value),
                     origin: origin.clone(),
                 });
             };
 
-            interpret_integer(*value, *representation, origin)
-        }
-        Some(TypeAnnotation::Float(representation)) => {
-            let KdlValue::Float(value) = value else {
+            interpret_integer(value, representation, origin)
+        },
+        Some(&TypeAnnotation::Float(representation)) => {
+            let &KdlValue::Float(value) = value else {
                 return Err(TypeError::ScalarKind {
-                    annotation: TypeAnnotation::Float(*representation),
+                    annotation: TypeAnnotation::Float(representation),
                     expected: ScalarKind::Float,
                     actual: scalar_kind(value),
                     origin: origin.clone(),
                 });
             };
 
-            interpret_float(*value, *representation, origin)
-        }
-        Some(TypeAnnotation::Custom(..)) | None => Ok(natural_value(value)),
+            interpret_float(value, representation, origin)
+        },
+        Some(&TypeAnnotation::Custom(..)) | None => Ok(natural_value(value)),
     }
 }
 /// Interpret a KDL integer under one reserved integer representation.
-fn interpret_integer(
-    value: i128,
-    representation: IntegerType,
-    origin: &Origin,
-) -> Result<ScalarValue, TypeError> {
-    representation
-        .represent(value)
-        .ok_or_else(|| TypeError::IntegerRange {
-            representation,
-            value,
-            origin: origin.clone(),
-        })
+fn interpret_integer(value: i128, representation: IntegerType, origin: &Origin) -> Result<ScalarValue, TypeError> {
+    representation.represent(value).ok_or_else(|| TypeError::IntegerRange {
+        representation,
+        value,
+        origin: origin.clone(),
+    })
 }
 
 /// Interpret a KDL float under one reserved floating point representation.
-fn interpret_float(
-    value: f64,
-    representation: FloatType,
-    origin: &Origin,
-) -> Result<ScalarValue, TypeError> {
-    representation
-        .represent(value)
-        .ok_or_else(|| TypeError::FloatRange {
-            representation,
-            value,
-            origin: origin.clone(),
-        })
+fn interpret_float(value: f64, representation: FloatType, origin: &Origin) -> Result<ScalarValue, TypeError> {
+    representation.represent(value).ok_or_else(|| TypeError::FloatRange {
+        representation,
+        value,
+        origin: origin.clone(),
+    })
 }
 
 /// Convert an unannotated or custom-annotated KDL value without narrowing it.
 fn natural_value(value: &KdlValue) -> ScalarValue {
     match value {
-        KdlValue::Null => ScalarValue::Null,
-        KdlValue::Bool(value) => ScalarValue::Bool(*value),
-        KdlValue::String(value) => ScalarValue::String(value.clone()),
-        KdlValue::Integer(value) => ScalarValue::Integer(*value),
-        KdlValue::Float(value) => ScalarValue::F64(*value),
+        &KdlValue::Null => ScalarValue::Null,
+        &KdlValue::Bool(value) => ScalarValue::Bool(value),
+        &KdlValue::String(ref value) => ScalarValue::String(value.clone()),
+        &KdlValue::Integer(value) => ScalarValue::Integer(value),
+        &KdlValue::Float(value) => ScalarValue::F64(value),
     }
 }
 
 /// Determine the scalar kind of a raw KDL value.
 const fn scalar_kind(value: &KdlValue) -> ScalarKind {
     match value {
-        KdlValue::Null => ScalarKind::Null,
-        KdlValue::Bool(..) => ScalarKind::Bool,
-        KdlValue::String(..) => ScalarKind::String,
-        KdlValue::Integer(..) => ScalarKind::Integer,
-        KdlValue::Float(..) => ScalarKind::Float,
+        &KdlValue::Null => ScalarKind::Null,
+        &KdlValue::Bool(..) => ScalarKind::Bool,
+        &KdlValue::String(..) => ScalarKind::String,
+        &KdlValue::Integer(..) => ScalarKind::Integer,
+        &KdlValue::Float(..) => ScalarKind::Float,
     }
 }

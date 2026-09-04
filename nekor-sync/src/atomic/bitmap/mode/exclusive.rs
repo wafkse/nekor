@@ -10,7 +10,6 @@ use core::{
 };
 
 use nekor_backoff::prelude::Retry;
-
 use nekor_bitwise::prelude::{BitDyn, Selected, State};
 
 use crate::atomic::bitmap::{
@@ -82,7 +81,6 @@ pub enum Exclusive {}
 // and thread-safe.
 unsafe impl Mode for Exclusive {
     type Signal = Outcome;
-
     type State = Retry;
 
     #[inline]
@@ -96,23 +94,18 @@ unsafe impl Mode for Exclusive {
                 let bit_handle = BitDyn::wrap(&state_snapshot, bit_indice);
 
                 if bit_handle.state() == State::Set {
-                    match target_atomic.compare_exchange(
-                        state_snapshot,
-                        bit_handle.cleared(),
-                        AcqRel,
-                        Acquire,
-                    ) {
+                    match target_atomic.compare_exchange(state_snapshot, bit_handle.cleared(), AcqRel, Acquire) {
                         Ok(successful_snapshot) => Outcome::Success(successful_snapshot),
                         Err(latest_snapshot) => {
-                            let _ = backoff_cycle();
+                            backoff_cycle();
 
                             Outcome::Failure(Reason::Contended, latest_snapshot)
-                        }
+                        },
                     }
                 } else {
                     Outcome::Failure(Reason::Unchanged, state_snapshot)
                 }
-            }
+            },
             ControlFlow::Break(..) => Outcome::Failure(Reason::Limited, state_snapshot),
         }
     }
@@ -128,23 +121,18 @@ unsafe impl Mode for Exclusive {
                 let bit_handle = BitDyn::wrap(&state_snapshot, bit_indice);
 
                 if bit_handle.state() == State::Cleared {
-                    match target_atomic.compare_exchange(
-                        state_snapshot,
-                        bit_handle.enabled(),
-                        AcqRel,
-                        Acquire,
-                    ) {
+                    match target_atomic.compare_exchange(state_snapshot, bit_handle.enabled(), AcqRel, Acquire) {
                         Ok(successful_snapshot) => Outcome::Success(successful_snapshot),
                         Err(latest_snapshot) => {
-                            let _ = backoff_cycle();
+                            backoff_cycle();
 
                             Outcome::Failure(Reason::Contended, latest_snapshot)
-                        }
+                        },
                     }
                 } else {
                     Outcome::Failure(Reason::Unchanged, state_snapshot)
                 }
-            }
+            },
             ControlFlow::Break(..) => Outcome::Failure(Reason::Limited, state_snapshot),
         }
     }

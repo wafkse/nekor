@@ -3,25 +3,24 @@
 // TODO: Implement base data structures in bare arch crate. This needs APIC and
 // x2APIC support for IPIs.
 
-use nekor_bitwise::prelude::{BitMut, Counterpart, Field, FieldMut, State};
-
 use core::{arch, ptr::NonNull};
+
+use nekor_bitwise::prelude::{BitMut, Counterpart, Field, FieldMut, State};
 
 /// Monitor a select memory address through the `monitor` instruction.
 ///
 /// # Safety
 ///
-/// - The caller must have a `Current Privilege Level` of `0`, however, this is
-///   not required if the (in the AMD namespace-based naming convention)
-///   `Core::X86::Msr::HWCR[MonMwaitUserEn]` model-specific register bit is set.
+/// - The caller must have a `Current Privilege Level` of `0`, however, this is not required if the
+///   (in the AMD namespace-based naming convention) `Core::X86::Msr::HWCR[MonMwaitUserEn]`
+///   model-specific register bit is set.
 ///
 /// - The [`Monitor`] feature must be present.
 ///
 ///
-/// - The specified address must be readable in the active processor context,
-///   however, note that this is not the same as Rust-specific guarantees, the
-///   processor simply performs access control, but does not fetch or write to
-///   the memory in any way.
+/// - The specified address must be readable in the active processor context, however, note that
+///   this is not the same as Rust-specific guarantees, the processor simply performs access
+///   control, but does not fetch or write to the memory in any way.
 ///
 /// [`Monitor`]: nekor_aal_feature::arch::x86::qualified::Monitor
 #[inline]
@@ -37,7 +36,7 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
             in("eax") target_address.as_ptr(),
             in("ecx") usize::MIN,
             in("edx") usize::MIN,
-            options(nostack, readonly, preserves_flags)
+            options(nostack, readonly, preserves_flags, att_syntax)
         )
     }
 
@@ -51,7 +50,7 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
             in("rax") target_address.as_ptr(),
             in("rcx") usize::MIN,
             in("rdx") usize::MIN,
-            options(nostack, readonly, preserves_flags)
+            options(nostack, readonly, preserves_flags, att_syntax)
         );
     }
 }
@@ -81,10 +80,7 @@ pub unsafe fn mwait() {
 pub fn pause() {
     // SAFETY: The `pause` instruction introduces non-safety-altering behavior.
     unsafe {
-        arch::asm!(
-            "pause",
-            options(nomem, nostack, preserves_flags, att_syntax)
-        );
+        arch::asm!("pause", options(nomem, nostack, preserves_flags, att_syntax));
     }
 }
 
@@ -180,13 +176,11 @@ pub unsafe fn tpause(wait_state: Cstate, target_deadline: u64) {
 /// To guarantee the safety of this operation, the caller must ensure that all
 /// of the following are satisfied:
 ///
-/// - The condition (in AMD CPUID leaf-as-function notation) `CPUID
-///   Fn8000_0001_ECX[MONITORX](bit
+/// - The condition (in AMD CPUID leaf-as-function notation) `CPUID Fn8000_0001_ECX[MONITORX](bit
 ///   29) = 1` to be true.
-/// - The specified address must be readable in the active processor context.
-///   Note that this is not the same as Rust-specific guarantees, the processor
-///   simply performs access control, but does not fetch or write to the memory
-///   in any way.
+/// - The specified address must be readable in the active processor context. Note that this is not
+///   the same as Rust-specific guarantees, the processor simply performs access control, but does
+///   not fetch or write to the memory in any way.
 #[inline]
 pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
     /// The hint flags provided to the `monitorx` instruction.
@@ -210,7 +204,7 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
             in("edx") NO_MONITORX_HINTS,
             in("ecx") NO_MONITORX_EXTENSIONS,
             in("rax") target_address.as_ptr(),
-            options(nostack)
+            options(nostack, att_syntax)
         );
     }
 }
@@ -222,8 +216,7 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
 /// This is a partially-privileged instruction, therefore, the caller must
 /// satisfy either of:
 ///
-/// - The *Time Stamp Disable* (TSD) bit in the `cr4` control register is
-///   cleared.
+/// - The *Time Stamp Disable* (TSD) bit in the `cr4` control register is cleared.
 /// - ..or the current *Current Privilege Level* is `Ring0`.
 #[inline]
 #[must_use]

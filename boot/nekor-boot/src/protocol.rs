@@ -54,8 +54,8 @@ impl Eq for Slug {}
 ///
 /// # Safety
 ///
-/// * The implementor type of this trait is required to be `repr(C)`, for a
-///   stable Application Binary Interface.
+/// * The implementor type of this trait is required to be `repr(C)`, for a stable Application
+///   Binary Interface.
 pub unsafe trait Protocol {}
 
 /// A trait that describes a boot-protocol request-response structure sequence.

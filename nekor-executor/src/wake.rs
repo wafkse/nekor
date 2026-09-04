@@ -2,12 +2,11 @@
 //!
 //! # Terminology
 //!
-//! - A *wake source* is an external trigger that can make one or more tasks
-//!   runnable.
+//! - A *wake source* is an external trigger that can make one or more tasks runnable.
 //! - A *wake sink* is the task affected by a wake source.
 //! - A *sleeper* is a task with an active registration in a wake source.
-//! - A *wake target* is a validated static data pointer paired with one of the
-//!   executor's supported wake classes.
+//! - A *wake target* is a validated static data pointer paired with one of the executor's supported
+//!   wake classes.
 //!
 //! # Executor assumptions
 //!
@@ -46,6 +45,8 @@
 
 pub mod list;
 
+#[cfg(test)]
+use core::sync::atomic::AtomicUsize;
 use core::{
     fmt,
     mem::ManuallyDrop,
@@ -79,8 +80,7 @@ pub static VTABLE: RawWakerVTable = const {
     /// `task` must have been sourced from a valid `&'static Task`.
     unsafe fn wake(task: *const ()) {
         // SAFETY: The vtable contract requires a valid static task address.
-        let target_task =
-            unsafe { NonNull::<Task>::new_unchecked(task.cast::<Task>().cast_mut()).as_ref() };
+        let target_task = unsafe { NonNull::<Task>::new_unchecked(task.cast::<Task>().cast_mut()).as_ref() };
 
         // TODO: Preserve a durable pending indication when the run queue is busy
         // or full.
@@ -113,7 +113,7 @@ pub(super) static TEST_VTABLE: RawWakerVTable = const {
     ///
     /// `data` must address a static aligned `AtomicUsize`.
     unsafe fn wake(data: *const ()) {
-        let counter_address = data.cast_mut().cast::<core::sync::atomic::AtomicUsize>();
+        let counter_address = data.cast_mut().cast::<AtomicUsize>();
 
         // SAFETY: The test vtable contract requires this exact static pointee.
         let target_counter = unsafe { NonNull::new_unchecked(counter_address).as_ref() };
@@ -146,16 +146,16 @@ impl WakeClass {
     /// Determines the class assigned to a supported raw-waker table.
     #[inline]
     fn from_vtable(target_table: &'static RawWakerVTable) -> Option<Self> {
-        if ptr::eq(target_table, &raw const self::VTABLE) {
-            Some(Self::Task)
-        } else {
-            #[cfg(test)]
-            if ptr::eq(target_table, &raw const self::TEST_VTABLE) {
-                return Some(Self::Test);
-            }
-
-            None
+        if let Some(target) = ptr::eq(target_table, &raw const self::VTABLE).then_some(Self::Task) {
+            return Some(target);
         }
+
+        #[cfg(test)]
+        if ptr::eq(target_table, &raw const self::TEST_VTABLE) {
+            return Some(Self::Test);
+        }
+
+        None
     }
 
     /// Returns the raw-waker table assigned to this class.
@@ -172,11 +172,10 @@ impl WakeClass {
 // SAFETY: The three-bit mask reserves one contiguous low-bit field. The
 // logical value is exactly one `WakeClass` selected by `TagField`.
 unsafe impl Tag for WakeClass {
-    const MASK: usize = WAKE_TAG_MASK;
-
     type Type = TagField;
-
     type Value = Self;
+
+    const MASK: usize = WAKE_TAG_MASK;
 }
 
 // SAFETY: Every encoded class fits the reserved field. Decoding accepts exactly
@@ -200,7 +199,10 @@ unsafe impl Field for WakeClass {
 
 // NOTE(invariant): The task wake class uses a `Task` data pointer. The explicit
 // task alignment guarantees support for every bit required by `WakeClass`.
-const _: () = assert!(TaggedPointer::<Task, WakeClass>::pointee_supports_tag());
+const _: () = assert!(
+    TaggedPointer::<Task, WakeClass>::pointee_supports_tag(),
+    "task pointers must support WakeClass tags"
+);
 
 /// A validated static wake target from the kernel's supported class set.
 ///
@@ -293,12 +295,8 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn arm(&self, target_waker: WakeTarget) -> bool {
-        let Self(target_address) = self;
         let WakeTarget(tagged_target) = target_waker;
-
-        target_address
-            .swap(Some(tagged_target), Ordering::SeqCst)
-            .is_some()
+        self.0.swap(Some(tagged_target), Ordering::SeqCst).is_some()
     }
 
     /// Cancels the currently active target.
@@ -310,18 +308,14 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn cancel(&self) -> bool {
-        let Self(target_address) = self;
-
-        target_address.swap(None, Ordering::SeqCst).is_some()
+        self.0.swap(None, Ordering::SeqCst).is_some()
     }
 
     /// Determines whether this slot currently contains an active target.
     #[inline]
     #[must_use]
     pub fn is_armed(&self) -> bool {
-        let Self(target_address) = self;
-
-        !target_address.is_null(Ordering::SeqCst)
+        !self.0.is_null(Ordering::SeqCst)
     }
 
     /// Claims and invokes the currently active target.
@@ -333,9 +327,7 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn wake(&self) -> bool {
-        let Self(target_address) = self;
-
-        let Some(claimed_target) = target_address.swap(None, Ordering::SeqCst) else {
+        let Some(claimed_target) = self.0.swap(None, Ordering::SeqCst) else {
             return false;
         };
 

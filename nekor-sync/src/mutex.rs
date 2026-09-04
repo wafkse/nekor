@@ -31,8 +31,8 @@ use crate::mutex::{
 /// If a holding thread panics, it could either:
 ///
 /// - Remain locked away forever.
-/// - Be eventually unlocked, but with the ability to present itself or the
-///   underlying `T` with broken invariants.
+/// - Be eventually unlocked, but with the ability to present itself or the underlying `T` with
+///   broken invariants.
 #[derive(Debug)]
 pub struct Mutex<T> {
     /// The monitored [`usize`]-sized bitset used to manage the lock state.
@@ -60,8 +60,7 @@ impl<T> Mutex<T> {
     #[inline]
     pub const fn get_mut(&mut self) -> &mut T {
         let &mut Self {
-            ref mut target_value,
-            ..
+            ref mut target_value, ..
         } = self;
 
         target_value.get_mut()
@@ -78,11 +77,10 @@ impl<T> Mutex<T> {
     /// Lock the [`Mutex`], blocking as-needed.
     #[inline]
     pub fn lock(&self) -> Guard<'_, T> {
-        let Self { lock_state, .. } = self;
+        let &Self { ref lock_state, .. } = self;
 
-        let waited_state =
-            // SAFETY: The `Waited` token is used with the same `LockState`.
-            unsafe { Waiting::wait(LockState::acquire(lock_state))  };
+        // SAFETY: The `Waited` token is used with the same `LockState`.
+        let waited_state = unsafe { Waiting::wait(LockState::acquire(lock_state)) };
 
         // SAFETY: The `Occupied` was acquired from the same `Mutex`.
         unsafe {
@@ -95,19 +93,24 @@ impl<T> Mutex<T> {
 
 /// Require `T` to be [`Send`] for [`Mutex`] to be [`Send`], as `T` can be
 /// destructured from [`Mutex`].
+// SAFETY: Moving a `Mutex<T>` between threads moves its contained `T`, which
+// requires `T: Send`.
 unsafe impl<T: Send> Send for Mutex<T> {}
 
 /// [`Mutex`] provides mutable access to `T` to one thread at a time.
 ///
 /// However, this requires that `T` be [`Send`] for it to be safe.
+// SAFETY: The lock state grants mutable access to the `UnsafeCell<T>` to one
+// thread at a time, and sharing the mutex therefore requires only `T: Send`.
 unsafe impl<T: Send> Sync for Mutex<T> {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
+    use core::sync::atomic::{AtomicUsize, Ordering, fence};
+    use std::{sync::Barrier, thread};
+
     use super::*;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering, fence};
-    use std::thread;
 
     /// Test basic lock and unlock cycle
     #[test]
@@ -176,7 +179,7 @@ mod tests {
                     }
 
                     // Simulate work
-                    std::thread::yield_now();
+                    thread::yield_now();
 
                     // Exit critical section
                     in_critical_section.fetch_sub(1, Ordering::SeqCst);
@@ -223,7 +226,7 @@ mod tests {
     /// Test that no data races occur with Vec operations
     #[test]
     fn no_data_races_with_vec() {
-        let mutex = Arc::new(Mutex::new(vec![0u8; 100]));
+        let mutex = Arc::new(Mutex::new(vec![0_u8; 100]));
         let mut handles = vec![];
 
         for thread_id in 0..8 {
@@ -240,10 +243,7 @@ mod tests {
                     // Verify consistency - all elements should be the same
                     let first = guard[0];
                     for elem in guard.iter() {
-                        assert_eq!(
-                            *elem, first,
-                            "data race detected - inconsistent array state"
-                        );
+                        assert_eq!(*elem, first, "data race detected - inconsistent array state");
                     }
                 }
             }));
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn all_threads_acquire_successfully() {
         let mutex = Arc::new(Mutex::new(Vec::new()));
-        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let barrier = Arc::new(Barrier::new(8));
         let mut handles = vec![];
 
         for thread_id in 0..8 {
@@ -302,7 +302,7 @@ mod tests {
     /// Test concurrent mixed increment/decrement operations
     #[test]
     fn concurrent_mixed_operations() {
-        let mutex = Arc::new(Mutex::new(0i32));
+        let mutex = Arc::new(Mutex::new(0_i32));
         let mut handles = vec![];
 
         // 5 threads incrementing
@@ -467,16 +467,26 @@ mod tests {
     #[test]
     #[should_panic(expected = "intentional panic")]
     fn panic_while_holding_lock() {
+        use core::hint::black_box;
+
         let mutex = Mutex::new(0);
         let _guard = mutex.lock();
-        assert!(std::hint::black_box(false), "intentional panic");
+        assert!(black_box(false), "intentional panic");
     }
 
     /// Test Send + Sync bounds are correct
     #[test]
     fn send_sync_bounds() {
-        fn assert_send<T: Send>() {}
-        fn assert_sync<T: Sync>() {}
+        fn assert_send<T>()
+        where
+            T: Send,
+        {
+        }
+        fn assert_sync<T>()
+        where
+            T: Sync,
+        {
+        }
 
         assert_send::<Mutex<i32>>();
         assert_sync::<Mutex<i32>>();
@@ -561,7 +571,7 @@ mod tests {
                     if i % 2 == 0 {
                         *guard += 1;
                     } else {
-                        let _ = *guard; // Just read
+                        let _: usize = *guard; // Just read
                     }
                 }
             }));

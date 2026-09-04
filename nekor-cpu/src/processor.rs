@@ -5,7 +5,6 @@ use core::{
 };
 
 use nekor_aal::local::prelude::Area;
-
 use nekor_domain::zeroed::{Zeroable, Zeroed};
 
 use crate::{domain::Cpu, limit::Cores};
@@ -47,12 +46,11 @@ impl Handout {
     /// Although this associated function does allow a core to acquire a
     /// [`CoreId`] on behalf of other, however, it must guarantee that:
     ///
-    /// - It does not access per-CPU data assigned to the same [`CoreId`] while
-    ///   the other is online.
+    /// - It does not access per-CPU data assigned to the same [`CoreId`] while the other is online.
     /// - The [`CoreId`] is written to the per-CPU [`Area`] structure.
     #[inline]
     pub unsafe fn acquire(&self) -> Option<CoreId> {
-        let Self(target_counter) = self;
+        let target_counter = &self.0;
 
         let mut target_value = target_counter.load(Ordering::Acquire);
 
@@ -87,7 +85,7 @@ impl Handout {
     /// is assigned to it.
     #[inline]
     pub unsafe fn revoke(&self, target_id: CoreId) -> Reutilization {
-        let Self(target_counter) = self;
+        let target_counter = &self.0;
 
         let CoreId(revoked_id) = target_id;
 
@@ -99,7 +97,7 @@ impl Handout {
             // NOTE(underflow): Will never underflow due to previous
             // preliminary check.
             if (snapshot_value - 1) == revoked_id {
-                let _ = target_counter.fetch_sub(1, Ordering::AcqRel);
+                target_counter.fetch_sub(1, Ordering::AcqRel);
 
                 Reutilization::Yes
             } else {
@@ -130,9 +128,7 @@ impl Deref for CoreId {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_id) = self;
-
-        target_id
+        &self.0
     }
 }
 

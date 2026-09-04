@@ -6,16 +6,14 @@ use core::{
 };
 
 use nekor_aal::signal::prelude::Monitored;
-
 use nekor_backoff::{prelude::Backoff, retry::Retry};
-
 use nekor_sync::atomic::bitmap::{
     AtomicBitmap,
     at::At,
     conditional::{Status, Unset},
     mode::{
         Mode,
-        cooperative::Cooperative,
+        cooperative::{Cooperative, Snapshot},
         exclusive::{Exclusive, Outcome, Reason},
     },
     typeutil::{BitMapUsize, InBound},
@@ -54,10 +52,7 @@ where
 
     /// Attempt to acquire a reserve in the queue backed by the target
     /// [`SlotState`], with explicit backoff and limit imposition.
-    fn reserve_with(
-        target_state: &'a SlotState<N>,
-        backoff_state: &mut <Exclusive as Mode>::State,
-    ) -> Option<Self> {
+    fn reserve_with(target_state: &'a SlotState<N>, backoff_state: &mut <Exclusive as Mode>::State) -> Option<Self> {
         let (ref reserve_state, ref initialization_state) = (
             SlotState::reserve(target_state),
             SlotState::initialization(target_state),
@@ -69,20 +64,15 @@ where
         });
 
         loop {
-            let reserve_at = AtomicBitmap::at_rightmost(reserve_state).map_or_else(
-                || AtomicBitmap::try_at(reserve_state, initial_index),
-                At::right,
-            );
+            let reserve_at = AtomicBitmap::at_rightmost(reserve_state)
+                .map_or_else(|| AtomicBitmap::try_at(reserve_state, initial_index), At::right);
 
             match reserve_at.filter(SlotState::<N>::filter) {
                 Some(ref reserve_at) => match reserve_at.one_with::<Exclusive>(backoff_state) {
                     Outcome::Success(..) => {
                         let reserve_index = At::index(reserve_at);
 
-                        while AtomicBitmap::condition(
-                            initialization_state,
-                            Unset(1 << reserve_index),
-                        ) == Status::Unmet
+                        while AtomicBitmap::condition(initialization_state, Unset(1 << reserve_index)) == Status::Unmet
                         {
                             Monitored::wait(AtomicBitmap::monitor(initialization_state));
                         }
@@ -92,7 +82,7 @@ where
                             queue_state: target_state,
                             marker: marker::PhantomData,
                         });
-                    }
+                    },
                     Outcome::Failure(Reason::Unchanged, ..) => unreachable!(),
                     Outcome::Failure(Reason::Contended, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => break None,
@@ -141,12 +131,13 @@ where
 
         MaybeUninit::write(uninit_ref, target_value);
 
-        let _ = InitializationState::bitmap(queue_state.initialization())
+        let _: Snapshot = InitializationState::bitmap(queue_state.initialization())
             .at(reserve_index)
             .one::<Cooperative>();
     }
 }
 
+/// A queue slot acquired for dequeue.
 struct Acquired<'a, const N: usize, T>
 where
     BitMapUsize<N>: InBound,
@@ -174,10 +165,7 @@ where
 
     /// Attempt to acquire a reserve in the queue backed by the target
     /// [`SlotState`], with explicit backoff and limit imposition.
-    fn acquire_with(
-        target_state: &'a SlotState<N>,
-        backoff_state: &mut <Exclusive as Mode>::State,
-    ) -> Option<Self> {
+    fn acquire_with(target_state: &'a SlotState<N>, backoff_state: &mut <Exclusive as Mode>::State) -> Option<Self> {
         let initialization_state = &SlotState::initialization(target_state);
 
         loop {
@@ -190,7 +178,7 @@ where
                             acquired_index: init_at.index(),
                             marker: marker::PhantomData,
                         });
-                    }
+                    },
 
                     Outcome::Failure(Reason::Unchanged | Reason::Contended, ..) => (),
 
@@ -232,11 +220,10 @@ where
 /// # FIFO Ordering
 ///
 /// The queue maintains FIFO ordering through its bitmap operations:
-/// - Enqueue finds slots using rightmost-one + right (or MSB if empty), growing
-///   leftward.
+/// - Enqueue finds slots using rightmost-one + right (or MSB if empty), growing leftward.
 /// - Dequeue finds slots using leftmost-one, consuming from the oldest end.
 #[derive(Debug)]
-pub struct Queue<T, const N: usize = { usize::BITS as _ }>
+pub struct Queue<T, const N: usize = { usize::BITS as usize }>
 where
     BitMapUsize<N>: InBound,
 {
@@ -304,17 +291,15 @@ where
     /// # Busy vs Full
     ///
     /// - *Full*: All `N` slots are actively in use (reserved or initialized).
-    /// - *Busy*: Concurrent operations and inherent bitmap positional layout
-    ///   are preventing progress, but slots may become available in the future.
+    /// - *Busy*: Concurrent operations and inherent bitmap positional layout are preventing
+    ///   progress, but slots may become available in the future.
     ///
     /// In most cases, retrying after a brief delay will succeed once dequeue
     /// operations complete.
     #[inline]
     pub fn enqueue(&self, target_value: T) -> Result<(), BusyOrFull<T>> {
-        let Self {
-            slot_state,
-            target_storage,
-        } = self;
+        let slot_state = &self.slot_state;
+        let target_storage = &self.target_storage;
 
         match Reserved::<N, T>::reserve(slot_state) {
             Some(reserved) => {
@@ -323,7 +308,7 @@ where
                 unsafe { Initialized::slot(reserved, target_value, target_storage) };
 
                 Ok(())
-            }
+            },
             None => Err(BusyOrFull(target_value)),
         }
     }
@@ -344,10 +329,8 @@ where
     /// yet been dequeued, maintaining strict FIFO semantics.
     #[inline]
     pub fn dequeue(&self) -> Option<T> {
-        let Self {
-            slot_state,
-            target_storage,
-        } = self;
+        let slot_state = &self.slot_state;
+        let target_storage = &self.target_storage;
 
         let Acquired { acquired_index, .. } = Acquired::<N, T>::acquire(slot_state)?;
         let Some(mut target_storage) = target_storage
@@ -367,7 +350,7 @@ where
 
         // The reservation bit is exclusively owned after consuming its
         // initialization bit, so the clear cannot be contended away.
-        let _ = ReserveState::bitmap(slot_state.reserve())
+        let _: Snapshot = ReserveState::bitmap(slot_state.reserve())
             .at(acquired_index)
             .zero::<Cooperative>();
 
@@ -399,7 +382,7 @@ where
         let init_snapshot = slot_state.initialization().snapshot();
 
         for slot_index in 0..N {
-            let slot_mask = 1usize << slot_index;
+            let slot_mask = 1_usize << slot_index;
 
             // Check if this slot is initialized.
             if (init_snapshot & slot_mask) != 0 {
@@ -407,7 +390,7 @@ where
                 unsafe {
                     let target_slot = target_storage.get_unchecked_mut(slot_index).get_mut();
 
-                    let _ = target_slot.assume_init_read();
+                    drop(target_slot.assume_init_read());
                     // Value is dropped here automatically
                 }
             }
@@ -430,19 +413,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new_queue_is_empty() {
+    fn new_queue_is_empty() {
         let queue: Queue<i32, 8> = Queue::new();
         assert!(queue.dequeue().is_none());
     }
 
     #[test]
-    fn test_enqueue_single_element() {
+    fn enqueue_single_element() {
         let queue: Queue<i32, 8> = Queue::new();
         assert!(queue.enqueue(42).is_ok());
     }
 
     #[test]
-    fn test_enqueue_dequeue_single_element() {
+    fn enqueue_dequeue_single_element() {
         let queue: Queue<i32, 8> = Queue::new();
         assert!(queue.enqueue(42).is_ok());
         assert_eq!(queue.dequeue(), Some(42));
@@ -450,7 +433,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enqueue_dequeue_multiple_elements() {
+    fn enqueue_dequeue_multiple_elements() {
         let queue: Queue<i32, 8> = Queue::new();
 
         for i in 0..5 {
@@ -465,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enqueue_until_full() {
+    fn enqueue_until_full() {
         let queue: Queue<i32, 8> = Queue::new();
 
         // Fill the queue
@@ -478,7 +461,7 @@ mod tests {
     }
 
     #[test]
-    fn test_queue_fifo_ordering() {
+    fn queue_fifo_ordering() {
         let queue: Queue<i32, 16> = Queue::new();
 
         // Enqueue elements 0..10
@@ -493,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interleaved_enqueue_dequeue() {
+    fn interleaved_enqueue_dequeue() {
         let queue: Queue<i32, 8> = Queue::new();
 
         assert!(queue.enqueue(1).is_ok());
@@ -506,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_and_drain_cycle() {
+    fn fill_and_drain_cycle() {
         let queue: Queue<i32, 8> = Queue::new();
 
         // First cycle
@@ -527,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn test_queue_with_non_copy_types() {
+    fn queue_with_non_copy_types() {
         let queue: Queue<String, 8> = Queue::new();
 
         assert!(queue.enqueue(String::from("hello")).is_ok());
@@ -539,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drop_semantics() {
+    fn drop_semantics() {
         use core::sync::atomic::{AtomicUsize, Ordering};
 
         static DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -561,7 +544,7 @@ mod tests {
             }
 
             for _ in 0..3 {
-                let _ = queue.dequeue();
+                drop(queue.dequeue());
             }
 
             // 3 items dropped so far

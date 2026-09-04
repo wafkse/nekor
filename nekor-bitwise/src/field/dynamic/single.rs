@@ -120,6 +120,7 @@ where
 
         <B as BitOp>::get(*target_value, *target_indice)
     }
+
     /// Determine whether the current bit [`State`] is the one provided.
     #[inline]
     #[must_use]

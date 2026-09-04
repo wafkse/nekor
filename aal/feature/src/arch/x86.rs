@@ -1,23 +1,21 @@
 //! `x86` architecture support.
 
+#[cfg(target_arch = "x86")]
+use core::arch::x86::{__cpuid_count, CpuidResult};
+#[cfg(target_arch = "x86_64")]
+use core::arch::x86_64::{__cpuid_count, CpuidResult};
 use core::marker;
 
 use nekor_bitwise::prelude::{Extract, Field, For2, Size};
-
 use nekor_domain::{
     arch::InitializationStage,
     store::{Static, Store},
 };
 use nekor_primitive::scalar::Scalar;
 
-#[cfg(target_arch = "x86")]
-use core::arch::x86::{__cpuid_count, CpuidResult};
-
-#[cfg(target_arch = "x86_64")]
-use core::arch::x86_64::{__cpuid_count, CpuidResult};
-
 pub mod qualified;
 
+/// Private sealing implementation for architecture-specific feature outputs.
 mod private {
     /// A sealed trait for [`Output`] use.
     ///
@@ -75,11 +73,8 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cached for Cpuid<LEAF, SUBLEAF> {
 
     #[inline]
     fn cached() -> Option<Self> {
-        if Static::raw_stage::<Self>() == InitializationStage::Initialized {
-            Some(*Static::value_with::<Self, _>(|| unreachable!()))
-        } else {
-            None
-        }
+        (Static::raw_stage::<Self>() == InitializationStage::Initialized)
+            .then(|| *Static::value_with::<Self, _>(|| unreachable!()))
     }
 }
 

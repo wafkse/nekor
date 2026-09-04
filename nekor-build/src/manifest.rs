@@ -1,12 +1,13 @@
-use std::{
+use alloc::collections::BTreeMap;
+use core::{
     borrow::Borrow,
-    collections::BTreeMap,
+    convert::Infallible,
     fmt,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 use cargo_metadata::camino::{Utf8Path, Utf8PathBuf};
-
 use serde::{Deserialize, Serialize};
 
 /// A build manifest.
@@ -24,7 +25,7 @@ impl Manifest {
     #[inline]
     #[must_use]
     pub const fn build(&self) -> &ManifestBuildInfo {
-        let Self { build, .. } = self;
+        let &Self { ref build, .. } = self;
 
         build
     }
@@ -33,7 +34,7 @@ impl Manifest {
     #[inline]
     #[must_use]
     pub const fn platform(&self) -> &PlatformDatabase {
-        let Self { platform, .. } = self;
+        let &Self { ref platform, .. } = self;
 
         platform
     }
@@ -50,7 +51,7 @@ impl ManifestBuildInfo {
     #[inline]
     #[must_use]
     pub const fn platform(&self) -> Option<&PlatformName> {
-        let Self { default, .. } = self;
+        let &Self { ref default, .. } = self;
 
         default.as_ref()
     }
@@ -73,7 +74,7 @@ impl PlatformName {
     #[inline]
     #[must_use]
     pub const fn as_str(&self) -> &str {
-        let Self(value) = self;
+        let &Self(ref value) = self;
 
         value.as_str()
     }
@@ -92,8 +93,8 @@ impl Borrow<str> for PlatformName {
     }
 }
 
-impl std::str::FromStr for PlatformName {
-    type Err = std::convert::Infallible;
+impl FromStr for PlatformName {
+    type Err = Infallible;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(value))
@@ -122,7 +123,7 @@ impl Deref for PlatformDatabase {
     type Target = BTreeMap<PlatformName, PlatformDesc>;
 
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value
     }
@@ -130,7 +131,7 @@ impl Deref for PlatformDatabase {
 
 impl DerefMut for PlatformDatabase {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let Self(target_value) = self;
+        let &mut Self(ref mut target_value) = self;
 
         target_value
     }
@@ -157,7 +158,7 @@ impl PlatformDesc {
     #[inline]
     #[must_use]
     pub const fn name(&self) -> &PlatformName {
-        let Self { name, .. } = self;
+        let &Self { ref name, .. } = self;
 
         name
     }
@@ -166,7 +167,7 @@ impl PlatformDesc {
     #[inline]
     #[must_use]
     pub fn path(&self) -> &Utf8Path {
-        let Self { path, .. } = self;
+        let &Self { ref path, .. } = self;
 
         path.as_path()
     }
@@ -175,7 +176,7 @@ impl PlatformDesc {
     #[inline]
     #[must_use]
     pub const fn base(&self) -> Option<&PlatformName> {
-        let Self { base, .. } = self;
+        let &Self { ref base, .. } = self;
 
         base.as_ref()
     }
@@ -184,7 +185,7 @@ impl PlatformDesc {
     #[inline]
     #[must_use]
     pub fn description(&self) -> Option<&str> {
-        let Self { description, .. } = self;
+        let &Self { ref description, .. } = self;
 
         description.as_deref()
     }

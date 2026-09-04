@@ -27,11 +27,10 @@ pub unsafe trait Contextual {}
 /// through a combination of Rust's privacy system and Application Binary
 /// Interface (ABI) guarantees:
 ///
-/// 1. **Unforgeability:** The internal data is completely private. Because
-///    there is no public constructor, it is mathematically impossible for safe
-///    Rust code to construct a `LowLevel<T>`.
-/// 2. **Hardware Transparency:** Because it is marked `#[repr(transparent)]`,
-///    the struct is binary-compatible with `T`.
+/// 1. **Unforgeability:** The internal data is completely private. Because there is no public
+///    constructor, it is mathematically impossible for safe Rust code to construct a `LowLevel<T>`.
+/// 2. **Hardware Transparency:** Because it is marked `#[repr(transparent)]`, the struct is
+///    binary-compatible with `T`.
 ///
 /// This combination creates an "Assembly Loophole." When a naked assembly
 /// stub executes a transition (e.g., reading an error code into `%rdi` and
@@ -67,7 +66,7 @@ pub unsafe trait Contextual {}
 /// pub struct NmiContext<T>(
 ///     pub LowLevel<T>,
 ///     // NOTE(invariant): This is to remain private to avoid a public constructor.
-///     PhantomData<Self>
+///     PhantomData<Self>,
 /// );
 /// ```
 ///
@@ -82,14 +81,12 @@ pub unsafe trait Contextual {}
 /// This type utilizes `core::marker::PhantomData<*mut ()>` to enforce correct
 /// compiler behavior:
 ///
-/// * **Covariance:** The type is covariant over `T`. If `T` contains a lifetime
-///   (e.g., `&'a State`), standard lifetime subtyping applies, preventing
-///   unnecessary compiler friction.
-/// * **Thread Isolation:** The `*mut ()` marker ensures the type is `!Send` and
-///   `!Sync`. A low-level token is inextricably bound to the specific hardware
-///   execution thread that birthed it. It cannot be safely sent to another CPU
-///   core or user-space thread where the original hardware invariants no longer
-///   apply.
+/// * **Covariance:** The type is covariant over `T`. If `T` contains a lifetime (e.g., `&'a
+///   State`), standard lifetime subtyping applies, preventing unnecessary compiler friction.
+/// * **Thread Isolation:** The `*mut ()` marker ensures the type is `!Send` and `!Sync`. A
+///   low-level token is inextricably bound to the specific hardware execution thread that birthed
+///   it. It cannot be safely sent to another CPU core or user-space thread where the original
+///   hardware invariants no longer apply.
 #[repr(transparent)]
 pub struct LowLevel<T>(
     pub T,

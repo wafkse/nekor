@@ -61,7 +61,7 @@ impl AtomicBitmap {
     /// [`usize`].
     #[inline]
     pub fn try_at(&self, at_index: u32) -> Option<At<'_>> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // SAFETY: The snapshot is loaded with a memory ordering of `Acquire`.
         unsafe { self.try_at_with(at_index, target_value.load(Acquire)) }
@@ -79,12 +79,8 @@ impl AtomicBitmap {
     /// The provided snapshot must have been obtained from this
     /// [`AtomicBitmap`], with a memory ordering [`Acquire`] or stronger.
     #[inline]
-    pub const unsafe fn try_at_with(
-        &self,
-        at_index: u32,
-        target_snapshot: usize,
-    ) -> Option<At<'_>> {
-        let Self(target_value) = self;
+    pub const unsafe fn try_at_with(&self, at_index: u32, target_snapshot: usize) -> Option<At<'_>> {
+        let &Self(ref target_value) = self;
 
         match at_index {
             0..usize::BITS => Some(At(target_value, target_snapshot, at_index)),
@@ -100,7 +96,7 @@ impl AtomicBitmap {
     /// [`usize`].
     #[inline]
     pub fn at(&self, at_index: u32) -> At<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // SAFETY: The snapshot is loaded with a memory ordering of `Acquire`.
         unsafe { Self::at_with(self, at_index, target_value.load(Acquire)) }
@@ -136,7 +132,7 @@ impl AtomicBitmap {
     /// This will be [`None`] if no bits are set in the bitmap.
     #[inline]
     pub fn at_rightmost(&self) -> Option<At<'_>> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // SAFETY: The snapshot is loaded with a memory ordering of `Acquire`.
         unsafe { self.at_rightmost_with(target_value.load(Acquire)) }
@@ -157,17 +153,11 @@ impl AtomicBitmap {
     /// [`AtomicBitmap`], with a memory ordering [`Acquire`] or stronger.
     #[inline]
     pub unsafe fn at_rightmost_with(&self, target_snapshot: usize) -> Option<At<'_>> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         NonZero::<usize>::new(target_snapshot)
             .map(NonZero::get)
-            .map(|target_snapshot| {
-                At(
-                    target_value,
-                    target_snapshot,
-                    usize::trailing_zeros(target_snapshot),
-                )
-            })
+            .map(|target_snapshot| At(target_value, target_snapshot, usize::trailing_zeros(target_snapshot)))
     }
 
     /// Engage with the most significant bit that is set in the
@@ -180,7 +170,7 @@ impl AtomicBitmap {
     /// This will be [`None`] if no bits are set in the bitmap.
     #[inline]
     pub fn at_leftmost(&self) -> Option<At<'_>> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // SAFETY: The snapshot is loaded with a memory ordering of `Acquire`.
         unsafe { self.at_leftmost_with(target_value.load(Acquire)) }
@@ -201,7 +191,7 @@ impl AtomicBitmap {
     /// ordering of `Acquire` or stronger.
     #[inline]
     pub unsafe fn at_leftmost_with(&self, target_snapshot: usize) -> Option<At<'_>> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         NonZero::<usize>::new(target_snapshot)
             .map(NonZero::get)
@@ -230,7 +220,7 @@ impl AtomicBitmap {
     where
         F: FnOnce(usize) -> Option<u32>,
     {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         let target_snapshot = target_value.load(Acquire);
 
@@ -245,7 +235,7 @@ impl AtomicBitmap {
     where
         BitIndex<N>: InBound,
     {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         let snapshot_value = target_value.load(Acquire);
 
@@ -268,7 +258,7 @@ impl AtomicBitmap {
     where
         BitIndex<N>: InBound,
     {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         // NOTE(invariant): The valid bit indice range is maintained by the
         // `BitIndex` generic bound.
@@ -283,7 +273,7 @@ impl AtomicBitmap {
     /// utilities for busy-waiting.
     #[inline]
     pub fn monitor(&self) -> Monitored<'_, AtomicUsize> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         Monitor::engage(target_value)
     }
@@ -302,7 +292,7 @@ impl AtomicBitmap {
     /// This makes use of the existing [`Monitor`] utilities.
     #[inline]
     pub fn wait(&self) {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         Monitored::wait(Monitor::engage(target_value));
     }
@@ -314,7 +304,7 @@ impl AtomicBitmap {
     where
         C: Condition,
     {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         C::determine(target_condition, target_value.load(Acquire))
     }
@@ -330,7 +320,7 @@ impl AtomicBitmap {
     /// atomic operations.
     #[inline]
     pub fn snapshot(&self) -> usize {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value.load(Relaxed)
     }

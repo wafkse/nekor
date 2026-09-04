@@ -2,6 +2,12 @@
 name = "nekor-executor"
 version.workspace = true
 edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 default = ["task-queue-size-8"]
@@ -30,7 +36,6 @@ nekor-sync = { workspace = true }
 nekor-domain = { workspace = true }
 nekor-aal = { workspace = true }
 
-tokel = { workspace = true }
 
 [lints]
 workspace = true

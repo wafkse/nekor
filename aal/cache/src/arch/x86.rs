@@ -8,12 +8,12 @@ use crate::line::Cacheline;
 ///
 /// # Safety
 ///
-/// - The provided pointer must be canonical as per the current `N`-level paging
-///   infrastructure.
+/// - The provided pointer must be canonical as per the current `N`-level paging infrastructure.
 /// - The provided pointer must be well-aligned.
 /// - The feature bit `CPUID.01H:EDX.CLFSH[bit 19]` must be set.
 #[inline]
 pub unsafe fn clflush(target_cacheline: NonNull<Cacheline>) {
+    // SAFETY: The caller guarantees the pointer and instruction feature are valid.
     unsafe {
         arch::asm!(
             "clflush [{0:r}]",
@@ -29,12 +29,12 @@ pub unsafe fn clflush(target_cacheline: NonNull<Cacheline>) {
 ///
 /// # Safety
 ///
-/// - The provided pointer must be canonical as per the current `N`-level paging
-///   infrastructure.
+/// - The provided pointer must be canonical as per the current `N`-level paging infrastructure.
 /// - The provided pointer must be well-aligned.
 /// - The feature bit `CPUID.(EAX=07H,ECX=0H):EBX[bit 23]` must be set.
 #[inline]
 pub unsafe fn clflushopt(target_cacheline: NonNull<Cacheline>) {
+    // SAFETY: The caller guarantees the pointer and instruction feature are valid.
     unsafe {
         arch::asm!(
             "clflushopt [{0:r}]",

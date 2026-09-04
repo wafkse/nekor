@@ -38,13 +38,12 @@ pub enum ReadFsgsbaseDelegator {}
 unsafe impl Delegator for ReadFsgsbaseDelegator {
     // NOTE: We use `rdmsr` by-default as it is readily available.
     type Target = RdmsrDelegate;
-
     type Value = RdmsrOrFsgsbase;
 
     fn choose(
         target_value: &'static Self::Value,
     ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output> {
-        match target_value {
+        match *target_value {
             RdmsrOrFsgsbase::Rdmsr => Chosen::delegated::<RdmsrDelegate>(),
             // FIXME: Sanity check for Fsgsbase feature here.
             RdmsrOrFsgsbase::Fsgsbase => Chosen::delegated::<RdFsgsbaseDelegate>(),
@@ -63,9 +62,10 @@ pub enum RdmsrDelegate {}
 ///
 /// This delegated implementation must only be called when the *Current
 /// Privilege Level* is zero. (*0*).
+// SAFETY: The trampoline is only used by low-level code executing at CPL 0,
+// which satisfies the delegate's architectural privilege requirement.
 unsafe impl Delegated for RdmsrDelegate {
     type Input = CsEntry<ffi::c_void>;
-
     type Output = FsGsBase;
 
     fn implementation(_: Self::Input) -> Self::Output {
@@ -113,9 +113,11 @@ pub enum RdFsgsbaseDelegate {}
 ///
 /// * The `CR4.FSGSBASE` enablement bit must be set (*1*).
 /// * The [`Fsgsbase`] architectural feature must available.
+// SAFETY: The trampoline is only used after the FSGSBASE architectural
+// feature has been enabled, which satisfies the delegate's instruction
+// availability requirement.
 unsafe impl Delegated for RdFsgsbaseDelegate {
     type Input = CsEntry<ffi::c_void>;
-
     type Output = FsGsBase;
 
     fn implementation(_: Self::Input) -> Self::Output {
@@ -132,12 +134,7 @@ unsafe impl Delegated for RdFsgsbaseDelegate {
         // SAFETY:
         // * The `CR4.FSGSBASE` enablement bit is set (*1*).
         // * The [`Fsgsbase`] architectural feature is available.
-        arch::naked_asm!(
-            "rdfsbaseq %rax",
-            "rdgsbaseq %rdx",
-            "retq",
-            options(att_syntax)
-        )
+        arch::naked_asm!("rdfsbaseq %rax", "rdgsbaseq %rdx", "retq", options(att_syntax))
     }
 }
 
@@ -163,13 +160,12 @@ pub enum WriteFsgsbaseDelegator {}
 unsafe impl Delegator for WriteFsgsbaseDelegator {
     // NOTE: We use `wrmsr` by-default as it is readily available.
     type Target = WrmsrDelegate;
-
     type Value = WrmsrOrFsgsbase;
 
     fn choose(
         target_value: &'static Self::Value,
     ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output> {
-        match target_value {
+        match *target_value {
             WrmsrOrFsgsbase::Wrmsr => Chosen::delegated::<WrmsrDelegate>(),
             // FIXME: Sanity check for Fsgsbase feature here.
             WrmsrOrFsgsbase::Fsgsbase => Chosen::delegated::<WrFsgsbaseDelegate>(),
@@ -188,9 +184,10 @@ pub enum WrmsrDelegate {}
 ///
 /// This delegated implementation must only be called when the *Current
 /// Privilege Level* is zero. (*0*).
+// SAFETY: The trampoline is only used by low-level code executing at CPL 0,
+// which satisfies the delegate's architectural privilege requirement.
 unsafe impl Delegated for WrmsrDelegate {
     type Input = CsEntry<FsGsBase>;
-
     type Output = ffi::c_void;
 
     fn implementation(_: Self::Input) -> Self::Output {
@@ -240,9 +237,11 @@ pub enum WrFsgsbaseDelegate {}
 ///
 /// * The `CR4.FSGSBASE` enablement bit must be set (*1*).
 /// * The [`Fsgsbase`] architectural feature must available.
+// SAFETY: The trampoline is only used after the FSGSBASE architectural
+// feature has been enabled, which satisfies the delegate's instruction
+// availability requirement.
 unsafe impl Delegated for WrFsgsbaseDelegate {
     type Input = CsEntry<FsGsBase>;
-
     type Output = ffi::c_void;
 
     fn implementation(_: Self::Input) -> Self::Output {

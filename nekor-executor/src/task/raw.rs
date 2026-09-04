@@ -4,10 +4,10 @@
 //!
 //! This does type-erasure in two stages:
 //!
-//! - By requiring an unit (`()`) [`output type`] for a target [`Future`],
-//!   `'static` lifetime, and [`Sync`]-ness.
-//! - By wrapping it inside a [`RawTask`], and providing an accessor type:
-//!   [`Erased`] and [`ErasedMut`].
+//! - By requiring an unit (`()`) [`output type`] for a target [`Future`], `'static` lifetime, and
+//!   [`Sync`]-ness.
+//! - By wrapping it inside a [`RawTask`], and providing an accessor type: [`Erased`] and
+//!   [`ErasedMut`].
 //!
 //! Note that even if arbitrary [`output type`]s are unsupported from the
 //! executor level, value-producing [`Future`]s can be simulated through the use
@@ -57,9 +57,7 @@ impl Deref for Erased<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
-
-        *target_value
+        self.0
     }
 }
 
@@ -72,18 +70,14 @@ impl Deref for ErasedMut<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
-
-        &**target_value
+        &*self.0
     }
 }
 
 impl DerefMut for ErasedMut<'_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let Self(target_value) = self;
-
-        &mut **target_value
+        &mut *self.0
     }
 }
 
@@ -104,9 +98,7 @@ impl RawTask {
     #[inline]
     #[must_use]
     pub const unsafe fn access(&self) -> Erased<'_> {
-        let Self(target_value) = self;
-
-        Erased(&**target_value)
+        Erased(&*self.0)
     }
 
     /// Access the underlying [`Schedulable`] trait object in an mutable manner.
@@ -117,9 +109,7 @@ impl RawTask {
     /// [`RawTask::access`].
     #[inline]
     pub const unsafe fn access_mut(&mut self) -> ErasedMut<'_> {
-        let Self(target_value) = self;
-
-        ErasedMut(&mut **target_value)
+        ErasedMut(&mut *self.0)
     }
 }
 

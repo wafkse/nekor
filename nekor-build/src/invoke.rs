@@ -1,14 +1,14 @@
+use core::mem;
 use std::{fs, io, thread};
 
 use cargo_metadata::{
     Metadata, MetadataCommand,
     camino::{Utf8Path, Utf8PathBuf},
 };
-
 use clap::Parser;
-
 use fack::prelude::Error;
 use serde::Deserialize;
+use toml::de::Error as TomlDeserializeError;
 
 use crate::{
     manifest::Manifest,
@@ -55,7 +55,7 @@ impl InvokeContext {
     #[inline]
     #[must_use]
     pub fn root(&self) -> &Utf8Path {
-        let Self { root, .. } = self;
+        let &Self { ref root, .. } = self;
 
         root.as_path()
     }
@@ -64,7 +64,7 @@ impl InvokeContext {
     #[inline]
     #[must_use]
     pub const fn metadata(&self) -> &RootMetadata {
-        let Self { metadata, .. } = self;
+        let &Self { ref metadata, .. } = self;
 
         metadata
     }
@@ -72,7 +72,7 @@ impl InvokeContext {
     /// Determine the root-level metadata provided, in a mutable manner.
     #[inline]
     pub const fn metadata_mut(&mut self) -> &mut RootMetadata {
-        let Self { metadata, .. } = self;
+        let &mut Self { ref mut metadata, .. } = self;
 
         metadata
     }
@@ -81,7 +81,7 @@ impl InvokeContext {
     #[inline]
     #[must_use]
     pub const fn manifest(&self) -> &Manifest {
-        let Self { manifest, .. } = self;
+        let &Self { ref manifest, .. } = self;
 
         manifest
     }
@@ -89,7 +89,7 @@ impl InvokeContext {
     /// Determine the build manifest, in a mutable manner.
     #[inline]
     pub const fn manifest_mut(&mut self) -> &mut Manifest {
-        let Self { manifest, .. } = self;
+        let &mut Self { ref mut manifest, .. } = self;
 
         manifest
     }
@@ -98,8 +98,8 @@ impl InvokeContext {
     #[inline]
     #[must_use]
     pub const fn orchestrate(&self) -> &OrchestrationContext {
-        let Self {
-            orchestrate_context,
+        let &Self {
+            ref orchestrate_context,
             ..
         } = self;
 
@@ -109,8 +109,8 @@ impl InvokeContext {
     /// Determine the orchestration context, in a mutable manner.
     #[inline]
     pub const fn orchestrate_mut(&mut self) -> &mut OrchestrationContext {
-        let Self {
-            orchestrate_context,
+        let &mut Self {
+            ref mut orchestrate_context,
             ..
         } = self;
 
@@ -121,7 +121,7 @@ impl InvokeContext {
     #[inline]
     #[must_use]
     pub const fn output(&self) -> &OutputOptions {
-        let Self { output, .. } = self;
+        let &Self { ref output, .. } = self;
 
         output
     }
@@ -160,9 +160,7 @@ impl Invoke {
             workspace_root,
             workspace_metadata,
             ..
-        } = MetadataCommand::new()
-            .exec()
-            .map_err(InvokeError::Metadata)?;
+        } = MetadataCommand::new().exec().map_err(InvokeError::Metadata)?;
 
         let root_metadata: RootMetadata = serde_json::from_value(
             workspace_metadata
@@ -188,11 +186,10 @@ impl Invoke {
         };
 
         if let Some(target_command) = orchestrate_command {
-            Orchestrate::schedule(target_command, &mut context)
-                .map_err(InvokeError::Orchestrate)?;
+            Orchestrate::schedule(target_command, &mut context).map_err(InvokeError::Orchestrate)?;
         }
 
-        let vector_list = std::mem::take(context.orchestrate_context.content_mut());
+        let vector_list = mem::take(context.orchestrate_context.content_mut());
 
         thread::scope(|scope| -> Result<(), InvokeError> {
             for mut vector in vector_list {
@@ -205,10 +202,13 @@ impl Invoke {
                 }
 
                 for handle in handle_list {
-                    let () = handle
-                        .join()
-                        .map_err(|_| OrchestrateError::Internal)
-                        .map_err(InvokeError::Orchestrate)??;
+                    let () = match handle.join() {
+                        Ok(result) => result.map_err(InvokeError::Orchestrate)?,
+                        Err(panic) => {
+                            drop(panic);
+                            return Err(InvokeError::Orchestrate(OrchestrateError::Internal));
+                        },
+                    };
                 }
             }
 
@@ -245,7 +245,7 @@ pub enum InvokeError {
 
     /// TOML deserialization failed.
     #[error(transparent(0))]
-    TomlError(toml::de::Error),
+    TomlError(TomlDeserializeError),
 }
 
 impl From<OrchestrateError> for InvokeError {

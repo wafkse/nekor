@@ -50,17 +50,14 @@ impl Signal {
     #[inline]
     #[must_use]
     pub const fn and(&self, target_signal: Self) -> Self {
-        match (self, target_signal) {
+        match (*self, target_signal) {
             (Self::Guaranteed(present_left), Self::Guaranteed(present_right)) => {
-                Self::Guaranteed(Present::and(present_left, present_right))
-            }
-            (
-                &Self::Guaranteed(ref present_left) | &Self::Detected(ref present_left),
-                Self::Detected(present_right),
-            )
-            | (&Self::Detected(ref present_left), Self::Guaranteed(present_right)) => {
-                Self::Detected(Present::and(present_left, present_right))
-            }
+                Self::Guaranteed(Present::and(&present_left, present_right))
+            },
+            (Self::Guaranteed(present_left) | Self::Detected(present_left), Self::Detected(present_right))
+            | (Self::Detected(present_left), Self::Guaranteed(present_right)) => {
+                Self::Detected(Present::and(&present_left, present_right))
+            },
         }
     }
 }
@@ -97,7 +94,7 @@ impl Present {
     #[inline]
     #[must_use]
     pub const fn and(&self, target_right: Self) -> Self {
-        match (self, target_right) {
+        match (*self, target_right) {
             (Self::Yes, Self::Yes) => Self::Yes,
             (..) => Self::No,
         }

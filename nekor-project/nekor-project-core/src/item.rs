@@ -15,18 +15,19 @@
 //! and performs no allocation. This implementation crate may use `alloc` while
 //! constructing host-side syntax and token streams.
 
-use alloc::format;
-use alloc::vec::Vec;
+use alloc::{format, vec::Vec};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, GenericParam, Generics, Ident,
-    Lifetime, LifetimeParam, Meta, Token, Visibility, parse_quote, punctuated::Punctuated,
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, GenericParam, Generics, Ident, Lifetime,
+    LifetimeParam, Meta, Token, Visibility, parse_quote, punctuated::Punctuated,
 };
 
-use crate::attribute::{ProjectAttribute, UnsafeClauseTarget};
-use crate::field::{IdentOrIndex, ProjectField, ProjectFields};
+use crate::{
+    attribute::{ProjectAttribute, UnsafeClauseTarget},
+    field::{IdentOrIndex, ProjectField, ProjectFields},
+};
 
 /// A validated struct or enum awaiting projection expansion.
 ///
@@ -77,7 +78,7 @@ impl ProjectItem {
                     struct_generics: item_generics,
                     struct_data,
                 }))
-            }
+            },
             Data::Enum(enum_data) => {
                 let DataEnum { variants, .. } = enum_data;
                 let variant_list = variants
@@ -93,11 +94,8 @@ impl ProjectItem {
                     enum_generics: item_generics,
                     enum_data,
                 }))
-            }
-            Data::Union(..) => Err(Error::new_spanned(
-                item_ident,
-                "a union cannot be pin-projected",
-            )),
+            },
+            Data::Union(..) => Err(Error::new_spanned(item_ident, "a union cannot be pin-projected")),
         }
     }
 
@@ -132,7 +130,7 @@ impl ProjectItem {
                             .find(|attribute| attribute.path().is_ident("project")),
                         "project pin attributes are only valid on fields",
                     ));
-                }
+                },
                 ProjectAttribute::UnsafeClause(target) if unsafe_target_list.contains(target) => {
                     return Err(Error::new_spanned(
                         attribute_list
@@ -140,7 +138,7 @@ impl ProjectItem {
                             .find(|attribute| attribute.path().is_ident("project")),
                         "duplicate project unsafe clause",
                     ));
-                }
+                },
                 ProjectAttribute::UnsafeClause(target) => unsafe_target_list.push(*target),
             }
         }
@@ -154,8 +152,7 @@ impl ProjectItem {
             .iter()
             .filter(|attribute| attribute.path().is_ident("repr"))
         {
-            let representation_list =
-                attribute.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+            let representation_list = attribute.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
 
             if let Some(representation) = representation_list
                 .iter()
@@ -413,13 +410,8 @@ impl Expansion {
         let projection_lifetime = Self::projection_lifetime(item_generics);
 
         let projection = self.projection_type(&projection_ident, &projection_lifetime, false)?;
-        let projection_mut =
-            self.projection_type(&projection_mut_ident, &projection_lifetime, true)?;
-        let project_impl = self.project_impl(
-            &projection_ident,
-            &projection_mut_ident,
-            &projection_lifetime,
-        )?;
+        let projection_mut = self.projection_type(&projection_mut_ident, &projection_lifetime, true)?;
+        let project_impl = self.project_impl(&projection_ident, &projection_mut_ident, &projection_lifetime)?;
         let unpin_impl = self.unpin_impl(&projection_lifetime);
         let blocker_list = self.blocker_list();
 
@@ -447,8 +439,7 @@ impl Expansion {
             ..
         } = self;
         let has_fields = !item_data.field_list().is_empty();
-        let projection_generics =
-            Self::projection_generics(item_generics, item_ident, projection_lifetime, has_fields);
+        let projection_generics = Self::projection_generics(item_generics, item_ident, projection_lifetime, has_fields);
         let generic_declaration = Self::generic_declaration(&projection_generics);
         let where_clause = &projection_generics.where_clause;
         let projection_doc = if mutable {
@@ -463,9 +454,7 @@ impl Expansion {
                     let field_definition_list = field_list
                         .field_list()
                         .iter()
-                        .map(|field| {
-                            Self::named_field_definition(field, projection_lifetime, mutable)
-                        })
+                        .map(|field| Self::named_field_definition(field, projection_lifetime, mutable))
                         .collect::<syn::Result<Vec<_>>>()?;
 
                     Ok(quote! {
@@ -474,14 +463,12 @@ impl Expansion {
                             #(#field_definition_list)*
                         }
                     })
-                }
+                },
                 ProjectFields::Unnamed(..) => {
                     let field_definition_list = field_list
                         .field_list()
                         .iter()
-                        .map(|field| {
-                            Self::unnamed_field_definition(field, projection_lifetime, mutable)
-                        })
+                        .map(|field| Self::unnamed_field_definition(field, projection_lifetime, mutable))
                         .collect::<Vec<_>>();
 
                     Ok(quote! {
@@ -490,7 +477,7 @@ impl Expansion {
                             #(#field_definition_list)*
                         ) #where_clause;
                     })
-                }
+                },
                 ProjectFields::Unit => Ok(quote! {
                     #[doc = #projection_doc]
                     #item_visibility struct #projection_ident #generic_declaration #where_clause;
@@ -508,7 +495,7 @@ impl Expansion {
                         #(#variant_definition_list)*
                     }
                 })
-            }
+            },
         }
     }
 
@@ -527,23 +514,14 @@ impl Expansion {
         } = self;
         let (impl_generics, type_generics, where_clause) = item_generics.split_for_impl();
         let projection_type = self.projection_type_use(projection_ident, projection_lifetime);
-        let projection_mut_type =
-            self.projection_type_use(projection_mut_ident, projection_lifetime);
+        let projection_mut_type = self.projection_type_use(projection_mut_ident, projection_lifetime);
         let immutable_body = match item_data {
-            ExpansionData::Struct(field_list) => {
-                Self::struct_project_body(field_list, projection_ident, false)?
-            }
-            ExpansionData::Enum(variant_list) => {
-                Self::enum_project_body(variant_list, projection_ident, false)?
-            }
+            ExpansionData::Struct(field_list) => Self::struct_project_body(field_list, projection_ident, false)?,
+            ExpansionData::Enum(variant_list) => Self::enum_project_body(variant_list, projection_ident, false)?,
         };
         let mutable_body = match item_data {
-            ExpansionData::Struct(field_list) => {
-                Self::struct_project_body(field_list, projection_mut_ident, true)?
-            }
-            ExpansionData::Enum(variant_list) => {
-                Self::enum_project_body(variant_list, projection_mut_ident, true)?
-            }
+            ExpansionData::Struct(field_list) => Self::struct_project_body(field_list, projection_mut_ident, true)?,
+            ExpansionData::Enum(variant_list) => Self::enum_project_body(variant_list, projection_mut_ident, true)?,
         };
 
         Ok(quote! {
@@ -606,9 +584,7 @@ impl Expansion {
         let source_parameter_list = core::mem::take(&mut helper_generics.params);
         helper_generics
             .params
-            .push(GenericParam::Lifetime(LifetimeParam::new(
-                projection_lifetime.clone(),
-            )));
+            .push(GenericParam::Lifetime(LifetimeParam::new(projection_lifetime.clone())));
         helper_generics.params.extend(source_parameter_list);
 
         let helper_generic_declaration = Self::generic_declaration(&helper_generics);
@@ -668,16 +644,8 @@ impl Expansion {
 
         [
             (UnsafeClauseTarget::Drop, quote!(::core::ops::Drop), "Drop"),
-            (
-                UnsafeClauseTarget::Deref,
-                quote!(::core::ops::Deref),
-                "Deref",
-            ),
-            (
-                UnsafeClauseTarget::DerefMut,
-                quote!(::core::ops::DerefMut),
-                "DerefMut",
-            ),
+            (UnsafeClauseTarget::Deref, quote!(::core::ops::Deref), "Deref"),
+            (UnsafeClauseTarget::DerefMut, quote!(::core::ops::DerefMut), "DerefMut"),
         ]
         .into_iter()
         .filter(|(target, ..)| !attribute_list.contains(&ProjectAttribute::UnsafeClause(*target)))
@@ -724,11 +692,7 @@ impl Expansion {
     }
 
     /// Expand an unnamed projection field definition.
-    fn unnamed_field_definition(
-        field: &ProjectField,
-        projection_lifetime: &Lifetime,
-        mutable: bool,
-    ) -> TokenStream {
+    fn unnamed_field_definition(field: &ProjectField, projection_lifetime: &Lifetime, mutable: bool) -> TokenStream {
         let field_visibility = field.visibility();
         let field_type = Self::field_type(field, projection_lifetime, mutable);
 
@@ -778,7 +742,7 @@ impl Expansion {
                         #(#field_definition_list)*
                     },
                 })
-            }
+            },
             ProjectFields::Unnamed(..) => {
                 let field_type_list = field_list
                     .field_list()
@@ -799,7 +763,7 @@ impl Expansion {
                     #[doc = #variant_doc]
                     #variant_ident(#(#field_type_list),*),
                 })
-            }
+            },
             ProjectFields::Unit => Ok(quote! {
                 #[doc = #variant_doc]
                 #variant_ident,
@@ -837,17 +801,14 @@ impl Expansion {
                     .field_list()
                     .iter()
                     .zip(&field_ident_list)
-                    .map(|(field, field_ident)| {
-                        let projection = Self::field_projection(field, quote!(#field_ident));
-                        quote!(#field_ident: #projection)
-                    })
+                    .map(|(field, field_ident)| Self::named_field_projection(field, field_ident))
                     .collect::<Vec<_>>();
 
                 Ok(quote! {
                     let Self { #(#field_ident_list),* } = #target_value;
                     #projection_ident { #(#projection_list),* }
                 })
-            }
+            },
             ProjectFields::Unnamed(..) => {
                 let binding_list = (0..field_list.field_list().len())
                     .map(|index| format_ident!("target_field_{index}"))
@@ -863,7 +824,7 @@ impl Expansion {
                     let Self(#(#binding_list),*) = #target_value;
                     #projection_ident(#(#projection_list),*)
                 })
-            }
+            },
             ProjectFields::Unit => Ok(quote!(#projection_ident)),
         }
     }
@@ -899,10 +860,7 @@ impl Expansion {
     }
 
     /// Expand one enumeration projection match arm.
-    fn variant_arm(
-        variant: &ProjectEnumVariant,
-        projection_ident: &Ident,
-    ) -> syn::Result<TokenStream> {
+    fn variant_arm(variant: &ProjectEnumVariant, projection_ident: &Ident) -> syn::Result<TokenStream> {
         let ProjectEnumVariant {
             variant_ident,
             field_list,
@@ -920,17 +878,14 @@ impl Expansion {
                     .field_list()
                     .iter()
                     .zip(&field_ident_list)
-                    .map(|(field, field_ident)| {
-                        let projection = Self::field_projection(field, quote!(#field_ident));
-                        quote!(#field_ident: #projection)
-                    })
+                    .map(|(field, field_ident)| Self::named_field_projection(field, field_ident))
                     .collect::<Vec<_>>();
 
                 Ok(quote! {
                     Self::#variant_ident { #(#field_ident_list),* } =>
                         #projection_ident::#variant_ident { #(#projection_list),* },
                 })
-            }
+            },
             ProjectFields::Unnamed(..) => {
                 let binding_list = (0..field_list.field_list().len())
                     .map(|index| format_ident!("target_field_{index}"))
@@ -946,7 +901,7 @@ impl Expansion {
                     Self::#variant_ident(#(#binding_list),*) =>
                         #projection_ident::#variant_ident(#(#projection_list),*),
                 })
-            }
+            },
             ProjectFields::Unit => Ok(quote! {
                 Self::#variant_ident => #projection_ident::#variant_ident,
             }),
@@ -954,11 +909,7 @@ impl Expansion {
     }
 
     /// Return a projected field type.
-    fn field_type(
-        field: &ProjectField,
-        projection_lifetime: &Lifetime,
-        mutable: bool,
-    ) -> TokenStream {
+    fn field_type(field: &ProjectField, projection_lifetime: &Lifetime, mutable: bool) -> TokenStream {
         let field_type = field.ty();
 
         match (field.pinned(), mutable) {
@@ -983,14 +934,24 @@ impl Expansion {
         }
     }
 
+    /// Expand one named field projection.
+    fn named_field_projection(field: &ProjectField, field_ident: &Ident) -> TokenStream {
+        if field.pinned() {
+            let projection = Self::field_projection(field, quote!(#field_ident));
+
+            quote!(#field_ident: #projection)
+        } else {
+            quote!(#field_ident)
+        }
+    }
+
     /// Return a named field identifier.
     fn named_ident(field: &ProjectField) -> syn::Result<&Ident> {
         match field.name() {
             IdentOrIndex::Ident(field_ident) => Ok(field_ident),
-            IdentOrIndex::Index(field_index) => Err(Error::new(
-                field_index.span,
-                "a named field is missing its identifier",
-            )),
+            IdentOrIndex::Index(field_index) => {
+                Err(Error::new(field_index.span, "a named field is missing its identifier"))
+            },
         }
     }
 
@@ -1029,9 +990,7 @@ impl Expansion {
             let source_parameters = core::mem::take(&mut projection_generics.params);
             projection_generics
                 .params
-                .push(GenericParam::Lifetime(LifetimeParam::new(
-                    projection_lifetime.clone(),
-                )));
+                .push(GenericParam::Lifetime(LifetimeParam::new(projection_lifetime.clone())));
             projection_generics.params.extend(source_parameters);
 
             let (_, source_type_generics, _) = source_generics.split_for_impl();
@@ -1056,11 +1015,7 @@ impl Expansion {
     }
 
     /// Return a generated projection type use.
-    fn projection_type_use(
-        &self,
-        projection_ident: &Ident,
-        projection_lifetime: &Lifetime,
-    ) -> TokenStream {
+    fn projection_type_use(&self, projection_ident: &Ident, projection_lifetime: &Lifetime) -> TokenStream {
         let Self {
             item_generics,
             item_data,
@@ -1073,15 +1028,15 @@ impl Expansion {
                 GenericParam::Lifetime(parameter) => {
                     let lifetime = &parameter.lifetime;
                     quote!(#lifetime)
-                }
+                },
                 GenericParam::Type(parameter) => {
                     let ident = &parameter.ident;
                     quote!(#ident)
-                }
+                },
                 GenericParam::Const(parameter) => {
                     let ident = &parameter.ident;
                     quote!(#ident)
-                }
+                },
             })
             .collect::<Vec<_>>();
 

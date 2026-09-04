@@ -1,7 +1,9 @@
 //! Engagement modes for the [`AtomicBitmap`] atomic construct.
 
-use core::fmt::{self, Display};
-use core::marker;
+use core::{
+    fmt::{self, Display},
+    marker,
+};
 
 use crate::atomic::bitmap::at::At;
 

@@ -17,9 +17,8 @@ pub mod idtr {
     /// # Safety
     ///
     /// - The caller must have a *privilege level of zero*.
-    /// - The provided [`DescriptorTablePointer<Idt>`] must be valid,
-    ///   particularly no bad interrupt handler can be invoked through the
-    ///   provided descriptor.
+    /// - The provided [`DescriptorTablePointer<Idt>`] must be valid, particularly no bad interrupt
+    ///   handler can be invoked through the provided descriptor.
     #[inline]
     pub unsafe fn lidtq(target_address: &'static DescriptorTablePointer<Idt, Bits64>) {
         // SAFETY: The safety of this instruction has been guaranteed by the caller.
@@ -74,7 +73,8 @@ pub mod fsgsbase {
         unsafe {
             arch::asm!(
                 "rdgsbaseq {}",
-                lateout(reg) gsbase
+                lateout(reg) gsbase,
+                options(att_syntax)
             );
         }
 
@@ -98,7 +98,8 @@ pub mod fsgsbase {
         unsafe {
             arch::asm!(
                 "rdfsbaseq {}",
-                lateout(reg) fsbase
+                lateout(reg) fsbase,
+                options(att_syntax)
             );
         }
 
@@ -121,7 +122,8 @@ pub mod fsgsbase {
         unsafe {
             arch::asm!(
                 "wrfsbaseq {}",
-                in(reg) fsbase
+                in(reg) fsbase,
+                options(att_syntax)
             );
         }
     }
@@ -142,7 +144,8 @@ pub mod fsgsbase {
         unsafe {
             arch::asm!(
                 "wrgsbaseq {}",
-                in(reg) gsbase
+                in(reg) gsbase,
+                options(att_syntax)
             );
         }
     }

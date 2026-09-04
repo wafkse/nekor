@@ -39,10 +39,7 @@ use core::{
 /// [false sharing]: https://en.wikipedia.org/wiki/False_sharing
 #[derive(Clone, Copy, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(target_arch = "x86_64", repr(align(64)))]
-#[cfg_attr(
-    any(target_arch = "aarch64", target_arch = "powerpc64",),
-    repr(align(128))
-)]
+#[cfg_attr(any(target_arch = "aarch64", target_arch = "powerpc64",), repr(align(128)))]
 #[cfg_attr(
     any(target_arch = "arm", target_arch = "mips", target_arch = "mips64"),
     repr(align(32))
@@ -82,7 +79,7 @@ impl<T> CachePadded<T> {
     /// Reference the target `T` from this [`CachePadded`] wrapper.
     #[inline]
     pub const fn as_ref(&self) -> &T {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value
     }
@@ -101,7 +98,7 @@ impl<T> Deref for CachePadded<T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value
     }
@@ -122,7 +119,7 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         fmt::Debug::fmt(target_value, f)
     }
@@ -134,7 +131,7 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         fmt::Display::fmt(target_value, f)
     }

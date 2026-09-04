@@ -2,7 +2,7 @@
 
 pub mod command;
 
-use std::iter;
+use core::iter;
 
 use fack::prelude::Error;
 
@@ -62,7 +62,7 @@ impl OrchestrationContext {
     /// can be executed with other commands apart from themselves.
     #[inline]
     pub fn concurrent(&mut self, command: impl Iterator<Item = OrchestrateCommand>) {
-        let Self(vector_list) = self;
+        let &mut Self(ref mut vector_list) = self;
 
         let target_vector = if vector_list.is_empty() {
             vector_list.push_mut(OrchestrateVector::new())
@@ -88,7 +88,7 @@ impl OrchestrationContext {
     /// executed before such dependencies are satisfied.
     #[inline]
     pub fn isolated(&mut self, command: impl Iterator<Item = OrchestrateCommand>) {
-        let Self(vector_list) = self;
+        let &mut Self(ref mut vector_list) = self;
 
         vector_list
             .push_mut(OrchestrateVector::new())
@@ -115,7 +115,7 @@ impl OrchestrationContext {
     #[inline]
     #[must_use]
     pub const fn content(&self) -> &[OrchestrateVector] {
-        let Self(orchestrate_vec) = self;
+        let &Self(ref orchestrate_vec) = self;
 
         orchestrate_vec.as_slice()
     }
@@ -124,7 +124,7 @@ impl OrchestrationContext {
     /// in a mutable manner.
     #[inline]
     pub const fn content_mut(&mut self) -> &mut Vec<OrchestrateVector> {
-        let Self(orchestrate_vec) = self;
+        let &mut Self(ref mut orchestrate_vec) = self;
 
         orchestrate_vec
     }
@@ -160,8 +160,8 @@ impl OrchestrateVector {
     #[inline]
     #[must_use]
     pub const fn content(&self) -> &[OrchestrateCommand] {
-        let Self {
-            orchestrate_list, ..
+        let &Self {
+            ref orchestrate_list, ..
         } = self;
 
         orchestrate_list.as_slice()
@@ -171,8 +171,9 @@ impl OrchestrateVector {
     /// manages, in a mutable manner.
     #[inline]
     pub const fn content_mut(&mut self) -> &mut Vec<OrchestrateCommand> {
-        let Self {
-            orchestrate_list, ..
+        let &mut Self {
+            ref mut orchestrate_list,
+            ..
         } = self;
 
         orchestrate_list

@@ -11,13 +11,14 @@
 //! self-iret, which is a self-interrupt return instruction that performs a full
 //! architectural pipeline flush and consequent serialize.
 
-use core::arch;
+use core::{arch, hint::black_box};
 
 #[cfg(target_arch = "x86")]
 use arch::x86::__cpuid;
-
 #[cfg(target_arch = "x86_64")]
 use arch::x86_64::__cpuid;
+
+use crate::x86::instruction;
 
 /// An uninhabited type to act as a cohesive entity for all processor
 /// synchronization that depends on a self-*Interrupt Return* methodology.
@@ -114,7 +115,7 @@ impl CpuId {
     /// therefore, no `EFLAGS.ID` check requirement is imposed.
     #[inline]
     pub fn ubiquitous() {
-        let _ = __cpuid(0x0000_0000);
+        black_box(__cpuid(0x0000_0000));
     }
 }
 
@@ -141,6 +142,6 @@ impl Serialize {
     pub unsafe fn now() {
         // SAFETY: The required feature has been asserted by the caller, and the
         // `serialize` instruction does not raise any CPU-level exceptions.
-        unsafe { crate::x86::instruction::serialize() };
+        unsafe { instruction::serialize() };
     }
 }

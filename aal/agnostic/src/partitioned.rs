@@ -41,7 +41,7 @@ where
     pub fn merge(self, target_whole: &mut P) -> P {
         let Self(target_value, ..) = self;
 
-        let _ = Extract::<N, M>::merge(target_whole, target_value);
+        let _: P::Output = Extract::<N, M>::merge(target_whole, target_value);
 
         *target_whole
     }
@@ -53,8 +53,8 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let Self(left_value, ..) = self;
-        let Self(right_value, ..) = other;
+        let &Self(ref left_value, ..) = self;
+        let &Self(ref right_value, ..) = other;
 
         left_value == right_value
     }
@@ -68,8 +68,8 @@ where
 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        let Self(left_value, ..) = self;
-        let Self(right_value, ..) = other;
+        let &Self(ref left_value, ..) = self;
+        let &Self(ref right_value, ..) = other;
 
         left_value.partial_cmp(right_value)
     }
@@ -82,8 +82,8 @@ where
 {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let Self(left_value, ..) = self;
-        let Self(right_value, ..) = other;
+        let &Self(ref left_value, ..) = self;
+        let &Self(ref right_value, ..) = other;
 
         left_value.cmp(right_value)
     }
@@ -95,8 +95,11 @@ where
     P::Output: hash::Hash,
 {
     #[inline]
-    fn hash<H: hash::Hasher>(&self, target_state: &mut H) {
-        let Self(target_value, ..) = self;
+    fn hash<H>(&self, target_state: &mut H)
+    where
+        H: hash::Hasher,
+    {
+        let &Self(ref target_value, ..) = self;
 
         target_value.hash(target_state);
     }
@@ -109,7 +112,7 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(target_value, ..) = self;
+        let &Self(ref target_value, ..) = self;
 
         f.write_fmt(format_args!("Partitioned::<{N}..{M}>({target_value:?})"))
     }

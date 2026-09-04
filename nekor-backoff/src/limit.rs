@@ -40,10 +40,7 @@ impl Limit {
     /// actuation count.
     #[inline]
     #[must_use]
-    pub const fn of_with(
-        imposed_limit: NonZero<usize>,
-        actuation_count: Option<NonZero<usize>>,
-    ) -> Self {
+    pub const fn of_with(imposed_limit: NonZero<usize>, actuation_count: Option<NonZero<usize>>) -> Self {
         Self(imposed_limit, actuation_count)
     }
 
@@ -82,7 +79,7 @@ impl Limit {
     pub const fn actuate(&mut self) -> ControlFlow<NonZero<usize>> {
         let &mut Self(imposed_limit, ref mut actuation_count) = self;
 
-        if let Some(target_count) = actuation_count {
+        if let Some(target_count) = actuation_count.as_mut() {
             if target_count.get() >= imposed_limit.get() {
                 ControlFlow::Break(*target_count)
             } else {

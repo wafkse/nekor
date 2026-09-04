@@ -55,8 +55,7 @@ pub type SegmentSelectorIndexMut<'a> = <SegmentSelectorIndex<'a> as Counterpart>
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type SegmentSelectorTableIndicatorMut<'a> =
-    <SegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
+pub type SegmentSelectorTableIndicatorMut<'a> = <SegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
 
 /// The mutable bitwise field of the (*Requested Privilege Level*) field of this
 /// [`RawSegmentSelector`].
@@ -93,7 +92,7 @@ impl RawSegmentSelector {
     #[inline]
     #[must_use]
     pub const fn index(&self) -> SegmentSelectorIndex<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         SegmentSelectorIndex::wrap(target_value)
     }
@@ -112,7 +111,7 @@ impl RawSegmentSelector {
     #[inline]
     #[must_use]
     pub const fn table_indicator(&self) -> SegmentSelectorTableIndicator<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         SegmentSelectorTableIndicator::wrap(target_value)
     }
@@ -131,7 +130,7 @@ impl RawSegmentSelector {
     #[inline]
     #[must_use]
     pub const fn requested_privilege_level(&self) -> SegmentSelectorRpl<'_> {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         SegmentSelectorRpl::wrap(target_value)
     }
@@ -183,9 +182,7 @@ impl SegmentSelector {
 
         let mut target_selector = RawSegmentSelector::zeroed();
 
-        target_selector
-            .index_mut()
-            .const_merge(descriptor_index.raw());
+        target_selector.index_mut().const_merge(descriptor_index.raw());
 
         let target_state = if matches!(descriptor_table, TableIndicator::Gdt) {
             State::Cleared
@@ -193,13 +190,11 @@ impl SegmentSelector {
             State::Set
         };
 
-        target_selector
-            .table_indicator_mut()
-            .const_set(target_state);
+        target_selector.table_indicator_mut().const_set(target_state);
 
         target_selector
             .requested_privilege_level_mut()
-            .const_merge(requested_privilege_level as _);
+            .const_merge(requested_privilege_level as u8);
 
         target_selector
     }
@@ -210,8 +205,8 @@ impl SegmentSelector {
     #[inline]
     #[must_use]
     pub const fn index(&self) -> &DescriptorIndex {
-        let Self {
-            descriptor_index, ..
+        let &Self {
+            ref descriptor_index, ..
         } = self;
 
         descriptor_index
@@ -232,8 +227,8 @@ impl SegmentSelector {
     #[inline]
     #[must_use]
     pub const fn table(&self) -> &TableIndicator {
-        let Self {
-            descriptor_table, ..
+        let &Self {
+            ref descriptor_table, ..
         } = self;
 
         descriptor_table
@@ -255,8 +250,8 @@ impl SegmentSelector {
     #[inline]
     #[must_use]
     pub const fn privilege(&self) -> &PrivilegeLevel {
-        let Self {
-            requested_privilege_level,
+        let &Self {
+            ref requested_privilege_level,
             ..
         } = self;
 
@@ -304,8 +299,7 @@ pub type CodeSegmentSelectorIndexMut<'a> = <CodeSegmentSelectorIndex<'a> as Coun
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicatorMut<'a> =
-    <CodeSegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
+pub type CodeSegmentSelectorTableIndicatorMut<'a> = <CodeSegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
 
 /// The mutable bitwise field of the (*Current Privilege Level*) field of this
 /// [`RawCodeSegment`].
@@ -394,7 +388,7 @@ impl Deref for RawDataSegment {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value
     }
@@ -415,8 +409,7 @@ impl CodeSegment {
     #[must_use]
     pub const fn index(&self) -> &DescriptorIndex {
         let &Self(SegmentSelector {
-            ref descriptor_index,
-            ..
+            ref descriptor_index, ..
         }) = self;
 
         descriptor_index
@@ -438,8 +431,7 @@ impl CodeSegment {
     #[must_use]
     pub const fn table(&self) -> &TableIndicator {
         let &Self(SegmentSelector {
-            ref descriptor_table,
-            ..
+            ref descriptor_table, ..
         }) = self;
 
         descriptor_table
@@ -496,7 +488,7 @@ impl Deref for DataSegment {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(target_value) = self;
+        let &Self(ref target_value) = self;
 
         target_value
     }

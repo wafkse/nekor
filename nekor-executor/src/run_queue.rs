@@ -32,17 +32,16 @@
 //!
 //! # Technical Notes
 //!
-//! - Each [`Run`] is cache-padded and wraps an [`Erased<TaskQueue>`] to avoid
-//!   false sharing and enable lock-free access.
-//! - The global runqueue list slice is constructed from linker-provided
-//!   start/end symbols (`__nekor_queue_start` / `__nekor_queue_end`).
-//! - Queue sizes are configurable via `cfg` feature flags
-//!   (`task-queue-size-{N}`), which must be powers of two.
-//! - The system relies heavily on `unsafe` code for low-level pointer and
-//!   section manipulation; correctness is ensured by the static layout and
-//!   linker guarantees.
-//! - The queue section name is provided by the `KERNEL_SCHEDULE_QUEUE_SECTION`
-//!   environment variable at compile-time.
+//! - Each [`Run`] is cache-padded and wraps an [`Erased<TaskQueue>`] to avoid false sharing and
+//!   enable lock-free access.
+//! - The global runqueue list slice is constructed from linker-provided start/end symbols
+//!   (`__nekor_queue_start` / `__nekor_queue_end`).
+//! - Queue sizes are configurable via `cfg` feature flags (`task-queue-size-{N}`), which must be
+//!   powers of two.
+//! - The system relies heavily on `unsafe` code for low-level pointer and section manipulation;
+//!   correctness is ensured by the static layout and linker guarantees.
+//! - The queue section name is provided by the `KERNEL_SCHEDULE_QUEUE_SECTION` environment variable
+//!   at compile-time.
 //!
 //! [`Erased`]: nekor_domain::prelude::Erased
 
@@ -54,12 +53,11 @@ use core::{
     sync::atomic::AtomicPtr,
 };
 
+use nekor_aal::cache::prelude::CachePadded;
 use nekor_domain::{
     domain::{Adapter, Domain},
     prelude::{Erased, Static, Store},
 };
-
-use nekor_aal::cache::prelude::CachePadded;
 use nekor_structure::queue::Queue;
 
 use crate::task::Task;
@@ -76,40 +74,20 @@ use crate::task::Task;
 /// overkill for most if not all applications.
 macro_rules! size {
     () => {};
-    (
-        $($target_size:literal),+
-    ) => {
-        tokel::stream!(
-            const {
-                'a: {
-                    $(
-                        #[cfg(feature = [<
-                            "task-queue-size-"
-                            // NOTE: This macro parameter can be embedded within a None-delimited token
-                            // group, so we forcibly flatten whatever the macro expansion engine gives us.
-                            [< $target_size >]:flatten
-                        >]:to_string:concatenate)]
-                        break 'a $target_size;
-                    )*
-
-                    #[allow(unreachable_code)]
-                    {
-                        unreachable!(
-                            concat!(
-                                "No task size feature enabled, please enable one of the following:",
-                                $(
-                                    " ",
-
-                                    "`",
-
-                                    "task-queue-size-", stringify!($target_size), "`"
-                                ),*
-                            )
-                        )
-                    }
-                }
+    ($(($target_size:literal, $feature:literal)),+ $(,)?) => {
+        const {
+            $(
+                if cfg!(feature = $feature) {
+                    $target_size
+                } else
+            )+
+            {
+                panic!(concat!(
+                    "No task size feature enabled, please enable one of the following:",
+                    $(" task-queue-size-", $feature),+
+                ))
             }
-        )
+        }
     };
 }
 
@@ -142,7 +120,23 @@ enum Size {}
 impl Size {
     /// The preset runqueue size for each priority level.
     pub const QUEUE: usize = size!(
-        1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536
+        (1, "task-queue-size-1"),
+        (2, "task-queue-size-2"),
+        (4, "task-queue-size-4"),
+        (8, "task-queue-size-8"),
+        (16, "task-queue-size-16"),
+        (32, "task-queue-size-32"),
+        (64, "task-queue-size-64"),
+        (128, "task-queue-size-128"),
+        (256, "task-queue-size-256"),
+        (512, "task-queue-size-512"),
+        (1024, "task-queue-size-1024"),
+        (2048, "task-queue-size-2048"),
+        (4096, "task-queue-size-4096"),
+        (8192, "task-queue-size-8192"),
+        (0x4000, "task-queue-size-16384"),
+        (0x8000, "task-queue-size-32768"),
+        (0x0001_0000, "task-queue-size-65536"),
     );
 }
 
@@ -242,8 +236,8 @@ impl Run {
         ///
         /// # Safety
         ///
-        /// * This function must never be called, as it is only used to reserve
-        ///   space for the runqueue.
+        /// * This function must never be called, as it is only used to reserve space for the
+        ///   runqueue.
         ///
         /// Note that the safety call requirement will be superceded once the
         /// `custom` ABI is stable.
@@ -256,7 +250,8 @@ impl Run {
         unsafe extern "C" fn queue<const P: u16>() -> ! {
             /// Determine the `N`-th digit of a target `u16`.
             const fn digit<const N: usize>(number: u16) -> usize {
-                const MAX_DIGITS: usize = /* ceil(log10(u16::MAX)) */ 5;
+                const MAX_DIGITS: usize = // ceil(log10(u16::MAX))
+                    5;
 
                 assert!(N <= MAX_DIGITS, "invalid digit index");
 
@@ -306,6 +301,7 @@ impl Run {
                 p3 = const digit::<3>(P),
                 p4 = const digit::<4>(P),
                 p5 = const digit::<5>(P),
+                options(att_syntax),
             );
         }
 
@@ -360,21 +356,13 @@ impl Deref for Run {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        let Self(task_queue) = self;
-
-        Erased::value(task_queue)
+        Erased::value(&self.0)
     }
 }
 
 impl fmt::Debug for Run {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(task_queue) = self;
-
-        write!(
-            f,
-            "<runqueue governed by @{:?}",
-            Erased::constructor(task_queue)
-        )
+        write!(f, "<runqueue governed by @{:?}", Erased::constructor(&self.0))
     }
 }

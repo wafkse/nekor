@@ -14,17 +14,14 @@
 
 use core::marker;
 
-use nekor_primitive::scalar::Scalar;
-
-use nekor_bitwise_size::{For2, Size};
-
-use nekor_bitwise_extract_core::extract;
-
 use nekor_bitwise_extract_8::MetadataU8;
 use nekor_bitwise_extract_16::MetadataU16;
 use nekor_bitwise_extract_32::MetadataU32;
 use nekor_bitwise_extract_64::MetadataU64;
 use nekor_bitwise_extract_128::MetadataU128;
+use nekor_bitwise_extract_core::extract;
+use nekor_bitwise_size::{For2, Size};
+use nekor_primitive::scalar::Scalar;
 
 mod private {
     /// A trait to act as a supertrait seal for the [`Extract`] trait.

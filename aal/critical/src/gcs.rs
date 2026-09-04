@@ -2,8 +2,8 @@
 //!
 //! - *Global Critical Sections* (*GCS*) are those who:
 //!     - *Disable interrupts* for the currently-active core.
-//!     - *Lock* a corresponding [`Mutex`] for the desired global lock category.
-//!       This will inhibit any other global contenders for the same *GCS* kind.
+//!     - *Lock* a corresponding [`Mutex`] for the desired global lock category. This will inhibit
+//!       any other global contenders for the same *GCS* kind.
 //!
 //! Used for access control to a non-concurrent subsystem.
 //!
@@ -29,12 +29,11 @@ where
     ///
     /// # Safety
     ///
-    /// - A call to this function must be matched with a posterior
-    ///   [`Gcs::release`] call for the same `C`.
+    /// - A call to this function must be matched with a posterior [`Gcs::release`] call for the
+    ///   same `C`.
     /// - The output [`GcsToken`] must not outlive the actual *GCS*.
     /// - The calling core must not be in the following Critical Section types:
-    ///     - [`Gcs<C>`]: *Global Critical Section* for the same [`Contender`]
-    ///       `C`.
+    ///     - [`Gcs<C>`]: *Global Critical Section* for the same [`Contender`] `C`.
     ///     - [`MsCs`]: *Machine-Stop Critical Section*
     ///
     /// [`MsCs`]: crate::mscs::MsCs

@@ -29,6 +29,7 @@ macro_rules! zero {
     };
 }
 
+/// Implement [`One`] for a list of scalar types.
 macro_rules! one {
     () => {};
     (

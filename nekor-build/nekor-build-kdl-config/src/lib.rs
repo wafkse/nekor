@@ -1,12 +1,3 @@
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
 //! Typed KDL configuration support for build tooling.
 
 pub mod annotation;

@@ -1,16 +1,10 @@
 #![cfg_attr(not(any(test, miri)), no_std)]
-#![forbid(
-    clippy::all,
-    clippy::perf,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::pedantic,
-    rustdoc::all
-)]
 //! The asynchronous executor for Nekor.
 //!
 //! See the [`Executor`] struct for more information.
+
+#[cfg(test)]
+extern crate alloc;
 
 pub mod run_queue;
 
