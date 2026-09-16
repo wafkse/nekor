@@ -1,12 +1,18 @@
+# Ignore: rust build artifacts
 /target
 
-.zed
-.vscode
+# Ignore: local dotfiles and directories
+**/.*
+!**/.gitignore
+!/.cargo/
+!/.cargo/**
 
-# Ignore build artifacts
-
+# Ignore: build artifacts
 */build/linker
 */build/linker/**
 
 */object
 */object/**
+
+# Ignore: idea files
+*.IDEA.md
