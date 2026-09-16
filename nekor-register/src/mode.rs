@@ -1,152 +1,79 @@
-//! A module that provides functionality for the different memory-mapped
-//! register modes.
+//! Register access gates.
 //!
-//! Generally, memory-mapped registers can only be accessed in a specific mode.
-//!
-//! The modes that are supported are the following:
-//!
-//! - Read-only mode: [`Ro`]
-//! - Write-only mode: [`Wo`]
-//! - Read-write mode: [`Rw`]
+//! [`Gated`] combines a register value type, its numeric address, and two
+//! compile-time access bits. It does not define how that address is accessed.
 
 use core::marker;
 
-use crate::memory::{Memory, Volatile};
+use crate::address::Address;
 
-/// A read-only register in a hardware peripheral.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Ro<T, const A: usize>(
-    // NOTE(variance): invariant over `T`, but could be affected volatile
-    // non-primitive types.
-    marker::PhantomData<fn() -> T>,
-)
+/// A register description with compile-time read and write permissions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): `address` is the typed address associated with value type `T`
+// while `READ` and `WRITE` remain compile-time access policy. Construction
+// cannot change those type-level facts or attach runtime permission state.
+pub struct Gated<T, A, const READ: bool, const WRITE: bool>
 where
-    T: Volatile;
-
-impl<T, const A: usize> Ro<T, A>
-where
-    T: Volatile,
+    A: Address,
 {
-    /// Construct a new read-only memory-mapped register at the address `A`.
+    /// Numeric address naming the register.
+    address: A,
+
+    /// Register value-type marker without storage ownership.
+    value: marker::PhantomData<fn() -> T>,
+}
+
+impl<T, A, const READ: bool, const WRITE: bool> Gated<T, A, READ, WRITE>
+where
+    A: Address,
+{
+    /// Construct a register description at `address`.
     #[inline]
     #[must_use]
-    pub const fn register() -> Self {
-        Self(marker::PhantomData)
+    pub const fn register(address: A) -> Self {
+        Self {
+            address,
+            value: marker::PhantomData,
+        }
     }
-}
 
-impl<T, const A: usize> Ro<T, A>
-where
-    T: Volatile,
-{
-    /// Read the value of the register.
-    ///
-    /// # Safety
-    ///
-    /// This associated function has the same safety contract as
-    /// [`Memory::read`].
+    /// Return the register address in its native integer type.
     #[inline]
     #[must_use]
-    pub unsafe fn read() -> T {
-        // SAFETY: This read operation is safe due to the caller safety
-        // contract.
-        unsafe { Memory::<A>::read::<T>() }
+    pub const fn address(&self) -> A {
+        let &Self { address, .. } = self;
+
+        address
     }
 }
 
-/// A read-write register in a hardware peripheral.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Rw<T, const A: usize>(
-    // NOTE(variance): invariant over `T`, but could be affected volatile
-    // non-primitive types.
-    marker::PhantomData<fn() -> T>,
-)
-where
-    T: Volatile;
+/// A read-only register.
+pub type Ro<T, A> = Gated<T, A, true, false>;
 
-impl<T, const A: usize> Rw<T, A>
-where
-    T: Volatile,
-{
-    /// Construct a new read-write memory-mapped register at the address `A`.
-    #[inline]
-    #[must_use]
-    pub const fn register() -> Self {
-        Self(marker::PhantomData)
+/// A read-write register.
+pub type Rw<T, A> = Gated<T, A, true, true>;
+
+/// A write-only register.
+pub type Wo<T, A> = Gated<T, A, false, true>;
+
+/// A described register unavailable through the current interface.
+pub type Unaccessible<T, A> = Gated<T, A, false, false>;
+
+#[cfg(test)]
+mod tests {
+    use super::{Rw, Unaccessible};
+
+    #[test]
+    fn register_preserves_its_numeric_address() {
+        let register = Rw::<u64, u32>::register(0xc000_0080);
+
+        assert_eq!(register.address(), 0xc000_0080);
+    }
+
+    #[test]
+    fn inaccessible_register_still_has_an_address() {
+        let register = Unaccessible::<u32, u16>::register(7);
+
+        assert_eq!(register.address(), 7);
     }
 }
-
-impl<T, const A: usize> Rw<T, A>
-where
-    T: Volatile,
-{
-    /// Read the value of the register.
-    ///
-    /// # Safety
-    ///
-    /// This associated function has the same safety contract as
-    /// [`Memory::read`].
-    #[inline]
-    #[must_use]
-    pub unsafe fn read() -> T {
-        // SAFETY: This read operation is safe due to the caller safety
-        // contract.
-        unsafe { Memory::<A>::read::<T>() }
-    }
-
-    /// Write the target value to the register.
-    ///
-    /// # Safety
-    ///
-    /// This associated function has the same safety contract as
-    /// [`Memory::write`].
-    #[inline]
-    pub unsafe fn write(target_value: T) {
-        // SAFETY: This write operation is safe due to the caller safety
-        // contract.
-        unsafe { Memory::<A>::write::<T>(target_value) }
-    }
-}
-
-/// A write-only register in a hardware peripheral.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Wo<T, const A: usize>(
-    // NOTE(variance): invariant over `T`, but could be affected volatile
-    // non-primitive types.
-    marker::PhantomData<fn() -> T>,
-)
-where
-    T: Volatile;
-
-impl<T, const A: usize> Wo<T, A>
-where
-    T: Volatile,
-{
-    /// Construct a new write-only memory-mapped register at the address `A`.
-    #[inline]
-    #[must_use]
-    pub const fn register() -> Self {
-        Self(marker::PhantomData)
-    }
-}
-
-impl<T, const A: usize> Wo<T, A>
-where
-    T: Volatile,
-{
-    /// Write the target value to the register.
-    ///
-    /// # Safety
-    ///
-    /// This associated function has the same safety contract as
-    /// [`Memory::write`].
-    #[inline]
-    pub unsafe fn write(target_value: T) {
-        // SAFETY: This write operation is safe due to the caller safety
-        // contract.
-        unsafe { Memory::<A>::write::<T>(target_value) }
-    }
-}
-
-// TODO: Add Dyn- registers for MMIO addresses not known at compile time. This
-// is largely thought of for ARM.

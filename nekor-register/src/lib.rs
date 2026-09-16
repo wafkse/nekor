@@ -1,23 +1,27 @@
-#![cfg_attr(not(any(test, miri)), no_std)]
+#![cfg_attr(not(any(test, miri, usermode)), no_std)]
 
-//! A memory-mapped register interface for the Nekor unikernel.
+//! Compile-time hardware register descriptions.
 //!
-//! Note that this is purely for memory-mapped register access, not machine
-//! register access.
+//! A register combines a value type, a numeric address, and an access gate.
+//! The address is deliberately uninterpreted here. MMIO code may treat it as a
+//! memory location while an architecture layer may treat it as a register
+//! index.
 //!
-//! For machine register access, defer to the per-architecture implementations
-//! in the `nekor-arch` crate.
+//! Direct volatile memory access remains available through [`memory::Memory`].
+
+pub mod address;
 
 pub mod memory;
 
 pub mod mode;
 
 pub mod prelude {
-    //! The prelude module provides commonly used types and traits for working
-    //! with memory-mapped registers.
+    //! The prelude module provides the most commonly used register descriptions
+    //! and access mechanisms from this crate.
 
     pub use crate::{
-        memory::Memory,
-        mode::{Ro, Rw, Wo},
+        address::Address,
+        memory::{Memory, Volatile},
+        mode::{Gated, Ro, Rw, Unaccessible, Wo},
     };
 }

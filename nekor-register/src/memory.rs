@@ -1,4 +1,5 @@
-//! An abstract interface for memory-mapped peripheral registers.
+#![expect(unsafe_code, reason = "this module implements raw volatile register memory access")]
+//! Memory-mapped register addresses and volatile access.
 
 use core::{mem, ptr};
 
