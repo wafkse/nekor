@@ -10,6 +10,12 @@
 //! The crate is `no_std`. Generated code refers only to `core` and requires no
 //! allocation.
 //!
+//! Runnable examples in `examples/` show stack-pinned named fields, enum
+//! variants, and pin-aware destruction without heap allocation. Run them with
+//! `cargo run -p nekor-project --example stack_projection`,
+//! `cargo run -p nekor-project --example enum_projection`, or
+//! `cargo run -p nekor-project --example pinned_drop`.
+//!
 //! # Basic use
 //!
 //! ```rust
