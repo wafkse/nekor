@@ -192,3 +192,25 @@ macro_rules! bit_mut {
 }
 
 bit_mut!(u8, u16, u32, u64);
+
+macro_rules! bit_const {
+    ($($target_type:ty),+ $(,)?) => {
+        $(
+            impl<'a, const N: usize> Bit<'a, $target_type, N>
+            where
+                $target_type: BitAt<N>,
+            {
+                /// Determine the [`State`] of this [`Bit`] in const-evaluable code.
+                #[inline]
+                #[must_use]
+                pub const fn const_state(&self) -> State {
+                    let &Self(target_value) = self;
+
+                    BitAtExtractor::<N, $target_type>::get(target_value)
+                }
+            }
+        )+
+    };
+}
+
+bit_const!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
