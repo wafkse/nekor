@@ -6,7 +6,7 @@
 
 use core::{arch, ffi};
 
-use nekor_aal_arch::x86::msr::Msr;
+use nekor_aal_arch::x86::msr::{FsBase, GsBase, Msr};
 use nekor_aal_hotpatch::prelude::{Chosen, Delegated, Delegator};
 
 use crate::arch::x86_64::context::CsEntry;
@@ -95,8 +95,8 @@ unsafe impl Delegated for RdmsrDelegate {
             //
             "movq %r8, %rax",
             "retq",
-            const Msr::FsBase as u32,
-            const Msr::GsBase as u32,
+            const <FsBase as Msr>::ADDRESS,
+            const <GsBase as Msr>::ADDRESS,
             options(att_syntax)
         )
     }
@@ -219,8 +219,8 @@ unsafe impl Delegated for WrmsrDelegate {
             "xorl %edx, %edx",
             //
             "retq",
-            const Msr::FsBase as u32,
-            const Msr::GsBase as u32,
+            const <FsBase as Msr>::ADDRESS,
+            const <GsBase as Msr>::ADDRESS,
             options(att_syntax)
         )
     }

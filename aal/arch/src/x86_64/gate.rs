@@ -2,7 +2,7 @@
 
 use crate::x86::gate::GateType32;
 
-/// An interrupt [`GateType`] intended for *Long Mode* code execution.
+/// An interrupt [`GateType32`] intended for *Long Mode* code execution.
 ///
 /// This *Gate Type* is exclusively supported in a *Long Mode* context, any
 /// other type is disallowed.

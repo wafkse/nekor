@@ -4,7 +4,10 @@ use core::ops::{Deref, DerefMut};
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
 
-use crate::x86::{descriptor::DescriptorIndex, privilege::PrivilegeLevel};
+use crate::x86::{
+    descriptor::{DescriptorIndex, RawSegmentDescriptor},
+    privilege::PrivilegeLevel,
+};
 
 /// A single-bit segment source in a [`SegmentSelector`].
 ///
@@ -29,39 +32,39 @@ pub enum TableIndicator {
 
 /// The bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
-/// This is the index used in the selected [`SegmentSource`].
-pub type SegmentSelectorIndex<'a> = Field<'a, 3, 15, u16>;
+/// This is the index used in the selected descriptor table.
+pub type SegmentSelectorIndex<'value> = Field<'value, 3, 15, u16>;
 
 /// The bit of the *TI* (*Table Indicator*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type SegmentSelectorTableIndicator<'a> = Bit<'a, u16, 2>;
+pub type SegmentSelectorTableIndicator<'value> = Bit<'value, u16, 2>;
 
 /// The bitwise field of the (*Requested Privilege Level*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines the requested [`PrivilegeLevel`] to use this selector.
-pub type SegmentSelectorRpl<'a> = Field<'a, 0, 1, u16>;
+pub type SegmentSelectorRpl<'value> = Field<'value, 0, 1, u16>;
 
 /// The mutable bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
-/// This is the index used in the selected [`SegmentSource`].
-pub type SegmentSelectorIndexMut<'a> = <SegmentSelectorIndex<'a> as Counterpart>::Mut;
+/// This is the index used in the selected descriptor table.
+pub type SegmentSelectorIndexMut<'value> = <SegmentSelectorIndex<'value> as Counterpart>::Mut;
 
 /// The mutable bit of the *TI* (*Table Indicator*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type SegmentSelectorTableIndicatorMut<'a> = <SegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
+pub type SegmentSelectorTableIndicatorMut<'value> = <SegmentSelectorTableIndicator<'value> as Counterpart>::Mut;
 
 /// The mutable bitwise field of the (*Requested Privilege Level*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines the requested [`PrivilegeLevel`] to use this selector.
-pub type SegmentSelectorRplMut<'a> = <SegmentSelectorRpl<'a> as Counterpart>::Mut;
+pub type SegmentSelectorRplMut<'value> = <SegmentSelectorRpl<'value> as Counterpart>::Mut;
 
 /// A **raw** *Segment Selector* structure.
 ///
@@ -81,6 +84,25 @@ pub type SegmentSelectorRplMut<'a> = <SegmentSelectorRpl<'a> as Counterpart>::Mu
 pub struct RawSegmentSelector(u16);
 
 impl RawSegmentSelector {
+    /// Constructs one complete raw selector image.
+    ///
+    /// Every `u16` is representable as a visible selector image. This constructor does not prove
+    /// that the selected descriptor exists or has any particular semantic role.
+    #[inline]
+    #[must_use]
+    pub const fn new(value: u16) -> Self {
+        Self(value)
+    }
+
+    /// Returns the complete architectural selector value.
+    #[inline]
+    #[must_use]
+    pub const fn get(self) -> u16 {
+        let Self(value) = self;
+
+        value
+    }
+
     /// Construct a zeroed [`RawSegmentSelector`].
     #[inline]
     #[must_use]
@@ -169,6 +191,21 @@ pub struct SegmentSelector {
 }
 
 impl SegmentSelector {
+    /// Constructs a segment selector from its architectural components.
+    #[inline]
+    #[must_use]
+    pub const fn new(
+        descriptor_index: DescriptorIndex,
+        descriptor_table: TableIndicator,
+        requested_privilege_level: PrivilegeLevel,
+    ) -> Self {
+        Self {
+            descriptor_index,
+            descriptor_table,
+            requested_privilege_level,
+        }
+    }
+
     /// Determine the raw bit-for-bit representation for the target
     /// [`SegmentSelector`].
     #[inline]
@@ -194,7 +231,7 @@ impl SegmentSelector {
 
         target_selector
             .requested_privilege_level_mut()
-            .const_merge(requested_privilege_level as u8);
+            .const_merge(requested_privilege_level.raw());
 
         target_selector
     }
@@ -214,6 +251,7 @@ impl SegmentSelector {
 
     /// The [`DescriptorIndex`] associated to this [`SegmentSelector`], but in a
     /// mutable manner.
+    #[inline]
     pub const fn index_mut(&mut self) -> &mut DescriptorIndex {
         let &mut Self {
             ref mut descriptor_index,
@@ -273,39 +311,39 @@ impl SegmentSelector {
 
 /// The bitwise field of the *Index* field of this [`CodeSegment`].
 ///
-/// This is the index used in the selected [`SegmentSource`].
-pub type CodeSegmentSelectorIndex<'a> = Field<'a, 3, 15, u16>;
+/// This is the index used in the selected descriptor table.
+pub type CodeSegmentSelectorIndex<'value> = Field<'value, 3, 15, u16>;
 
 /// The bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicator<'a> = Bit<'a, u16, 2>;
+pub type CodeSegmentSelectorTableIndicator<'value> = Bit<'value, u16, 2>;
 
 /// The bitwise field of the (*Current Privilege Level*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines the current [`PrivilegeLevel`] to use this selector.
-pub type CodeSegmentSelectorCpl<'a> = Field<'a, 0, 1, u16>;
+pub type CodeSegmentSelectorCpl<'value> = Field<'value, 0, 1, u16>;
 
 /// The mutable bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
-/// This is the index used in the selected [`SegmentSource`].
-pub type CodeSegmentSelectorIndexMut<'a> = <CodeSegmentSelectorIndex<'a> as Counterpart>::Mut;
+/// This is the index used in the selected descriptor table.
+pub type CodeSegmentSelectorIndexMut<'value> = <CodeSegmentSelectorIndex<'value> as Counterpart>::Mut;
 
 /// The mutable bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicatorMut<'a> = <CodeSegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
+pub type CodeSegmentSelectorTableIndicatorMut<'value> = <CodeSegmentSelectorTableIndicator<'value> as Counterpart>::Mut;
 
 /// The mutable bitwise field of the (*Current Privilege Level*) field of this
 /// [`RawCodeSegment`].
 ///
 /// This determines the current [`PrivilegeLevel`] to use this selector.
-pub type CodeSegmentSelectorCplMut<'a> = <CodeSegmentSelectorCpl<'a> as Counterpart>::Mut;
+pub type CodeSegmentSelectorCplMut<'value> = <CodeSegmentSelectorCpl<'value> as Counterpart>::Mut;
 
 /// A new-type with the sole invariant that the underlying
 /// [`RawSegmentSelector`] is for a valid *Code Segment Descriptor*.
@@ -317,6 +355,22 @@ pub type CodeSegmentSelectorCplMut<'a> = <CodeSegmentSelectorCpl<'a> as Counterp
 pub struct RawCodeSegment(RawSegmentSelector);
 
 impl RawCodeSegment {
+    /// Constructs the null raw code-selector image.
+    #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self(RawSegmentSelector::zeroed())
+    }
+
+    /// Returns the complete architectural selector image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        let Self(selector) = self;
+
+        selector.get()
+    }
+
     /// Access the `Index` field (bits 3–15) of this `RawCodeSegment`.
     #[inline]
     #[must_use]
@@ -383,6 +437,17 @@ impl RawCodeSegment {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct RawDataSegment(RawSegmentSelector);
 
+impl RawDataSegment {
+    /// Returns the complete architectural selector image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        let Self(selector) = self;
+
+        selector.get()
+    }
+}
+
 impl Deref for RawDataSegment {
     type Target = RawSegmentSelector;
 
@@ -404,6 +469,40 @@ impl Deref for RawDataSegment {
 pub struct CodeSegment(SegmentSelector);
 
 impl CodeSegment {
+    /// Create a code-segment proof when `descriptor` describes present
+    /// 64-bit code semantics.
+    ///
+    /// Returns `None` when the descriptor is absent, selects data semantics,
+    /// uses compatibility-mode defaults, or is not marked for long mode.
+    ///
+    /// This proves the semantic descriptor role represented by the pair. Installation into the
+    /// selected GDT or LDT remains the responsibility of the descriptor-table owner.
+    #[inline]
+    #[must_use]
+    pub const fn from_descriptor(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
+        let access = descriptor.access();
+        let executable = matches!(access.executable().const_state(), State::Set);
+        let valid = access.is_present()
+            && access.is_code_or_data()
+            && executable
+            && descriptor.is_long_mode()
+            && !descriptor.has_default_size();
+
+        match valid {
+            true => Some(Self(selector)),
+            false => None,
+        }
+    }
+
+    /// Returns the raw selector representation for a proven code segment.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> RawCodeSegment {
+        let Self(selector) = self;
+
+        RawCodeSegment(selector.raw())
+    }
+
     /// The [`DescriptorIndex`] associated with this [`CodeSegment`].
     #[inline]
     #[must_use]
@@ -417,6 +516,7 @@ impl CodeSegment {
 
     /// The [`DescriptorIndex`] associated to this [`CodeSegment`], but in a
     /// mutable manner.
+    #[inline]
     pub const fn index_mut(&mut self) -> &mut DescriptorIndex {
         let &mut Self(SegmentSelector {
             ref mut descriptor_index,
@@ -482,6 +582,39 @@ impl CodeSegment {
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct DataSegment(SegmentSelector);
+
+impl DataSegment {
+    /// Create a data-segment proof when `descriptor` describes a present
+    /// writable data segment.
+    ///
+    /// Returns `None` when the descriptor is absent, selects code semantics,
+    /// or is not writable.
+    ///
+    /// Installation into the selected GDT or LDT remains the responsibility of the descriptor
+    /// table owner.
+    #[inline]
+    #[must_use]
+    pub const fn from_descriptor(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
+        let access = descriptor.access();
+        let executable = matches!(access.executable().const_state(), State::Set);
+        let writable = matches!(access.read_write().const_state(), State::Set);
+        let valid = access.is_present() && access.is_code_or_data() && !executable && writable;
+
+        match valid {
+            true => Some(Self(selector)),
+            false => None,
+        }
+    }
+
+    /// Returns the raw selector representation for a proven data segment.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> RawDataSegment {
+        let Self(selector) = self;
+
+        RawDataSegment(selector.raw())
+    }
+}
 
 impl Deref for DataSegment {
     type Target = SegmentSelector;

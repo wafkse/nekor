@@ -358,6 +358,7 @@ dependencies = [
  "nekor-aal-agnostic",
  "nekor-bitwise",
  "nekor-primitive",
+ "nekor-register",
 ]
 
 [[package]]

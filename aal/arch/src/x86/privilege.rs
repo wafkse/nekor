@@ -2,69 +2,49 @@
 
 use core::{fmt::Debug, marker};
 
-/// A `x86` privilege level.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
-#[repr(u8)]
-pub enum PrivilegeLevel {
-    /// A privilege level of `0`.
+enumerate![
+    /// An x86 privilege level.
+    #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
+    #[non_exhaustive]
+    pub enum PrivilegeLevel {
+        /// Privilege level zero.
+        ///
+        /// This is the maximum privilege level and the supervisor level used by Nekor.
+        Ring0 = 0,
+
+        /// Privilege level one.
+        Ring1 = 1,
+
+        /// Privilege level two.
+        Ring2 = 2,
+
+        /// Privilege level three.
+        ///
+        /// This is the least privileged architectural level and the user level used by Nekor.
+        Ring3 = 3,
+    } as u8
+];
+
+enumerate![
+    /// An I/O privilege level.
     ///
-    /// This is the maximum privilege level. also recognized as "kernelspace".
-    Ring0 = 0b00,
+    /// This is a constraint on I/O instruction execution rather than the current privilege level.
+    #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
+    #[non_exhaustive]
+    pub enum IoPrivilegeLevel {
+        /// I/O privilege level zero.
+        Ring0 = 0,
 
-    /// A privilege level of `1`.
-    Ring1 = 0b01,
+        /// I/O privilege level one.
+        Ring1,
 
-    /// A privilege level of `2`.
-    Ring2 = 0b10,
+        /// I/O privilege level two.
+        Ring2,
 
-    /// A privilege level of `3`.
-    ///
-    /// This is the least privileged level, also recognized as "userspace".
-    Ring3 = 0b11,
-}
-
-impl PrivilegeLevel {
-    /// Convert a raw byte value into a privilege level.
-    ///
-    /// # Remarks
-    ///
-    /// This will truncate the most significant `6` bits.
-    #[inline]
-    #[must_use]
-    pub const fn raw(target_value: u8) -> Self {
-        match target_value & 0b11 {
-            0b00 => Self::Ring0,
-            0b01 => Self::Ring1,
-            0b10 => Self::Ring2,
-            0b11 => Self::Ring3,
-            _ => unreachable!(),
-        }
-    }
-}
-
-/// An *I/O* *Privilege Level*.
-///
-/// This is not a privilege level by itself, but rather a constraint that
-/// determine whether a [`PrivilegeLevel`] can perform *I/O*.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
-#[repr(u8)]
-pub enum IoPrivilegeLevel {
-    /// A privilege level of `0`.
-    ///
-    /// This is the maximum privilege level.
-    Ring0 = 0b00,
-
-    /// A privilege level of `1`.
-    Ring1 = 0b01,
-
-    /// A privilege level of `2`.
-    Ring2 = 0b10,
-
-    /// A privilege level of `3`.
-    ///
-    /// This is the least privileged level.
-    Ring3 = 0b11,
-}
+        /// I/O privilege level three.
+        Ring3,
+    } as u8
+];
 
 mod detail {
     //! Implementation etails for the `privilege` module.
@@ -117,5 +97,55 @@ where
     #[inline]
     pub const unsafe fn assert(target_value: T) -> Self {
         Self(target_value, marker::PhantomData)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{IoPrivilegeLevel, PrivilegeLevel};
+
+    enumerate![
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum MixedIdentity {
+            #[doc = "An explicitly assigned first identity."]
+            Zero = 0,
+
+            #[doc = "An implicitly assigned successor."]
+            One,
+
+            #[doc = "An explicitly assigned sparse identity."]
+            Four = 4,
+
+            #[doc = "An implicitly assigned successor to the sparse identity."]
+            Five,
+        } as u8
+    ];
+
+    #[test]
+    fn privilege_level_lifts_and_erases_stable_repr() {
+        assert_eq!(PrivilegeLevel::Ring0.raw(), 0);
+        assert_eq!(PrivilegeLevel::Ring1.raw(), 1);
+        assert_eq!(PrivilegeLevel::Ring2.raw(), 2);
+        assert_eq!(PrivilegeLevel::Ring3.raw(), 3);
+        assert_eq!(PrivilegeLevel::lift(0), Some(PrivilegeLevel::Ring0));
+        assert_eq!(PrivilegeLevel::lift(3), Some(PrivilegeLevel::Ring3));
+        assert_eq!(PrivilegeLevel::lift(4), None);
+    }
+
+    #[test]
+    fn optional_discriminants_follow_rust_enum_rules() {
+        assert_eq!(MixedIdentity::Zero.raw(), 0);
+        assert_eq!(MixedIdentity::One.raw(), 1);
+        assert_eq!(MixedIdentity::Four.raw(), 4);
+        assert_eq!(MixedIdentity::Five.raw(), 5);
+        assert_eq!(MixedIdentity::lift(2), None);
+        assert_eq!(MixedIdentity::lift(5), Some(MixedIdentity::Five));
+    }
+
+    #[test]
+    fn io_privilege_level_uses_generated_repr_wrappers() {
+        assert_eq!(IoPrivilegeLevel::Ring0.raw(), 0);
+        assert_eq!(IoPrivilegeLevel::Ring3.raw(), 3);
+        assert_eq!(IoPrivilegeLevel::lift(4), None);
     }
 }
