@@ -479,7 +479,7 @@ impl CodeSegment {
     /// selected GDT or LDT remains the responsibility of the descriptor-table owner.
     #[inline]
     #[must_use]
-    pub const fn from_descriptor(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
+    pub const fn new(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
         let access = descriptor.access();
         let executable = matches!(access.executable().const_state(), State::Set);
         let valid = access.is_present()
@@ -594,7 +594,7 @@ impl DataSegment {
     /// table owner.
     #[inline]
     #[must_use]
-    pub const fn from_descriptor(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
+    pub const fn new(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
         let access = descriptor.access();
         let executable = matches!(access.executable().const_state(), State::Set);
         let writable = matches!(access.read_write().const_state(), State::Set);

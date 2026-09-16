@@ -1340,7 +1340,7 @@ impl FsBase {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1381,7 +1381,7 @@ impl GsBase {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1425,7 +1425,7 @@ impl KernelGsBase {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1467,7 +1467,7 @@ impl LStar {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1499,16 +1499,17 @@ impl private::Sealed for LStar {}
 
 /// The `IA32_CSTAR` compatibility-mode system-call target register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg(target_arch = "x86_64")]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar preserves the complete architectural CSTAR MSR image.
 pub struct CStar(u64);
 
+#[cfg(target_arch = "x86_64")]
 impl CStar {
     /// Create the register value from a linear address.
-    #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1516,7 +1517,6 @@ impl CStar {
     ///
     /// Returns `None` when the encoded value is not canonical for the selected
     /// linear-address mode.
-    #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
     pub const fn la<M>(&self) -> Option<La>
@@ -1634,7 +1634,7 @@ impl FMask {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_rflags(flags: Rflags) -> Self {
+    pub const fn new(flags: Rflags) -> Self {
         let RawRflags(value) = RawRflags::take(flags);
 
         Self(value)
@@ -1662,7 +1662,7 @@ impl SysEnterSp {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 
@@ -1705,7 +1705,7 @@ impl SysEnterIp {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     #[must_use]
-    pub const fn from_la(address: La) -> Self {
+    pub const fn new(address: La) -> Self {
         Self(address.bits())
     }
 

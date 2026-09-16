@@ -118,7 +118,7 @@ impl DescriptorIndex {
     /// 13-bit descriptor-table index range.
     #[inline]
     #[must_use]
-    pub const fn from_raw(target_index: u16) -> Option<Self> {
+    pub const fn lift(target_index: u16) -> Option<Self> {
         match NonZero::new(target_index) {
             Some(target_index) => Self::new(target_index),
             None => None,
@@ -302,7 +302,7 @@ impl RawSegmentDescriptor {
     /// any segment or system-descriptor semantics.
     #[inline]
     #[must_use]
-    pub const fn from_raw(value: u64) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
@@ -310,7 +310,7 @@ impl RawSegmentDescriptor {
     #[inline]
     #[must_use]
     pub const fn long_mode_code(privilege: PrivilegeLevel) -> Self {
-        let mut access = RawAccessByte::from_raw(u8::MIN);
+        let mut access = RawAccessByte::new(u8::MIN);
 
         access.present_mut().const_set(State::Set);
         access.privilege_mut().const_merge(privilege.raw());
@@ -333,7 +333,7 @@ impl RawSegmentDescriptor {
     #[inline]
     #[must_use]
     pub const fn flat_data(privilege: PrivilegeLevel) -> Self {
-        let mut access = RawAccessByte::from_raw(u8::MIN);
+        let mut access = RawAccessByte::new(u8::MIN);
 
         access.present_mut().const_set(State::Set);
         access.privilege_mut().const_merge(privilege.raw());
@@ -417,7 +417,7 @@ impl RawSegmentDescriptor {
     pub const fn access(&self) -> RawAccessByte {
         let value = self.access_byte().const_value();
 
-        RawAccessByte::from_raw(value)
+        RawAccessByte::new(value)
     }
 
     /// Determines the available-for-system-software flag.
@@ -781,7 +781,7 @@ impl RawAccessByte {
     /// Constructs a raw access byte from its complete architectural image.
     #[inline]
     #[must_use]
-    pub const fn from_raw(value: u8) -> Self {
+    pub const fn new(value: u8) -> Self {
         Self(value)
     }
 

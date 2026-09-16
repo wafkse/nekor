@@ -78,7 +78,7 @@ impl TaskRegisterSelector {
         let requested = PrivilegeLevel::lift(requested);
         let gdt = matches!(raw.table_indicator().const_state(), State::Cleared);
         let ring_zero = matches!(requested, Some(PrivilegeLevel::Ring0));
-        let index = DescriptorIndex::from_raw(raw.index().const_value());
+        let index = DescriptorIndex::lift(raw.index().const_value());
 
         match (gdt, ring_zero, index) {
             (true, true, Some(index)) => Some(Self::new(index)),
