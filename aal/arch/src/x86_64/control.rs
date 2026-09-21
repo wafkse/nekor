@@ -12,7 +12,7 @@ use core::mem;
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
 
-use crate::{x86::msr::LongModeEfer, x86_64::paging::Pa};
+use crate::{x86::msr::efer::LongModeEfer, x86_64::paging::Pa};
 
 /// The "Protection Enable" (PE) flag in [`Cr0`].
 pub type Cr0Pe<'value> = Bit<'value, u64, 0>;
@@ -1584,7 +1584,7 @@ mod tests {
 
     use super::{Cr0, Cr3, Cr4, LongModeControl, RawCr0, RawCr3, RawCr4};
     use crate::{
-        x86::msr::{Efer, LongModeEfer},
+        x86::msr::efer::{Efer, LongModeEfer},
         x86_64::paging::Pa,
     };
 
@@ -1630,7 +1630,7 @@ mod tests {
         let cr3 = Pa::new(0x1000).and_then(Cr3::root_table);
         let mut efer = Efer::RESET;
 
-        efer.flag_lme_mut().const_set(State::Set);
+        efer.lme_mut().const_set(State::Set);
 
         let efer = LongModeEfer::new(efer);
         let inactive = match (cr3, efer) {
