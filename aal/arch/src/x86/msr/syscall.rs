@@ -1,6 +1,6 @@
 //! Fast system-call and system-return MSR representations.
 //!
-//! Raw types preserve complete architectural register images. Checked types
+//! Raw types preserve architectural register images. Checked types
 //! encode the selector and linear-address relationships used by long-mode
 //! SYSCALL and SYSRET.
 
@@ -21,14 +21,14 @@ use crate::x86_64::paging::{La, LaMode};
 pub struct RawLStar(u64);
 
 impl RawLStar {
-    /// Constructs one complete raw LSTAR image.
+    /// Constructs a raw LSTAR image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw LSTAR image.
+    /// Returns the raw LSTAR image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -105,14 +105,14 @@ impl LStar {
 pub struct RawCStar(u64);
 
 impl RawCStar {
-    /// Constructs one complete raw CSTAR image.
+    /// Constructs a raw CSTAR image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw CSTAR image.
+    /// Returns the raw CSTAR image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -201,14 +201,14 @@ pub type StarUserSelectorMut<'value> = <StarUserSelector<'value> as Counterpart>
 pub struct RawStar(u64);
 
 impl RawStar {
-    /// Constructs one complete raw STAR image.
+    /// Constructs a raw STAR image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw STAR image.
+    /// Returns the raw STAR image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -403,14 +403,14 @@ impl Star {
 pub struct RawFMask(u64);
 
 impl RawFMask {
-    /// Constructs one complete raw FMASK image.
+    /// Constructs a raw FMASK image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw FMASK image.
+    /// Returns the raw FMASK image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {

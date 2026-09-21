@@ -5,11 +5,11 @@
 //! 51. A concrete processor may implement fewer physical address bits and must
 //! impose that narrower limit separately.
 //!
-//! [`La`] preserves one complete 64-bit linear address. Construction accepts
+//! [`La`] preserves a 64-bit linear address. Construction accepts
 //! only values canonical for the selected mode, but that mode is not retained
 //! by the type.
-//! [`La48`] and [`La57`] are compile-time mode markers used by
-//! [`La::canonical`] without depending on a control-register representation.
+//! [`La48`] and [`La57`] are compile-time mode markers used by [`La::new`]
+//! without depending on a control-register representation.
 //!
 //! # Intel SDM references
 //!
@@ -214,7 +214,7 @@ mod private {
     pub trait Sealed {}
 }
 
-/// One complete x86-64 linear address value.
+/// An x86-64 linear address value.
 ///
 /// The type preserves all 64 bits because canonicality depends on the active
 /// translation mode. LA48 requires bits 63 through 48 to sign-extend bit 47.
@@ -228,7 +228,7 @@ mod private {
 pub struct La(u64);
 
 impl La {
-    /// Return the complete linear-address representation.
+    /// Return the linear-address representation.
     #[inline]
     #[must_use]
     pub const fn bits(self) -> u64 {
@@ -387,7 +387,7 @@ impl La {
         La57Upper::wrap(target_value)
     }
 }
-/// One page-aligned linear address in the LA48 canonical domain.
+/// A page-aligned linear address in the LA48 canonical domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The private linear address is canonical under LA48 and has a zero 4 KiB page
@@ -434,7 +434,7 @@ impl La48Page {
         address
     }
 
-    /// Return the complete linear page-base image.
+    /// Return the linear page-base image.
     #[inline]
     #[must_use]
     pub const fn bits(self) -> u64 {

@@ -1,6 +1,6 @@
 //! Legacy SYSENTER MSR representations.
 //!
-//! Raw types preserve complete architectural register images. Checked values
+//! Raw types preserve architectural register images. Checked values
 //! carry selector adjacency and canonical linear-address properties.
 
 use nekor_bitwise::prelude::{Counterpart, Field};
@@ -32,14 +32,14 @@ pub type SysEnterCsReservedMut<'value> = <SysEnterCsReserved<'value> as Counterp
 pub struct RawSysEnterCs(u64);
 
 impl RawSysEnterCs {
-    /// Constructs one complete raw SYSENTER_CS image.
+    /// Constructs a raw SYSENTER_CS image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw SYSENTER_CS image.
+    /// Returns the raw SYSENTER_CS image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -148,14 +148,14 @@ impl SysEnterCs {
 pub struct RawSysEnterSp(u64);
 
 impl RawSysEnterSp {
-    /// Constructs one complete raw SYSENTER_ESP image.
+    /// Constructs a raw SYSENTER_ESP image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw SYSENTER_ESP image.
+    /// Returns the raw SYSENTER_ESP image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -232,14 +232,14 @@ impl SysEnterSp {
 pub struct RawSysEnterIp(u64);
 
 impl RawSysEnterIp {
-    /// Constructs one complete raw SYSENTER_EIP image.
+    /// Constructs a raw SYSENTER_EIP image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw SYSENTER_EIP image.
+    /// Returns the raw SYSENTER_EIP image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {

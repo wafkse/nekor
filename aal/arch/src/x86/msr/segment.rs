@@ -1,6 +1,6 @@
 //! FS and GS segment-base MSR representations.
 //!
-//! Raw types preserve complete register images. Checked values carry canonical
+//! Raw types preserve register images. Checked values carry canonical
 //! linear addresses for the selected x86-64 address mode.
 
 use super::{Msr, ReadWrite};
@@ -14,14 +14,14 @@ use crate::x86_64::paging::{La, LaMode};
 pub struct RawFsBase(u64);
 
 impl RawFsBase {
-    /// Constructs one complete raw FS-base image.
+    /// Constructs a raw FS-base image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw FS-base image.
+    /// Returns the raw FS-base image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -98,14 +98,14 @@ impl FsBase {
 pub struct RawGsBase(u64);
 
 impl RawGsBase {
-    /// Constructs one complete raw GS-base image.
+    /// Constructs a raw GS-base image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw GS-base image.
+    /// Returns the raw GS-base image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -182,14 +182,14 @@ impl GsBase {
 pub struct RawKernelGsBase(u64);
 
 impl RawKernelGsBase {
-    /// Constructs one complete raw kernel-GS-base image.
+    /// Constructs a raw kernel-GS-base image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw kernel-GS-base image.
+    /// Returns the raw kernel-GS-base image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {

@@ -155,7 +155,7 @@ where
         right_structure
     }
 
-    /// Swap the currently-active structure with the inactive one.
+    /// Swap the currently-active structure with the inactive structure.
     ///
     /// # Safety
     ///

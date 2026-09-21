@@ -71,14 +71,14 @@ type FredHandlerOffset<'value> = Field<'value, 0, 11, u64>;
 pub struct RawFredConfig(u64);
 
 impl RawFredConfig {
-    /// Constructs one complete raw FRED configuration image.
+    /// Constructs a raw FRED configuration image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw FRED configuration image.
+    /// Returns the raw FRED configuration image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -322,14 +322,14 @@ pub type FredLevelsMcMut<'value> = <FredLevelsMc<'value> as Counterpart>::Mut;
 pub struct RawFredLevels(u64);
 
 impl RawFredLevels {
-    /// Constructs one complete raw FRED stack-level image.
+    /// Constructs a raw FRED stack-level image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw FRED stack-level image.
+    /// Returns the raw FRED stack-level image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -417,7 +417,7 @@ pub struct FredLevels {
 }
 
 impl FredLevels {
-    /// Constructs the revision-one machine-safety assignment.
+    /// Constructs the revision 1 machine-safety assignment.
     #[inline]
     #[must_use]
     pub const fn machine_safety() -> Self {
@@ -473,7 +473,7 @@ impl FredLevels {
 /// Low six-bit alignment field used to validate FRED regular-stack pointers.
 pub type FredRspOffset<'value> = Field<'value, 0, 5, u64>;
 
-/// Defines one raw and checked regular-stack register pair.
+/// Defines a raw and checked regular-stack register pair.
 macro_rules! fred_rsp {
     ($raw:ident, $checked:ident, $address:expr, $level:literal) => {
         #[doc = concat!("Exact IA32_FRED_RSP", stringify!($level), " register image.")]
@@ -486,14 +486,14 @@ macro_rules! fred_rsp {
             /// Architectural zero image.
             pub const ZERO: Self = Self(u64::MIN);
 
-            /// Constructs one complete raw regular-stack image.
+            /// Constructs a raw regular-stack image.
             #[inline]
             #[must_use]
             pub const fn new(target_value: u64) -> Self {
                 Self(target_value)
             }
 
-            /// Returns the complete raw regular-stack image.
+            /// Returns the raw regular-stack image.
             #[inline]
             #[must_use]
             pub const fn raw(self) -> u64 {
@@ -578,7 +578,7 @@ fred_rsp!(RawFredRsp1, FredRsp1, 0x0000_01CD, 1);
 fred_rsp!(RawFredRsp2, FredRsp2, 0x0000_01CE, 2);
 fred_rsp!(RawFredRsp3, FredRsp3, 0x0000_01CF, 3);
 
-/// Defines one exact FRED shadow-stack register image.
+/// Defines a exact FRED shadow-stack register image.
 ///
 /// These images do not implement FredMsr because safe access also requires a
 /// shadow-stack capability that is not modeled by the FRED proof alone.
@@ -591,14 +591,14 @@ macro_rules! raw_fred_ssp {
         pub struct $name(u64);
 
         impl $name {
-            /// Constructs one complete raw shadow-stack image.
+            /// Constructs a raw shadow-stack image.
             #[inline]
             #[must_use]
             pub const fn new(target_value: u64) -> Self {
                 Self(target_value)
             }
 
-            /// Returns the complete raw shadow-stack image.
+            /// Returns the raw shadow-stack image.
             #[inline]
             #[must_use]
             pub const fn raw(self) -> u64 {
@@ -623,7 +623,7 @@ raw_fred_ssp!(RawFredSsp1, 0x0000_01D1, 1);
 raw_fred_ssp!(RawFredSsp2, 0x0000_01D2, 2);
 raw_fred_ssp!(RawFredSsp3, 0x0000_01D3, 3);
 
-/// Reads one FRED raw MSR image after proving processor support and CPL0 execution.
+/// Reads a FRED raw MSR image after proving processor support and CPL0 execution.
 #[inline]
 #[must_use]
 pub fn read<R, T>(_cpl0: &Cpl<0, T>, _fred: &FredCapability) -> R
@@ -636,7 +636,7 @@ where
     unsafe { read_msr::<R, false>() }
 }
 
-/// Writes one FRED raw MSR image after proving processor support and CPL0 execution.
+/// Writes a FRED raw MSR image after proving processor support and CPL0 execution.
 ///
 /// # Safety
 ///

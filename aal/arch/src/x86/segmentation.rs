@@ -76,7 +76,7 @@ pub type SegmentSelectorRplMut<'value> = <SegmentSelectorRpl<'value> as Counterp
 /// | 2     | TI    | 1           | Table Indicator (GDT/LDT)  |
 /// | 1-0   | RPL   | 2           | Requested Privilege Level  |
 ///
-/// The bit layout of this type is exact to the one expected by the CPU.
+/// The bit layout exactly matches the CPU representation.
 ///
 /// This is compiled from the [`SegmentSelector`] structure.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -84,7 +84,7 @@ pub type SegmentSelectorRplMut<'value> = <SegmentSelectorRpl<'value> as Counterp
 pub struct RawSegmentSelector(u16);
 
 impl RawSegmentSelector {
-    /// Constructs one complete raw selector image.
+    /// Constructs a raw selector image.
     ///
     /// Every `u16` is representable as a visible selector image. This constructor does not prove
     /// that the selected descriptor exists or has any particular semantic role.
@@ -94,7 +94,7 @@ impl RawSegmentSelector {
         Self(target_value)
     }
 
-    /// Returns the complete architectural selector value.
+    /// Returns the architectural selector value.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u16 {
@@ -362,7 +362,7 @@ impl RawCodeSegment {
         Self(RawSegmentSelector::zeroed())
     }
 
-    /// Returns the complete architectural selector image.
+    /// Returns the architectural selector image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u16 {
@@ -438,7 +438,7 @@ impl RawCodeSegment {
 pub struct RawDataSegment(RawSegmentSelector);
 
 impl RawDataSegment {
-    /// Returns the complete architectural selector image.
+    /// Returns the architectural selector image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u16 {

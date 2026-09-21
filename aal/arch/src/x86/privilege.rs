@@ -12,7 +12,7 @@ enumerate![
         /// This is the maximum privilege level and the supervisor level used by Nekor.
         Ring0 = 0,
 
-        /// Privilege level one.
+        /// Privilege level 1.
         Ring1 = 1,
 
         /// Privilege level two.
@@ -35,7 +35,7 @@ enumerate![
         /// I/O privilege level zero.
         Ring0 = 0,
 
-        /// I/O privilege level one.
+        /// I/O privilege level 1.
         Ring1,
 
         /// I/O privilege level two.

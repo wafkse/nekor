@@ -1,8 +1,8 @@
 //! Architectural x86 interrupt-vector values.
 
-/// One x86 interrupt-vector number.
+/// An x86 interrupt-vector number.
 ///
-/// The architecture defines a complete eight-bit vector namespace. This type
+/// The architecture defines a eight-bit vector namespace. This type
 /// preserves the semantic distinction between a vector and interrupt-controller
 /// pins or lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,7 +11,7 @@
 pub struct InterruptVector(u8);
 
 impl InterruptVector {
-    /// Constructs one vector from its complete architectural number.
+    /// Constructs a vector from its architectural number.
     #[inline]
     #[must_use]
     pub const fn new(vector: u8) -> Self {
@@ -28,7 +28,7 @@ impl InterruptVector {
     }
 }
 
-/// One x86 architectural exception-vector number.
+/// An x86 architectural exception-vector number.
 ///
 /// The processor reserves vectors zero through 31 for architectural
 /// exceptions. This type rejects values outside that domain.
@@ -74,7 +74,7 @@ impl ExceptionVector {
     }
 }
 
-/// One raw x86 exception error-code image.
+/// A raw x86 exception error-code image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar preserves the complete architectural 32-bit exception
@@ -82,14 +82,14 @@ impl ExceptionVector {
 pub struct ExceptionErrorCode(u32);
 
 impl ExceptionErrorCode {
-    /// Constructs one complete architectural exception error-code image.
+    /// Constructs an architectural exception error-code image.
     #[inline]
     #[must_use]
     pub const fn new(value: u32) -> Self {
         Self(value)
     }
 
-    /// Returns the complete architectural error-code image.
+    /// Returns the architectural error-code image.
     #[inline]
     #[must_use]
     pub const fn get(self) -> u32 {
@@ -99,9 +99,9 @@ impl ExceptionErrorCode {
     }
 }
 
-/// One x86 startup-interrupt vector.
+/// An x86 startup-interrupt vector.
 ///
-/// The vector selects one 4 KiB page in the first MiB for application-processor
+/// The vector selects a 4 KiB page in the first MiB for application-processor
 /// startup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -110,7 +110,7 @@ impl ExceptionErrorCode {
 pub struct StartupVector(u8);
 
 impl StartupVector {
-    /// Constructs one startup vector.
+    /// Constructs a startup vector.
     #[inline]
     #[must_use]
     pub const fn new(vector: u8) -> Self {

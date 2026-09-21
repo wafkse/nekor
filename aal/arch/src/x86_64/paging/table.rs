@@ -8,7 +8,7 @@
 //! The five index types mirror the hierarchy selectors carried by a
 //! [`La`]. PML5 is
 //! consumed only by LA57. Keeping every selector distinct prevents a selector
-//! from one hierarchy level being used to index a different table type.
+//! from a hierarchy level being used to index a different table type.
 
 use core::{
     mem,
@@ -211,10 +211,10 @@ impl PtIndex {
     }
 }
 
-/// One exact PML5 page.
+/// An exact PML5 page.
 ///
 /// This is the top-level page-map level-five table used by LA57. Its
-/// representation is one 4096-byte page containing 512 contiguous [`Pml5e`]
+/// representation is a 4096-byte page containing 512 contiguous [`Pml5e`]
 /// hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
@@ -274,11 +274,10 @@ impl IndexMut<Pml5Index> for Pml5 {
     }
 }
 
-/// One exact PML4 page.
+/// An exact PML4 page.
 ///
 /// This is the LA48 root table and the second table level under LA57. Its
-/// representation is one
-/// 4096-byte page containing 512 contiguous [`Pml4e`] hardware entries.
+/// representation occupies a 4096-byte page containing 512 contiguous [`Pml4e`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
 pub struct Pml4([Pml4e; ENTRY_COUNT]);
@@ -337,10 +336,10 @@ impl IndexMut<Pml4Index> for Pml4 {
     }
 }
 
-/// One exact page-directory-pointer table page.
+/// An exact page-directory-pointer table page.
 ///
 /// This is the second-level page-directory-pointer table. Its representation is
-/// one 4096-byte page containing 512 contiguous [`Pdpte`] hardware entries.
+/// a 4096-byte page containing 512 contiguous [`Pdpte`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
 pub struct Pdpt([Pdpte; ENTRY_COUNT]);
@@ -399,9 +398,9 @@ impl IndexMut<PdptIndex> for Pdpt {
     }
 }
 
-/// One exact page directory page.
+/// An exact page directory page.
 ///
-/// This is the third-level page directory. Its representation is one 4096-byte
+/// This is the third-level page directory. Its representation occupies a 4096-byte
 /// page containing 512 contiguous [`Pde`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
@@ -461,9 +460,9 @@ impl IndexMut<PdIndex> for PageDirectory {
     }
 }
 
-/// One exact page table page.
+/// An exact page table page.
 ///
-/// This is the final-level page table. Its representation is one 4096-byte page
+/// This is the final-level page table. Its representation is a 4096-byte page
 /// containing 512 contiguous [`Pte`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]

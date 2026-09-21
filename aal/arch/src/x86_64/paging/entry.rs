@@ -1,6 +1,6 @@
 //! Exact x86-64 paging-entry layouts.
 //!
-//! Every public entry type in this module is a transparent `u64` matching one
+//! Every public entry type in this module is a transparent `u64` matching a
 //! hardware slot at its hierarchy level. Presence is bit zero of that storage.
 //! A non-present entry therefore remains a normal entry value and may retain
 //! software-owned bits according to the processor paging rules.
@@ -14,7 +14,7 @@
 //!
 //! Constructors in this module are conveniences for architecturally aligned
 //! table pointers and leaves. They do not replace the field-level interface.
-//! The complete integer representation is intentionally not exposed. A one-way
+//! The integer representation is intentionally not exposed. A unidirectional
 //! little-endian byte image is available for installing typed entries into
 //! hardware paging-structure memory.
 //!
@@ -42,7 +42,7 @@ pub type EntryPresent<'value> = Bit<'value, u64, 0>;
 pub type EntryWritable<'value> = Bit<'value, u64, 1>;
 
 /// The "User/Supervisor" (U/S) flag. Set permits user-mode access subject to
-/// the complete walk.
+/// the walk.
 pub type EntryUser<'value> = Bit<'value, u64, 2>;
 
 /// The page-level write-through (PWT) flag.
@@ -151,7 +151,7 @@ pub type EntryProtectionKeyMut<'value> = <EntryProtectionKey<'value> as Counterp
 /// A mutable counterpart to [`EntryNoExecute`].
 pub type EntryNoExecuteMut<'value> = <EntryNoExecute<'value> as Counterpart>::Mut;
 
-/// One exact PML5 entry.
+/// An exact PML5 entry.
 ///
 /// A present PML5 entry always selects a PML4 table. It exists only in an LA57
 /// five-level walk and cannot terminate the walk as a leaf.
@@ -178,7 +178,7 @@ pub type EntryNoExecuteMut<'value> = <EntryNoExecute<'value> as Counterpart>::Mu
 // NOTE(invariant): The private scalar is always one complete architectural PML5 entry image.
 pub struct Pml5e(u64);
 
-/// One exact PML4 entry.
+/// An exact PML4 entry.
 ///
 /// A present PML4 entry always selects a page-directory-pointer table. It is
 /// the root entry under LA48 and the second entry under LA57. It cannot
@@ -206,7 +206,7 @@ pub struct Pml5e(u64);
 // NOTE(invariant): The private scalar is always one complete architectural PML4 entry image.
 pub struct Pml4e(u64);
 
-/// One exact page-directory-pointer-table entry.
+/// An exact page-directory-pointer-table entry.
 ///
 /// A present PDPT entry has two architectural interpretations selected by PS.
 /// With PS clear, bits 12 through 51 name the next page-directory page. With
@@ -231,7 +231,7 @@ pub struct Pml4e(u64);
 // NOTE(invariant): The private scalar is always one complete architectural PDPT entry image.
 pub struct Pdpte(u64);
 
-/// One exact page-directory entry.
+/// An exact page-directory entry.
 ///
 /// A present page-directory entry has two architectural interpretations
 /// selected by PS. With PS clear, bits 12 through 51 name the next page-table
@@ -257,7 +257,7 @@ pub struct Pdpte(u64);
 // image.
 pub struct Pde(u64);
 
-/// One exact page-table entry.
+/// An exact page-table entry.
 ///
 /// A present page-table entry is always a 4 KiB leaf in the shared lower walk.
 /// Unlike PDPT and page-directory leaves, its PAT selector occupies bit 7 and

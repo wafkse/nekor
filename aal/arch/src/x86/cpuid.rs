@@ -5,7 +5,7 @@ use core::arch::x86::{__cpuid_count, CpuidResult};
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{__cpuid_count, CpuidResult};
 
-/// Complete output from one compile-time-selected CPUID leaf and subleaf.
+/// output from the selected CPUID leaf and subleaf.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 // NOTE(invariant): LEAF and SUBLEAF are part of the Rust type. The wrapped core result is the
@@ -20,7 +20,7 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cpuid<LEAF, SUBLEAF> {
         Self(__cpuid_count(LEAF, SUBLEAF))
     }
 
-    /// Borrow the complete core CPUID result.
+    /// Borrow the core CPUID result.
     #[inline]
     #[must_use]
     pub const fn result(&self) -> &CpuidResult {
@@ -29,7 +29,7 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cpuid<LEAF, SUBLEAF> {
         result
     }
 
-    /// Construct one synthetic record inside the x86 architecture implementation.
+    /// Construct a synthetic record inside the x86 architecture implementation.
     // NOTE(rationale): Sibling architecture tests need controlled records without exposing record
     // forgery through the supported public API.
     #[cfg(any(test, miri))]

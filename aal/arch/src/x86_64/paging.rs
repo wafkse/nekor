@@ -27,7 +27,7 @@
 //! bits 48 through 56 for PML5 selection and requires bits 63 through 57 to
 //! sign-extend bit 56. [`address::La`] therefore does not claim
 //! canonicality by itself. [`address::La48`] and [`address::La57`] select the
-//! mode at the [`address::La::canonical`] call site.
+//! mode at the [`address::La::new`] call site.
 //!
 //! # Hierarchy
 //!
@@ -50,7 +50,7 @@
 //! # Presence
 //!
 //! Presence is architectural bit zero inside every entry. A non-present entry
-//! remains a complete hardware entry and may retain software-owned bits. Nekor
+//! remains a hardware entry and may retain software-owned bits. Nekor
 //! does not reinterpret absence as a Rust enum niche.
 //!
 //! # Physical address width
