@@ -304,9 +304,9 @@ pub struct RawSegmentDescriptor(u64);
 
 impl RawSegmentDescriptor {
     /// The mandated null segment descriptor.
-    pub const NULL: Self = Self(0);
+    pub const NULL: Self = Self(u64::MIN);
 
-    /// Constructs one complete raw segment-descriptor image.
+    /// Constructs a raw segment-descriptor image.
     ///
     /// Every `u64` is representable as a raw descriptor image. This constructor does not prove
     /// any segment or system-descriptor semantics.
@@ -323,20 +323,22 @@ impl RawSegmentDescriptor {
         let target_limit = u32::MAX;
         let limit_low = SegmentLimitValueLow::wrap(&target_limit).const_value();
         let limit_high = SegmentLimitValueHigh::wrap(&target_limit).const_value();
-        let mut access = RawAccessByte::new(u8::MIN);
+        let mut access_byte = RawAccessByte::new(u8::MIN);
 
-        access.present_mut().const_set(State::Set);
-        access.privilege_mut().const_merge(privilege.raw());
-        access.system_mut().const_set(State::Set);
-        access.executable_mut().const_set(State::Set);
-        access.read_write_mut().const_set(State::Set);
-        access.accessed_mut().const_set(State::Set);
+        access_byte.present_mut().const_set(State::Set);
+        access_byte.privilege_mut().const_merge(privilege.raw());
+        access_byte.system_mut().const_set(State::Set);
+        access_byte.executable_mut().const_set(State::Set);
+        access_byte.read_write_mut().const_set(State::Set);
+        access_byte.accessed_mut().const_set(State::Set);
 
         let mut descriptor = Self::NULL;
 
         descriptor.limit_low_mut().const_merge(limit_low);
         descriptor.limit_high_mut().const_merge(limit_high);
-        descriptor.access_byte_mut().const_merge(access.raw());
+        descriptor
+            .access_byte_mut()
+            .const_merge(RawAccessByte::raw(access_byte));
         descriptor.long_mode_mut().const_set(State::Set);
         descriptor.granularity_mut().const_set(State::Set);
 
@@ -369,7 +371,7 @@ impl RawSegmentDescriptor {
         descriptor
     }
 
-    /// Returns the complete encoded descriptor value.
+    /// Returns the encoded descriptor value.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -378,7 +380,7 @@ impl RawSegmentDescriptor {
         value
     }
 
-    /// Returns the complete 32-bit base encoded by this descriptor.
+    /// Returns the 32-bit base encoded by this descriptor.
     #[inline]
     #[must_use]
     pub const fn base(&self) -> u32 {
@@ -813,14 +815,14 @@ pub enum SystemDescriptorType {
 pub struct RawAccessByte(u8);
 
 impl RawAccessByte {
-    /// Constructs a raw access byte from its complete architectural image.
+    /// Constructs a raw access byte from its architectural image.
     #[inline]
     #[must_use]
     pub const fn new(value: u8) -> Self {
         Self(value)
     }
 
-    /// Returns the complete architectural access-byte image.
+    /// Returns the architectural access-byte image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u8 {
