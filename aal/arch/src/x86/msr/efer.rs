@@ -1,13 +1,15 @@
 //! Extended feature enable register representations and access.
 //!
-//! RawEfer owns the complete architectural image. Efer exposes safe mutation
+//! RawEfer owns the architectural image. Efer exposes safe mutation
 //! of software-controlled fields. LongModeEfer carries the stronger active
 //! long-mode proof needed by saved control-state representations.
 
 use nekor_bitwise::prelude::{Bit, Counterpart, State};
 
-use super::{Msr, ReadWrite, read as read_msr, write as write_msr};
-use crate::x86::privilege::Cpl;
+use crate::x86::{
+    msr::{self, Msr, ReadWrite},
+    privilege::Cpl,
+};
 
 /// System Call Extensions enable flag in RawEfer.
 pub type EferSce<'value> = Bit<'value, u64, 0>;
@@ -43,14 +45,14 @@ impl RawEfer {
     /// Architectural reset image used by this model.
     pub const RESET: Self = Self(u64::MIN);
 
-    /// Constructs one complete raw EFER image.
+    /// Constructs a raw EFER image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete raw EFER image.
+    /// Returns the raw EFER image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -151,7 +153,7 @@ impl Efer {
     /// Architectural reset value used by this model.
     pub const RESET: Self = Self(RawEfer::RESET);
 
-    /// Lifts a complete raw EFER image.
+    /// Lifts a raw EFER image.
     #[inline]
     #[must_use]
     pub const fn lift(target_value: RawEfer) -> Self {
@@ -269,7 +271,7 @@ impl LongModeEfer {
 pub fn read<T>(_cpl0: &Cpl<0, T>) -> Efer {
     // SAFETY: The proof token supplies RDMSR privilege and x86-64 execution
     // supplies EFER availability.
-    let target_value = unsafe { read_msr::<RawEfer, false>() };
+    let target_value = unsafe { msr::read::<RawEfer, false>() };
 
     Efer::lift(target_value)
 }
@@ -290,7 +292,7 @@ pub unsafe fn write<T>(_cpl0: &Cpl<0, T>, target_value: Efer) {
 
     // SAFETY: The caller supplies writable EFER validity and LMA has been
     // removed from the WRMSR input.
-    unsafe { write_msr::<RawEfer, false>(target_value) };
+    unsafe { msr::write::<RawEfer, false>(target_value) };
 }
 
 #[cfg(test)]
