@@ -111,7 +111,7 @@ impl TaskRegisterSelector {
     pub const fn raw(self) -> u16 {
         let Self(selector) = self;
 
-        selector.raw().get()
+        selector.raw().raw()
     }
 }
 

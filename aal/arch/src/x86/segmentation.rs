@@ -90,17 +90,17 @@ impl RawSegmentSelector {
     /// that the selected descriptor exists or has any particular semantic role.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Self {
-        Self(value)
+    pub const fn new(target_value: u16) -> Self {
+        Self(target_value)
     }
 
     /// Returns the complete architectural selector value.
     #[inline]
     #[must_use]
-    pub const fn get(self) -> u16 {
-        let Self(value) = self;
+    pub const fn raw(self) -> u16 {
+        let Self(target_value) = self;
 
-        value
+        target_value
     }
 
     /// Construct a zeroed [`RawSegmentSelector`].
@@ -312,14 +312,14 @@ impl SegmentSelector {
 /// The bitwise field of the *Index* field of this [`CodeSegment`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type CodeSegmentSelectorIndex<'value> = Field<'value, 3, 15, u16>;
+pub type CodeSegmentSelectorIndex<'value> = SegmentSelectorIndex<'value>;
 
 /// The bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicator<'value> = Bit<'value, u16, 2>;
+pub type CodeSegmentSelectorTableIndicator<'value> = SegmentSelectorTableIndicator<'value>;
 
 /// The bitwise field of the (*Current Privilege Level*) field of this
 /// [`SegmentSelector`].
@@ -330,14 +330,14 @@ pub type CodeSegmentSelectorCpl<'value> = Field<'value, 0, 1, u16>;
 /// The mutable bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type CodeSegmentSelectorIndexMut<'value> = <CodeSegmentSelectorIndex<'value> as Counterpart>::Mut;
+pub type CodeSegmentSelectorIndexMut<'value> = SegmentSelectorIndexMut<'value>;
 
 /// The mutable bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicatorMut<'value> = <CodeSegmentSelectorTableIndicator<'value> as Counterpart>::Mut;
+pub type CodeSegmentSelectorTableIndicatorMut<'value> = SegmentSelectorTableIndicatorMut<'value>;
 
 /// The mutable bitwise field of the (*Current Privilege Level*) field of this
 /// [`RawCodeSegment`].
@@ -368,25 +368,25 @@ impl RawCodeSegment {
     pub const fn raw(self) -> u16 {
         let Self(selector) = self;
 
-        selector.get()
+        selector.raw()
     }
 
     /// Access the `Index` field (bits 3–15) of this `RawCodeSegment`.
     #[inline]
     #[must_use]
     pub const fn index(&self) -> CodeSegmentSelectorIndex<'_> {
-        let &Self(RawSegmentSelector(ref target_value)) = self;
+        let &Self(ref selector) = self;
 
-        CodeSegmentSelectorIndex::wrap(target_value)
+        selector.index()
     }
 
     /// Mutably access the `Index` field (bits 3–15) of this
     /// `RawCodeSegment`.
     #[inline]
     pub const fn index_mut(&mut self) -> CodeSegmentSelectorIndexMut<'_> {
-        let &mut Self(RawSegmentSelector(ref mut target_value)) = self;
+        let &mut Self(ref mut selector) = self;
 
-        CodeSegmentSelectorIndexMut::wrap(target_value)
+        selector.index_mut()
     }
 
     /// Access the `TI` (Table Indicator) field (bit 2) of this
@@ -394,18 +394,18 @@ impl RawCodeSegment {
     #[inline]
     #[must_use]
     pub const fn table_indicator(&self) -> CodeSegmentSelectorTableIndicator<'_> {
-        let &Self(RawSegmentSelector(ref target_value)) = self;
+        let &Self(ref selector) = self;
 
-        CodeSegmentSelectorTableIndicator::wrap(target_value)
+        selector.table_indicator()
     }
 
     /// Mutably access the `TI` (Table Indicator) field (bit 2) of this
     /// `RawCodeSegment`.
     #[inline]
     pub const fn table_indicator_mut(&mut self) -> CodeSegmentSelectorTableIndicatorMut<'_> {
-        let &mut Self(RawSegmentSelector(ref mut target_value)) = self;
+        let &mut Self(ref mut selector) = self;
 
-        CodeSegmentSelectorTableIndicatorMut::wrap(target_value)
+        selector.table_indicator_mut()
     }
 
     /// Access the `CPL` (Current Privilege Level) field (bits 0–1) of this
@@ -444,7 +444,7 @@ impl RawDataSegment {
     pub const fn raw(self) -> u16 {
         let Self(selector) = self;
 
-        selector.get()
+        selector.raw()
     }
 }
 
@@ -613,6 +613,73 @@ impl DataSegment {
         let Self(selector) = self;
 
         RawDataSegment(selector.raw())
+    }
+
+    /// The [`DescriptorIndex`] associated with this [`DataSegment`].
+    #[inline]
+    #[must_use]
+    pub const fn index(&self) -> &DescriptorIndex {
+        let &Self(SegmentSelector {
+            ref descriptor_index, ..
+        }) = self;
+
+        descriptor_index
+    }
+
+    /// Mutably borrows the [`DescriptorIndex`] associated with this [`DataSegment`].
+    #[inline]
+    pub const fn index_mut(&mut self) -> &mut DescriptorIndex {
+        let &mut Self(SegmentSelector {
+            ref mut descriptor_index,
+            ..
+        }) = self;
+
+        descriptor_index
+    }
+
+    /// The [`TableIndicator`] associated with this [`DataSegment`].
+    #[inline]
+    #[must_use]
+    pub const fn table(&self) -> &TableIndicator {
+        let &Self(SegmentSelector {
+            ref descriptor_table, ..
+        }) = self;
+
+        descriptor_table
+    }
+
+    /// Mutably borrows the [`TableIndicator`] associated with this [`DataSegment`].
+    #[inline]
+    pub const fn table_mut(&mut self) -> &mut TableIndicator {
+        let &mut Self(SegmentSelector {
+            ref mut descriptor_table,
+            ..
+        }) = self;
+
+        descriptor_table
+    }
+
+    /// The requested [`PrivilegeLevel`] of this [`DataSegment`].
+    #[inline]
+    #[must_use]
+    pub const fn privilege(&self) -> &PrivilegeLevel {
+        let &Self(SegmentSelector {
+            ref requested_privilege_level,
+            ..
+        }) = self;
+
+        requested_privilege_level
+    }
+
+    /// Mutably borrows the requested [`PrivilegeLevel`] of this [`DataSegment`].
+    #[inline]
+    pub const fn privilege_mut(&mut self) -> &mut PrivilegeLevel {
+        let &mut Self(SegmentSelector {
+            ref mut requested_privilege_level,
+            ..
+        }) = self;
+
+        requested_privilege_level
     }
 }
 
