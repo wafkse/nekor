@@ -3,6 +3,7 @@
 use core::num::NonZero;
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
+use zerocopy::{Immutable, IntoBytes};
 
 use crate::x86::{
     address::Address,
@@ -237,11 +238,20 @@ pub type SegmentAvailable<'value> = Bit<'value, u64, 52>;
 /// The 64-bit code-segment flag in a segment descriptor.
 pub type SegmentLongMode<'value> = Bit<'value, u64, 53>;
 
+/// Mutable counterpart to [`SegmentLongMode`].
+pub type SegmentLongModeMut<'value> = <SegmentLongMode<'value> as Counterpart>::Mut;
+
 /// The default operand-size flag in a segment descriptor.
 pub type SegmentDefaultSize<'value> = Bit<'value, u64, 54>;
 
+/// Mutable counterpart to [`SegmentDefaultSize`].
+pub type SegmentDefaultSizeMut<'value> = <SegmentDefaultSize<'value> as Counterpart>::Mut;
+
 /// The limit-granularity flag in a segment descriptor.
 pub type SegmentGranularity<'value> = Bit<'value, u64, 55>;
+
+/// Mutable counterpart to [`SegmentGranularity`].
+pub type SegmentGranularityMut<'value> = <SegmentGranularity<'value> as Counterpart>::Mut;
 
 /// The *Access Byte* field in a *Segment Descriptor*.
 ///
@@ -286,7 +296,7 @@ pub type SegmentAccessByteMut<'value> = <SegmentAccessByte<'value> as Counterpar
 /// A raw *Segment Descriptor* representation.
 ///
 /// Reference: <https://wiki.osdev.org/Global_Descriptor_Table>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(C, align(8), /* must be 8-byte aligned */)]
 // NOTE(invariant): The private scalar is one complete eight-byte architectural segment descriptor
 // image and the explicit alignment matches descriptor-table storage requirements.
@@ -310,6 +320,9 @@ impl RawSegmentDescriptor {
     #[inline]
     #[must_use]
     pub const fn long_mode_code(privilege: PrivilegeLevel) -> Self {
+        let target_limit = u32::MAX;
+        let limit_low = SegmentLimitValueLow::wrap(&target_limit).const_value();
+        let limit_high = SegmentLimitValueHigh::wrap(&target_limit).const_value();
         let mut access = RawAccessByte::new(u8::MIN);
 
         access.present_mut().const_set(State::Set);
@@ -321,10 +334,11 @@ impl RawSegmentDescriptor {
 
         let mut descriptor = Self::NULL;
 
-        descriptor.limit_low_mut().const_merge(u16::MAX);
-        descriptor.limit_high_mut().const_merge(0x0f);
+        descriptor.limit_low_mut().const_merge(limit_low);
+        descriptor.limit_high_mut().const_merge(limit_high);
         descriptor.access_byte_mut().const_merge(access.raw());
-        descriptor.flags_mut().const_merge(0x0a);
+        descriptor.long_mode_mut().const_set(State::Set);
+        descriptor.granularity_mut().const_set(State::Set);
 
         descriptor
     }
@@ -333,6 +347,9 @@ impl RawSegmentDescriptor {
     #[inline]
     #[must_use]
     pub const fn flat_data(privilege: PrivilegeLevel) -> Self {
+        let target_limit = u32::MAX;
+        let limit_low = SegmentLimitValueLow::wrap(&target_limit).const_value();
+        let limit_high = SegmentLimitValueHigh::wrap(&target_limit).const_value();
         let mut access = RawAccessByte::new(u8::MIN);
 
         access.present_mut().const_set(State::Set);
@@ -343,10 +360,11 @@ impl RawSegmentDescriptor {
 
         let mut descriptor = Self::NULL;
 
-        descriptor.limit_low_mut().const_merge(u16::MAX);
-        descriptor.limit_high_mut().const_merge(0x0f);
+        descriptor.limit_low_mut().const_merge(limit_low);
+        descriptor.limit_high_mut().const_merge(limit_high);
         descriptor.access_byte_mut().const_merge(access.raw());
-        descriptor.flags_mut().const_merge(0x0c);
+        descriptor.default_size_mut().const_set(State::Set);
+        descriptor.granularity_mut().const_set(State::Set);
 
         descriptor
     }
@@ -358,13 +376,6 @@ impl RawSegmentDescriptor {
         let Self(value) = self;
 
         value
-    }
-
-    /// Returns the little-endian in-memory representation.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        Self::raw(self).to_le_bytes()
     }
 
     /// Returns the complete 32-bit base encoded by this descriptor.
@@ -438,6 +449,14 @@ impl RawSegmentDescriptor {
         SegmentLongMode::wrap(value)
     }
 
+    /// Mutably accesses the 64-bit code-segment flag.
+    #[inline]
+    pub const fn long_mode_mut(&mut self) -> SegmentLongModeMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        SegmentLongModeMut::wrap(target_value)
+    }
+
     /// Determines the default operand-size flag.
     #[inline]
     #[must_use]
@@ -447,6 +466,14 @@ impl RawSegmentDescriptor {
         SegmentDefaultSize::wrap(value)
     }
 
+    /// Mutably accesses the default operand-size flag.
+    #[inline]
+    pub const fn default_size_mut(&mut self) -> SegmentDefaultSizeMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        SegmentDefaultSizeMut::wrap(target_value)
+    }
+
     /// Determines the limit-granularity flag.
     #[inline]
     #[must_use]
@@ -454,6 +481,14 @@ impl RawSegmentDescriptor {
         let &Self(ref value) = self;
 
         SegmentGranularity::wrap(value)
+    }
+
+    /// Mutably accesses the limit-granularity flag.
+    #[inline]
+    pub const fn granularity_mut(&mut self) -> SegmentGranularityMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        SegmentGranularityMut::wrap(target_value)
     }
 
     /// Determines whether the available-for-system-software flag is set.
@@ -983,6 +1018,8 @@ impl RawAccessByte {
 
 #[cfg(test)]
 mod representation_tests {
+    use zerocopy::IntoBytes;
+
     use super::RawSegmentDescriptor;
     use crate::x86::privilege::PrivilegeLevel;
 
@@ -991,6 +1028,7 @@ mod representation_tests {
         let descriptor = RawSegmentDescriptor::long_mode_code(PrivilegeLevel::Ring0);
 
         assert_eq!(descriptor.raw(), 0x00af_9b00_0000_ffff);
+        assert_eq!(descriptor.as_bytes(), [0xff, 0xff, 0, 0, 0, 0x9b, 0xaf, 0]);
     }
 
     #[test]
