@@ -50,7 +50,7 @@ impl<T> RelPtr<T> {
 }
 
 /// A base-relative mutable pointer to an instance of `T`.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct RelPtrMut<T>(*mut T, marker::PhantomPinned);
 
