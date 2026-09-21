@@ -13,6 +13,8 @@ categories.workspace = true
 [features]
 
 [dependencies]
+zerocopy.workspace = true
+
 nekor-bitwise = { workspace = true }
 nekor-primitive = { workspace = true }
 

@@ -16,6 +16,7 @@ nekor-aal-agnostic = { workspace = true }
 nekor-bitwise = { workspace = true }
 nekor-register = { workspace = true }
 nekor-primitive = { workspace = true }
+zerocopy = { workspace = true }
 
 [lints]
 workspace = true

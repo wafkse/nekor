@@ -16,6 +16,7 @@ categories.workspace = true
 nekor-aal-agnostic = { workspace = true }
 nekor-aal-arch = { workspace = true }
 nekor-bitwise = { workspace = true }
+zerocopy = { workspace = true }
 
 [lints]
 workspace = true

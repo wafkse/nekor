@@ -61,6 +61,7 @@ fack = "0.1.2"
 miette = { version = "7.6.0", features = ["derive"] }
 tokel = "0.2.4"
 walkdir = "2.5"
+zerocopy = { version = "0.8.48", features = ["derive"] }
 nekor-build-kdl-config = { path = "nekor-build/nekor-build-kdl-config", package = "nekor-build-kdl-config" }
 nekor-aal = { path = "nekor-aal" }
 nekor-aal-agnostic = { path = "aal/agnostic" }

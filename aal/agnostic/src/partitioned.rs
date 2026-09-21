@@ -1,6 +1,7 @@
 use core::{cmp, fmt, hash, marker};
 
 use nekor_bitwise::prelude::Extract;
+use zerocopy::{Immutable, IntoBytes};
 
 /// A new-type wrapper over a partioned integer primitive.
 ///
@@ -8,8 +9,10 @@ use nekor_bitwise::prelude::Extract;
 /// fields.
 ///
 /// Note that this is transparent over `P`'s [`Extract::Output`] type.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, IntoBytes, Immutable)]
 #[repr(transparent)]
+// NOTE(invariant): The stored scalar is exactly the extracted partition output; the phantom
+// parameter preserves invariance over the source primitive without affecting layout.
 pub struct Partitioned<const N: usize, const M: usize, P>(
     // NOTE: `P::Output` is the smallest integer that can fit `M - N`
     // consecutive bits.
@@ -28,6 +31,23 @@ where
     #[inline]
     pub const fn raw(target_value: P::Output) -> Self {
         Self(target_value, marker::PhantomData)
+    }
+
+    /// Borrow the stored partition value.
+    #[inline]
+    #[must_use]
+    pub const fn value(&self) -> &P::Output {
+        let &Self(ref target_value, ..) = self;
+
+        target_value
+    }
+
+    /// Mutably borrow the stored partition value.
+    #[inline]
+    pub const fn value_mut(&mut self) -> &mut P::Output {
+        let &mut Self(ref mut target_value, ..) = self;
+
+        target_value
     }
 
     /// Partition away the `N..=M` bits from the target value of type `P`.
@@ -54,6 +74,7 @@ where
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         let &Self(ref left_value, ..) = self;
+
         let &Self(ref right_value, ..) = other;
 
         left_value == right_value
@@ -69,6 +90,7 @@ where
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         let &Self(ref left_value, ..) = self;
+
         let &Self(ref right_value, ..) = other;
 
         left_value.partial_cmp(right_value)
@@ -83,6 +105,7 @@ where
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         let &Self(ref left_value, ..) = self;
+
         let &Self(ref right_value, ..) = other;
 
         left_value.cmp(right_value)

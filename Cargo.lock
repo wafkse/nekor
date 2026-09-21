@@ -349,6 +349,7 @@ version = "0.1.0"
 dependencies = [
  "nekor-bitwise",
  "nekor-primitive",
+ "zerocopy",
 ]
 
 [[package]]
@@ -359,6 +360,7 @@ dependencies = [
  "nekor-bitwise",
  "nekor-primitive",
  "nekor-register",
+ "zerocopy",
 ]
 
 [[package]]
@@ -404,6 +406,7 @@ dependencies = [
  "nekor-aal-agnostic",
  "nekor-aal-arch",
  "nekor-bitwise",
+ "zerocopy",
 ]
 
 [[package]]
