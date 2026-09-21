@@ -37,29 +37,29 @@ pub struct Pml5Index(
 impl Pml5Index {
     /// Create a PML5 selector for an entry in the five-level table.
     ///
-    /// Returns `None` when `value` does not fit the nine-bit table index.
+    /// Returns `None` when `target_value` does not fit the nine-bit table index.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Option<Self> {
-        match value {
-            0..=LAST_ENTRY_INDEX => Some(Self(value)),
+    pub const fn new(target_value: u16) -> Option<Self> {
+        match target_value {
+            0..=LAST_ENTRY_INDEX => Some(Self(target_value)),
             _ => None,
         }
     }
 
-    /// Derive the PML5 selector from a linear address.
+    /// Selects the PML5 entry named by a linear address.
     #[inline]
     #[must_use]
-    pub const fn from_address(address: &La) -> Self {
+    pub const fn select(address: &La) -> Self {
         Self(address.pml5_index().const_value())
     }
 
     /// Convert this selector into its array index.
     #[inline]
     const fn array_index(self) -> usize {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
-        value as usize
+        target_value as usize
     }
 }
 
@@ -74,29 +74,29 @@ pub struct Pml4Index(
 impl Pml4Index {
     /// Create a PML4 selector for an entry in a paging table.
     ///
-    /// Returns `None` when `value` does not fit the nine-bit table index.
+    /// Returns `None` when `target_value` does not fit the nine-bit table index.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Option<Self> {
-        match value {
-            0..=LAST_ENTRY_INDEX => Some(Self(value)),
+    pub const fn new(target_value: u16) -> Option<Self> {
+        match target_value {
+            0..=LAST_ENTRY_INDEX => Some(Self(target_value)),
             _ => None,
         }
     }
 
-    /// Derive the PML4 selector from a linear address.
+    /// Selects the PML4 entry named by a linear address.
     #[inline]
     #[must_use]
-    pub const fn from_address(address: &La) -> Self {
+    pub const fn select(address: &La) -> Self {
         Self(address.pml4_index().const_value())
     }
 
     /// Convert this selector into its array index.
     #[inline]
     const fn array_index(self) -> usize {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
-        value as usize
+        target_value as usize
     }
 }
 
@@ -111,29 +111,29 @@ pub struct PdptIndex(
 impl PdptIndex {
     /// Create a PDPT selector for an entry in a paging table.
     ///
-    /// Returns `None` when `value` does not fit the nine-bit table index.
+    /// Returns `None` when `target_value` does not fit the nine-bit table index.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Option<Self> {
-        match value {
-            0..=LAST_ENTRY_INDEX => Some(Self(value)),
+    pub const fn new(target_value: u16) -> Option<Self> {
+        match target_value {
+            0..=LAST_ENTRY_INDEX => Some(Self(target_value)),
             _ => None,
         }
     }
 
-    /// Derive the PDPT selector from a linear address.
+    /// Selects the PDPT entry named by a linear address.
     #[inline]
     #[must_use]
-    pub const fn from_address(address: &La) -> Self {
+    pub const fn select(address: &La) -> Self {
         Self(address.pdpt_index().const_value())
     }
 
     /// Convert this selector into its array index.
     #[inline]
     const fn array_index(self) -> usize {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
-        value as usize
+        target_value as usize
     }
 }
 
@@ -148,29 +148,29 @@ pub struct PdIndex(
 impl PdIndex {
     /// Create a page-directory selector for an entry in a paging table.
     ///
-    /// Returns `None` when `value` does not fit the nine-bit table index.
+    /// Returns `None` when `target_value` does not fit the nine-bit table index.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Option<Self> {
-        match value {
-            0..=LAST_ENTRY_INDEX => Some(Self(value)),
+    pub const fn new(target_value: u16) -> Option<Self> {
+        match target_value {
+            0..=LAST_ENTRY_INDEX => Some(Self(target_value)),
             _ => None,
         }
     }
 
-    /// Derive the page-directory selector from a linear address.
+    /// Selects the page-directory entry named by a linear address.
     #[inline]
     #[must_use]
-    pub const fn from_address(address: &La) -> Self {
+    pub const fn select(address: &La) -> Self {
         Self(address.page_directory_index().const_value())
     }
 
     /// Convert this selector into its array index.
     #[inline]
     const fn array_index(self) -> usize {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
-        value as usize
+        target_value as usize
     }
 }
 
@@ -185,29 +185,29 @@ pub struct PtIndex(
 impl PtIndex {
     /// Create a page-table selector for an entry in a paging table.
     ///
-    /// Returns `None` when `value` does not fit the nine-bit table index.
+    /// Returns `None` when `target_value` does not fit the nine-bit table index.
     #[inline]
     #[must_use]
-    pub const fn new(value: u16) -> Option<Self> {
-        match value {
-            0..=LAST_ENTRY_INDEX => Some(Self(value)),
+    pub const fn new(target_value: u16) -> Option<Self> {
+        match target_value {
+            0..=LAST_ENTRY_INDEX => Some(Self(target_value)),
             _ => None,
         }
     }
 
-    /// Derive the page-table selector from a linear address.
+    /// Selects the page-table entry named by a linear address.
     #[inline]
     #[must_use]
-    pub const fn from_address(address: &La) -> Self {
+    pub const fn select(address: &La) -> Self {
         Self(address.page_table_index().const_value())
     }
 
     /// Convert this selector into its array index.
     #[inline]
     const fn array_index(self) -> usize {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
-        value as usize
+        target_value as usize
     }
 }
 
@@ -556,8 +556,8 @@ mod tests {
     #[test]
     fn linear_address_indices_select_the_matching_hardware_levels() {
         let state = La::new::<La57>(0x00f2_7abc_def1_2345).map(|address| {
-            let pml5_index = Pml5Index::from_address(&address);
-            let pml4_index = Pml4Index::from_address(&address);
+            let pml5_index = Pml5Index::select(&address);
+            let pml4_index = Pml4Index::select(&address);
             let pml5 = Pa::new(0x4000).and_then(Pml5e::table).map(|entry| {
                 let mut table = Pml5::empty();
 
