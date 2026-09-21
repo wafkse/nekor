@@ -29,6 +29,7 @@
 use core::mem;
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
+use zerocopy::{Immutable, IntoBytes};
 
 use super::address::Pa;
 
@@ -172,7 +173,7 @@ pub type EntryNoExecuteMut<'value> = <EntryNoExecute<'value> as Counterpart>::Mu
 /// Bit 7 is not a page-size selector at this level.
 ///
 /// See Intel SDM Vol. 3A, Table 5-14.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar is always one complete architectural PML5 entry image.
 pub struct Pml5e(u64);
@@ -200,7 +201,7 @@ pub struct Pml5e(u64);
 /// Bit 7 is not a page-size selector at this level.
 ///
 /// See Intel SDM Vol. 3A, Table 5-15.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar is always one complete architectural PML4 entry image.
 pub struct Pml4e(u64);
@@ -225,7 +226,7 @@ pub struct Pml4e(u64);
 /// | Bits 59..62 | non-leaf semantics | Protection key |
 ///
 /// See Intel SDM Vol. 3A, Tables 5-16 and 5-17.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar is always one complete architectural PDPT entry image.
 pub struct Pdpte(u64);
@@ -250,7 +251,7 @@ pub struct Pdpte(u64);
 /// | Bits 59..62 | non-leaf semantics | Protection key |
 ///
 /// See Intel SDM Vol. 3A, Tables 5-18 and 5-19.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar is always one complete architectural page-directory entry
 // image.
@@ -281,7 +282,7 @@ pub struct Pde(u64);
 /// | 63 | Execute disable |
 ///
 /// See Intel SDM Vol. 3A, Table 5-20.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The private scalar is always one complete architectural page-table entry image.
 pub struct Pte(u64);
@@ -292,15 +293,6 @@ impl Pml5e {
     #[must_use]
     pub const fn empty() -> Self {
         Self(u64::MIN)
-    }
-
-    /// Returns the little-endian hardware memory image of this entry.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        let Self(value) = self;
-
-        value.to_le_bytes()
     }
 
     /// Determine the "Present" (P) flag.
@@ -501,15 +493,6 @@ impl Pml4e {
         Self(u64::MIN)
     }
 
-    /// Returns the little-endian hardware memory image of this entry.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        let Self(value) = self;
-
-        value.to_le_bytes()
-    }
-
     /// Determine the "Present" (P) flag.
     #[inline]
     #[must_use]
@@ -706,15 +689,6 @@ impl Pdpte {
     #[must_use]
     pub const fn empty() -> Self {
         Self(u64::MIN)
-    }
-
-    /// Returns the little-endian hardware memory image of this entry.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        let Self(value) = self;
-
-        value.to_le_bytes()
     }
 
     /// Determine the "Present" (P) flag.
@@ -1053,15 +1027,6 @@ impl Pde {
         Self(u64::MIN)
     }
 
-    /// Returns the little-endian hardware memory image of this entry.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        let Self(value) = self;
-
-        value.to_le_bytes()
-    }
-
     /// Determine the "Present" (P) flag.
     #[inline]
     #[must_use]
@@ -1397,15 +1362,6 @@ impl Pte {
         Self(u64::MIN)
     }
 
-    /// Returns the little-endian hardware memory image of this entry.
-    #[inline]
-    #[must_use]
-    pub const fn to_le_bytes(self) -> [u8; 8] {
-        let Self(value) = self;
-
-        value.to_le_bytes()
-    }
-
     /// Determine the "Present" (P) flag.
     #[inline]
     #[must_use]
@@ -1691,6 +1647,7 @@ const _: () = {
 #[cfg(test)]
 mod tests {
     use nekor_bitwise::prelude::State;
+    use zerocopy::IntoBytes;
 
     use super::{Pde, Pdpte, Pml4e, Pml5e, Pte};
     use crate::x86_64::paging::address::Pa;
@@ -1736,9 +1693,15 @@ mod tests {
 
     #[test]
     fn paging_entry_byte_transport_matches_hardware_layout() {
-        let pml4 = Pa::new(0x2000).and_then(Pml4e::table).map(Pml4e::to_le_bytes);
-        let pdpt = Pa::new(0x3000).and_then(Pdpte::table).map(Pdpte::to_le_bytes);
-        let page = Pa::new(0).and_then(Pde::page_2mib).map(Pde::to_le_bytes);
+        let pml4 = Pa::new(0x2000)
+            .and_then(Pml4e::table)
+            .map(|entry| <[u8; 8]>::try_from(entry.as_bytes()).expect("PML4 entries are exactly eight bytes"));
+        let pdpt = Pa::new(0x3000)
+            .and_then(Pdpte::table)
+            .map(|entry| <[u8; 8]>::try_from(entry.as_bytes()).expect("PDPT entries are exactly eight bytes"));
+        let page = Pa::new(0)
+            .and_then(Pde::page_2mib)
+            .map(|entry| <[u8; 8]>::try_from(entry.as_bytes()).expect("PDE entries are exactly eight bytes"));
 
         assert_eq!(pml4, Some(0x2001_u64.to_le_bytes()));
         assert_eq!(pdpt, Some(0x3001_u64.to_le_bytes()));
