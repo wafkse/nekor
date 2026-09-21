@@ -4,11 +4,17 @@
 //! instructions. The public submodules own the value representations and
 //! capability-aware accessors for coherent architectural MSR families.
 
-use core::{arch, mem};
+use core::{arch, convert::Infallible, mem};
 
 use nekor_bitwise::prelude::{U64High32, U64High32Mut, U64Low32, U64Low32Mut};
 use nekor_register::prelude::{
     Ro as RegisterRo, Rw as RegisterRw, Unaccessible as RegisterUnaccessible, Wo as RegisterWo,
+};
+
+use crate::x86::{
+    fred::Fred as FredCapability,
+    privilege::Cpl,
+    xstate::{Xfd as XfdCapability, XsaveSupervisor},
 };
 
 /// Extended feature enable register representations and access.
@@ -39,6 +45,8 @@ pub mod fred;
 /// Every implementation must have the same size and alignment as `u64`, and
 /// every `u64` bit pattern must be a valid value of the implementing type.
 /// Transparent wrappers may delegate through another type with that contract.
+/// `Authority` must require every privilege and feature proof needed to access
+/// the selected architectural register.
 /// [`RawMsr`] relies on these representation guarantees.
 pub unsafe trait Msr: Copy + private::Sealed {
     /// Architectural MSR index loaded into `ECX` by `rdmsr` or `wrmsr`.
@@ -46,6 +54,12 @@ pub unsafe trait Msr: Copy + private::Sealed {
 
     /// Architectural access mode of this MSR.
     type Access: Access<Self>;
+
+    /// Proof family required before accessing this register.
+    type Authority: Authority;
+
+    /// Whether accesses are fenced against speculative execution.
+    const FENCE: bool = false;
 
     /// Canonical register descriptor for this MSR.
     const REGISTER: <Self::Access as Access<Self>>::Register = <Self::Access as Access<Self>>::REGISTER;
@@ -108,8 +122,69 @@ pub trait Readable: private::AccessSealed {}
 /// An MSR access mode that permits writes.
 pub trait Writable: private::AccessSealed {}
 
-/// A model-specific register whose architectural availability is proven by FRED support.
-pub trait FredMsr: Msr + private::FredSealed {}
+/// Supplies the borrowed proof required by an MSR family.
+pub trait Authority: private::AuthoritySealed {
+    /// Access proof tied to the current execution context.
+    type Proof<'proof, T>
+    where
+        T: 'proof;
+}
+
+/// CPL0 proof required by architectural MSRs available without another feature token.
+pub enum Cpl0Access {}
+
+/// CPL0 and XFD proofs required by the XFD register family.
+pub enum XfdAccess {}
+
+/// CPL0 and supervisor XSAVE proofs required by IA32_XSS.
+pub enum XssAccess {}
+
+/// CPL0 and FRED proofs required by the FRED register family.
+pub enum FredAccess {}
+
+/// Uninhabited authority for registers whose full capability proof is not modeled.
+pub enum UnavailableAccess {}
+
+impl private::AuthoritySealed for Cpl0Access {}
+impl private::AuthoritySealed for XfdAccess {}
+impl private::AuthoritySealed for XssAccess {}
+impl private::AuthoritySealed for FredAccess {}
+impl private::AuthoritySealed for UnavailableAccess {}
+
+impl Authority for Cpl0Access {
+    type Proof<'proof, T>
+        = &'proof Cpl<0, T>
+    where
+        T: 'proof;
+}
+
+impl Authority for XfdAccess {
+    type Proof<'proof, T>
+        = (&'proof Cpl<0, T>, &'proof XfdCapability)
+    where
+        T: 'proof;
+}
+
+impl Authority for XssAccess {
+    type Proof<'proof, T>
+        = (&'proof Cpl<0, T>, &'proof XsaveSupervisor)
+    where
+        T: 'proof;
+}
+
+impl Authority for FredAccess {
+    type Proof<'proof, T>
+        = (&'proof Cpl<0, T>, &'proof FredCapability)
+    where
+        T: 'proof;
+}
+
+impl Authority for UnavailableAccess {
+    type Proof<'proof, T>
+        = Infallible
+    where
+        T: 'proof;
+}
 
 /// Read-only MSR access.
 pub enum ReadOnly {}
@@ -164,24 +239,19 @@ where
     const REGISTER: Self::Register = RegisterUnaccessible::register(R::ADDRESS as usize);
 }
 
-/// Read a readable MSR directly with `rdmsr`.
+/// Reads an MSR after receiving its privilege and feature proof.
 ///
-/// When `FENCE` is `true`, an `LFENCE` is emitted immediately before and after
-/// `RDMSR`, preventing instruction execution from crossing the access. The
-/// inline assembly intentionally does not use `nomem`, so it is also a compiler
-/// barrier for surrounding memory accesses.
-///
-/// # Safety
-///
-/// The current privilege level and processor model must permit access to `R`.
+/// Registers select their proof family through [`Msr::Authority`]. The proof
+/// cannot be constructed without the CPL and feature capabilities required by
+/// that family.
 #[inline]
 #[must_use]
-pub unsafe fn read<R, const FENCE: bool>() -> R
+pub fn read<R, T>(_proof: <R::Authority as Authority>::Proof<'_, T>) -> R
 where
     R: Msr,
     R::Access: Readable,
 {
-    processor_fence::<FENCE>();
+    processor_fence(R::FENCE);
 
     let high: u32;
     let low: u32;
@@ -199,7 +269,7 @@ where
         );
     }
 
-    processor_fence::<FENCE>();
+    processor_fence(R::FENCE);
 
     let mut raw = u64::MIN;
     let mut low_field = U64Low32Mut::wrap(&mut raw);
@@ -215,19 +285,14 @@ where
     unsafe { mem::transmute_copy(&raw) }
 }
 
-/// Write a writable MSR directly with `wrmsr`.
-///
-/// When `FENCE` is `true`, an `LFENCE` is emitted immediately before and after
-/// `WRMSR`, preventing instruction execution from crossing the access. The
-/// inline assembly intentionally does not use `nomem`, so it is also a compiler
-/// barrier for surrounding memory accesses.
+/// Writes an MSR after receiving its privilege and feature proof.
 ///
 /// # Safety
 ///
-/// The current privilege level and processor model must permit access to `R`,
-/// and `value` must satisfy that MSR's architectural requirements.
+/// `target_value` must satisfy the target register's architectural write
+/// requirements. The proof establishes privilege and feature availability.
 #[inline]
-pub unsafe fn write<R, const FENCE: bool>(target_value: R)
+pub unsafe fn write<R, T>(_proof: <R::Authority as Authority>::Proof<'_, T>, target_value: R)
 where
     R: Msr,
     R::Access: Writable,
@@ -237,7 +302,7 @@ where
     let lo = U64Low32::wrap(&target_value).const_value();
     let hi = U64High32::wrap(&target_value).const_value();
 
-    processor_fence::<FENCE>();
+    processor_fence(R::FENCE);
 
     // SAFETY: The caller guarantees that `R::ADDRESS` names an available,
     // writable MSR and that `value` is architecturally valid for it. Omitting
@@ -253,13 +318,13 @@ where
         );
     }
 
-    processor_fence::<FENCE>();
+    processor_fence(R::FENCE);
 }
 
 /// Apply the optional processor execution fence around an MSR access.
 #[inline]
-fn processor_fence<const FENCE: bool>() {
-    if FENCE {
+fn processor_fence(fence: bool) {
+    if fence {
         // SAFETY: `lfence` only constrains processor execution ordering. The
         // missing `nomem` option also prevents compiler memory motion across
         // this boundary.
@@ -274,11 +339,11 @@ mod private {
     /// Seal for architectural MSR value types.
     pub trait Sealed {}
 
+    /// Seal for MSR access-authority families.
+    pub trait AuthoritySealed {}
+
     /// Seal for architectural MSR access modes.
     pub trait AccessSealed {}
-
-    /// Seal for model-specific registers whose availability follows FRED enumeration.
-    pub trait FredSealed {}
 }
 
 impl Readable for ReadOnly {}
@@ -290,7 +355,17 @@ impl Writable for WriteOnly {}
 mod tests {
     use nekor_register::prelude::{Ro, Rw, Unaccessible as RegisterUnaccessible, Wo};
 
-    use super::{Msr, RawMsr, ReadOnly, ReadWrite, Unaccessible, WriteOnly};
+    use super::{Cpl0Access, Msr, RawMsr, ReadOnly, ReadWrite, Unaccessible, WriteOnly};
+    use crate::x86::{
+        fred::Fred,
+        msr::{
+            efer::RawEfer,
+            fred::RawFredConfig,
+            xstate::{RawXfd, RawXss},
+        },
+        privilege::Cpl,
+        xstate::{Xfd, XsaveSupervisor},
+    };
 
     #[derive(Clone, Copy)]
     #[repr(transparent)]
@@ -314,6 +389,7 @@ mod tests {
             // patterns.
             unsafe impl Msr for $target {
                 type Access = $access;
+                type Authority = Cpl0Access;
 
                 const ADDRESS: u32 = $address;
             }
@@ -345,5 +421,13 @@ mod tests {
         let RawMsr(target_value) = RawMsr::take(TestRw(0x800));
 
         assert_eq!(target_value, 0x800);
+    }
+
+    #[test]
+    fn authority_gats_select_the_required_proof_shape() {
+        let _: for<'proof> fn(&'proof Cpl<0, ()>) -> RawEfer = super::read::<RawEfer, ()>;
+        let _: for<'proof> fn((&'proof Cpl<0, ()>, &'proof Xfd)) -> RawXfd = super::read::<RawXfd, ()>;
+        let _: for<'proof> fn((&'proof Cpl<0, ()>, &'proof XsaveSupervisor)) -> RawXss = super::read::<RawXss, ()>;
+        let _: for<'proof> fn((&'proof Cpl<0, ()>, &'proof Fred)) -> RawFredConfig = super::read::<RawFredConfig, ()>;
     }
 }

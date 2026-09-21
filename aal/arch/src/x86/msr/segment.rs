@@ -3,7 +3,7 @@
 //! Raw types preserve register images. Checked values carry canonical
 //! linear addresses for the selected x86-64 address mode.
 
-use super::{Msr, ReadWrite};
+use super::{Cpl0Access, Msr, ReadWrite};
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
@@ -34,6 +34,7 @@ impl RawFsBase {
 // SAFETY: RawFsBase is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawFsBase {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0100;
 }
@@ -118,6 +119,7 @@ impl RawGsBase {
 // SAFETY: RawGsBase is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawGsBase {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0101;
 }
@@ -202,6 +204,7 @@ impl RawKernelGsBase {
 // SAFETY: RawKernelGsBase is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawKernelGsBase {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0102;
 }

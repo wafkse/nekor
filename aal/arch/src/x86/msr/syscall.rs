@@ -6,7 +6,7 @@
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
-use super::{Msr, ReadWrite};
+use super::{Cpl0Access, Msr, ReadWrite};
 use crate::x86::{
     privilege::PrivilegeLevel,
     segmentation::{CodeSegment, DataSegment, RawSegmentSelector, TableIndicator},
@@ -41,6 +41,7 @@ impl RawLStar {
 // SAFETY: RawLStar is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawLStar {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0082;
 }
@@ -125,6 +126,7 @@ impl RawCStar {
 // SAFETY: RawCStar is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawCStar {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0083;
 }
@@ -255,6 +257,7 @@ impl RawStar {
 // SAFETY: RawStar is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawStar {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0081;
 }
@@ -423,6 +426,7 @@ impl RawFMask {
 // SAFETY: RawFMask is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawFMask {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0084;
 }

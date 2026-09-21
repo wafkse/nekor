@@ -6,10 +6,7 @@
 
 use nekor_bitwise::prelude::{Bit, Counterpart, State};
 
-use crate::x86::{
-    msr::{self, Msr, ReadWrite},
-    privilege::Cpl,
-};
+use crate::x86::msr::{Cpl0Access, Msr, ReadWrite};
 
 /// System Call Extensions enable flag in RawEfer.
 pub type EferSce<'value> = Bit<'value, u64, 0>;
@@ -136,6 +133,7 @@ impl RawEfer {
 // SAFETY: RawEfer is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawEfer {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0xC000_0080;
 }
@@ -262,37 +260,6 @@ impl LongModeEfer {
 
         efer.raw()
     }
-}
-
-/// Reads the live x86-64 EFER image under a current-CPL0 proof.
-#[cfg(target_arch = "x86_64")]
-#[inline]
-#[must_use]
-pub fn read<T>(_cpl0: &Cpl<0, T>) -> Efer {
-    // SAFETY: The proof token supplies RDMSR privilege and x86-64 execution
-    // supplies EFER availability.
-    let target_value = unsafe { msr::read::<RawEfer, false>() };
-
-    Efer::lift(target_value)
-}
-
-/// Writes an x86-64 EFER value under a current-CPL0 proof.
-///
-/// The processor-maintained LMA field is cleared from the WRMSR input.
-///
-/// # Safety
-///
-/// Writable fields must describe a state accepted by the current processor.
-#[cfg(target_arch = "x86_64")]
-#[inline]
-pub unsafe fn write<T>(_cpl0: &Cpl<0, T>, target_value: Efer) {
-    let mut target_value = target_value.raw();
-
-    target_value.lma_mut().const_set(State::Cleared);
-
-    // SAFETY: The caller supplies writable EFER validity and LMA has been
-    // removed from the WRMSR input.
-    unsafe { msr::write::<RawEfer, false>(target_value) };
 }
 
 #[cfg(test)]

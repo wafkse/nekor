@@ -12,6 +12,7 @@ categories.workspace = true
 [features]
 
 [dependencies]
+bitflags = { workspace = true }
 nekor-aal-agnostic = { workspace = true }
 nekor-bitwise = { workspace = true }
 nekor-register = { workspace = true }

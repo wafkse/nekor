@@ -5,7 +5,7 @@
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
-use super::{Msr, ReadWrite};
+use super::{Cpl0Access, Msr, ReadWrite};
 use crate::x86::{
     privilege::PrivilegeLevel,
     segmentation::{CodeSegment, DataSegment, TableIndicator},
@@ -86,6 +86,7 @@ impl RawSysEnterCs {
 // SAFETY: RawSysEnterCs is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawSysEnterCs {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0x0000_0174;
 }
@@ -168,6 +169,7 @@ impl RawSysEnterSp {
 // SAFETY: RawSysEnterSp is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawSysEnterSp {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0x0000_0175;
 }
@@ -252,6 +254,7 @@ impl RawSysEnterIp {
 // SAFETY: RawSysEnterIp is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawSysEnterIp {
     type Access = ReadWrite;
+    type Authority = Cpl0Access;
 
     const ADDRESS: u32 = 0x0000_0176;
 }

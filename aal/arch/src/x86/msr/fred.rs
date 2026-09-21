@@ -5,11 +5,8 @@
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field};
 
-use super::{FredMsr, Msr, ReadWrite, Readable, Writable, read as read_msr, write as write_msr};
-use crate::x86::{
-    fred::{Fred as FredCapability, Level as FredLevel},
-    privilege::Cpl,
-};
+use super::{FredAccess, Msr, ReadWrite, UnavailableAccess};
+use crate::x86::fred::Level as FredLevel;
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
@@ -227,13 +224,12 @@ impl RawFredConfig {
 // SAFETY: RawFredConfig is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawFredConfig {
     type Access = ReadWrite;
+    type Authority = FredAccess;
 
     const ADDRESS: u32 = 0x0000_01D4;
 }
 
 impl super::private::Sealed for RawFredConfig {}
-impl super::private::FredSealed for RawFredConfig {}
-impl FredMsr for RawFredConfig {}
 
 /// Checked baseline FRED configuration.
 #[cfg(target_arch = "x86_64")]
@@ -393,13 +389,12 @@ impl RawFredLevels {
 // SAFETY: RawFredLevels is transparent over u64 and every bit pattern is valid.
 unsafe impl Msr for RawFredLevels {
     type Access = ReadWrite;
+    type Authority = FredAccess;
 
     const ADDRESS: u32 = 0x0000_01D0;
 }
 
 impl super::private::Sealed for RawFredLevels {}
-impl super::private::FredSealed for RawFredLevels {}
-impl FredMsr for RawFredLevels {}
 
 /// Checked machine-safety FRED stack-level policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -506,13 +501,12 @@ macro_rules! fred_rsp {
         // SAFETY: The raw type is transparent over u64 and every bit pattern is valid.
         unsafe impl Msr for $raw {
             type Access = ReadWrite;
+            type Authority = FredAccess;
 
             const ADDRESS: u32 = $address;
         }
 
         impl super::private::Sealed for $raw {}
-        impl super::private::FredSealed for $raw {}
-        impl FredMsr for $raw {}
 
         #[doc = concat!("Checked FRED regular-stack pointer for level ", stringify!($level), ".")]
         #[cfg(target_arch = "x86_64")]
@@ -578,10 +572,10 @@ fred_rsp!(RawFredRsp1, FredRsp1, 0x0000_01CD, 1);
 fred_rsp!(RawFredRsp2, FredRsp2, 0x0000_01CE, 2);
 fred_rsp!(RawFredRsp3, FredRsp3, 0x0000_01CF, 3);
 
-/// Defines a exact FRED shadow-stack register image.
+/// Defines an exact FRED shadow-stack register image.
 ///
-/// These images do not implement FredMsr because safe access also requires a
-/// shadow-stack capability that is not modeled by the FRED proof alone.
+/// Access remains unavailable because the required shadow-stack capability is
+/// not modeled by the FRED proof alone.
 macro_rules! raw_fred_ssp {
     ($name:ident, $address:expr, $level:literal) => {
         #[doc = concat!("Exact IA32_FRED_SSP", stringify!($level), " register image.")]
@@ -611,6 +605,7 @@ macro_rules! raw_fred_ssp {
         // SAFETY: The raw type is transparent over u64 and every bit pattern is valid.
         unsafe impl Msr for $name {
             type Access = ReadWrite;
+            type Authority = UnavailableAccess;
 
             const ADDRESS: u32 = $address;
         }
@@ -622,35 +617,6 @@ macro_rules! raw_fred_ssp {
 raw_fred_ssp!(RawFredSsp1, 0x0000_01D1, 1);
 raw_fred_ssp!(RawFredSsp2, 0x0000_01D2, 2);
 raw_fred_ssp!(RawFredSsp3, 0x0000_01D3, 3);
-
-/// Reads a FRED raw MSR image after proving processor support and CPL0 execution.
-#[inline]
-#[must_use]
-pub fn read<R, T>(_cpl0: &Cpl<0, T>, _fred: &FredCapability) -> R
-where
-    R: FredMsr,
-    R::Access: Readable,
-{
-    // SAFETY: The CPL proof supplies privilege and the FRED proof supplies
-    // architectural register availability.
-    unsafe { read_msr::<R, false>() }
-}
-
-/// Writes a FRED raw MSR image after proving processor support and CPL0 execution.
-///
-/// # Safety
-///
-/// The raw image must satisfy the target register requirements and every
-/// referenced address must remain valid for transitions that can consume it.
-#[inline]
-pub unsafe fn write<R, T>(_cpl0: &Cpl<0, T>, _fred: &FredCapability, target_value: R)
-where
-    R: FredMsr,
-    R::Access: Writable,
-{
-    // SAFETY: The caller supplies register-specific validity and lifetime.
-    unsafe { write_msr::<R, false>(target_value) };
-}
 
 #[cfg(test)]
 mod tests {
