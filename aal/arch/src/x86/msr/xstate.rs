@@ -1,113 +1,66 @@
 //! Extended-state MSR representations and capability-aware access.
 //!
-//! RawXfd and RawXfdErr require an XFD capability for hardware access.
-//! RawXss models the supervisor-state bitmap through named and const-generic
-//! component views without discarding unknown architectural bits.
+//! [`XstateComponents`](crate::x86::xstate::XstateComponents) owns the bitmap
+//! representation shared by XSTATE controls. The raw MSR types preserve
+//! register identity and [`RawXss`](crate::x86::msr::xstate::RawXss) provides
+//! named views for supervisor-state components.
 
-use nekor_bitwise::prelude::{Bit, BitAt, Counterpart};
+use nekor_bitwise::prelude::{Bit, Counterpart};
+use zerocopy::{Immutable, IntoBytes};
 
 use super::{Msr, ReadWrite, read, write};
-use crate::x86::{privilege::Cpl, xstate::Xfd as XfdCapability};
+use crate::x86::{
+    privilege::Cpl,
+    xstate::{Xfd as XfdCapability, XstateComponents},
+};
 
-/// Implements the shared raw component-bitmap operations without changing
-/// each MSR type's transparent one-word representation.
-macro_rules! impl_raw_component_bitmap {
-    ($target:ident) => {
-        impl $target {
-            /// Empty component bitmap.
-            pub const EMPTY: Self = Self(0);
+/// `IA32_XFD` disabled-component bitmap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
+#[repr(transparent)]
+// NOTE(invariant): The shared bitmap preserves every IA32_XFD bit. Safe
+// hardware access additionally requires an XFD capability proof.
+pub struct RawXfd(XstateComponents);
 
-            /// Preserves one complete component bitmap.
-            #[inline]
-            #[must_use]
-            pub const fn new(target_value: u64) -> Self {
-                Self(target_value)
-            }
+impl RawXfd {
+    /// Empty disabled-component bitmap.
+    pub const EMPTY: Self = Self(XstateComponents::EMPTY);
 
-            /// Returns the complete component bitmap.
-            #[inline]
-            #[must_use]
-            pub const fn raw(self) -> u64 {
-                let Self(target_value) = self;
+    /// Constructs a raw XFD image.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u64) -> Self {
+        Self(XstateComponents::new(target_value))
+    }
 
-                target_value
-            }
+    /// Returns the raw XFD image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        let Self(components) = self;
 
-            /// Returns whether every required component is present.
-            #[inline]
-            #[must_use]
-            pub const fn contains(self, required: Self) -> bool {
-                let Self(bits) = self;
-                let Self(required) = required;
+        components.raw()
+    }
 
-                bits & required == required
-            }
+    /// Borrows the XSTATE component bitmap.
+    #[inline]
+    #[must_use]
+    pub const fn components(&self) -> &XstateComponents {
+        let &Self(ref components) = self;
 
-            /// Combines every component present in either bitmap.
-            #[inline]
-            #[must_use]
-            pub const fn union(self, other: Self) -> Self {
-                let Self(bits) = self;
-                let Self(other) = other;
+        components
+    }
 
-                Self(bits | other)
-            }
+    /// Mutably borrows the XSTATE component bitmap.
+    #[inline]
+    pub const fn components_mut(&mut self) -> &mut XstateComponents {
+        let &mut Self(ref mut components) = self;
 
-            /// Retains only components present in both bitmaps.
-            #[inline]
-            #[must_use]
-            pub const fn intersection(self, other: Self) -> Self {
-                let Self(bits) = self;
-                let Self(other) = other;
-
-                Self(bits & other)
-            }
-
-            /// Returns whether no component is selected.
-            #[inline]
-            #[must_use]
-            pub const fn is_empty(self) -> bool {
-                let Self(bits) = self;
-
-                bits == 0
-            }
-
-            /// Borrows one component selected by its architectural index.
-            #[inline]
-            #[must_use]
-            pub const fn component<const N: usize>(&self) -> Bit<'_, u64, N>
-            where
-                u64: BitAt<N>,
-            {
-                let &Self(ref bits) = self;
-
-                Bit::wrap(bits)
-            }
-
-            /// Mutably borrows one component selected by its architectural index.
-            #[inline]
-            pub const fn component_mut<const N: usize>(&mut self) -> <Bit<'_, u64, N> as Counterpart>::Mut
-            where
-                u64: BitAt<N>,
-            {
-                let &mut Self(ref mut bits) = self;
-
-                <Bit<'_, u64, N> as Counterpart>::Mut::wrap(bits)
-            }
-        }
-    };
+        components
+    }
 }
 
-/// Complete `IA32_XFD` disabled-component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The private scalar preserves every architectural IA32_XFD component bit.
-// Safe hardware access additionally requires an XFD capability proof.
-pub struct RawXfd(u64);
-
-impl_raw_component_bitmap!(RawXfd);
-
-// SAFETY: `RawXfd` is transparent over `u64` and every hardware bitmap remains representable.
+// SAFETY: RawXfd has the size and alignment of u64 through transparent
+// XstateComponents storage, and every u64 bit pattern is valid.
 unsafe impl Msr for RawXfd {
     type Access = ReadWrite;
 
@@ -116,16 +69,53 @@ unsafe impl Msr for RawXfd {
 
 impl super::private::Sealed for RawXfd {}
 
-/// Complete `IA32_XFD_ERR` component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// `IA32_XFD_ERR` component bitmap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar preserves every architectural IA32_XFD_ERR component bit.
-// Safe hardware access additionally requires an XFD capability proof.
-pub struct RawXfdErr(u64);
+// NOTE(invariant): The shared bitmap preserves every IA32_XFD_ERR bit. Safe
+// hardware access additionally requires an XFD capability proof.
+pub struct RawXfdErr(XstateComponents);
 
-impl_raw_component_bitmap!(RawXfdErr);
+impl RawXfdErr {
+    /// Empty error-component bitmap.
+    pub const EMPTY: Self = Self(XstateComponents::EMPTY);
 
-// SAFETY: `RawXfdErr` is transparent over `u64` and every hardware bitmap remains representable.
+    /// Constructs a raw XFD error image.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u64) -> Self {
+        Self(XstateComponents::new(target_value))
+    }
+
+    /// Returns the raw XFD error image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        let Self(components) = self;
+
+        components.raw()
+    }
+
+    /// Borrows the XSTATE component bitmap.
+    #[inline]
+    #[must_use]
+    pub const fn components(&self) -> &XstateComponents {
+        let &Self(ref components) = self;
+
+        components
+    }
+
+    /// Mutably borrows the XSTATE component bitmap.
+    #[inline]
+    pub const fn components_mut(&mut self) -> &mut XstateComponents {
+        let &mut Self(ref mut components) = self;
+
+        components
+    }
+}
+
+// SAFETY: RawXfdErr has the size and alignment of u64 through transparent
+// XstateComponents storage, and every u64 bit pattern is valid.
 unsafe impl Msr for RawXfdErr {
     type Access = ReadWrite;
 
@@ -177,7 +167,7 @@ pub fn read_xss<T>(_cpl0: &Cpl<0, T>) -> RawXss {
     unsafe { read::<RawXss, false>() }
 }
 
-/// Write one `IA32_XSS` supervisor component bitmap under a CPL0 proof.
+/// Write a `IA32_XSS` supervisor component bitmap under a CPL0 proof.
 ///
 /// # Safety
 ///
@@ -238,154 +228,189 @@ pub type XssLbrMut<'value> = <XssLbr<'value> as Counterpart>::Mut;
 /// Mutable hardware-managed performance supervisor state.
 pub type XssHwpMut<'value> = <XssHwp<'value> as Counterpart>::Mut;
 
-/// Complete `IA32_XSS` supervisor component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// `IA32_XSS` supervisor component bitmap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar preserves every `IA32_XSS` component bit. Safe field
-// inspection never discards unknown component identities.
-pub struct RawXss(u64);
-
-impl_raw_component_bitmap!(RawXss);
+// NOTE(invariant): The shared bitmap preserves every IA32_XSS bit. Named field
+// views never discard unknown component identities.
+pub struct RawXss(XstateComponents);
 
 impl RawXss {
+    /// Empty supervisor component bitmap.
+    pub const EMPTY: Self = Self(XstateComponents::EMPTY);
+
+    /// Constructs a raw XSS image.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u64) -> Self {
+        Self(XstateComponents::new(target_value))
+    }
+
+    /// Returns the raw XSS image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        let Self(components) = self;
+
+        components.raw()
+    }
+
+    /// Borrows the XSTATE component bitmap.
+    #[inline]
+    #[must_use]
+    pub const fn components(&self) -> &XstateComponents {
+        let &Self(ref components) = self;
+
+        components
+    }
+
+    /// Mutably borrows the XSTATE component bitmap.
+    #[inline]
+    pub const fn components_mut(&mut self) -> &mut XstateComponents {
+        let &mut Self(ref mut components) = self;
+
+        components
+    }
+
     /// Borrow Processor Trace supervisor state.
     #[inline]
     #[must_use]
     pub const fn pt(&self) -> XssPt<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssPt::wrap(bits)
+        components.component::<8>()
     }
 
     /// Mutably borrow Processor Trace supervisor state.
     #[inline]
     pub const fn pt_mut(&mut self) -> XssPtMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssPt<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<8>()
     }
 
     /// Borrow PASID supervisor state.
     #[inline]
     #[must_use]
     pub const fn pasid(&self) -> XssPasid<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssPasid::wrap(bits)
+        components.component::<10>()
     }
 
     /// Mutably borrow PASID supervisor state.
     #[inline]
     pub const fn pasid_mut(&mut self) -> XssPasidMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssPasid<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<10>()
     }
 
     /// Borrow user CET supervisor-managed state.
     #[inline]
     #[must_use]
     pub const fn cet_user(&self) -> XssCetUser<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssCetUser::wrap(bits)
+        components.component::<11>()
     }
 
     /// Mutably borrow user CET supervisor-managed state.
     #[inline]
     pub const fn cet_user_mut(&mut self) -> XssCetUserMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssCetUser<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<11>()
     }
 
     /// Borrow supervisor CET state.
     #[inline]
     #[must_use]
     pub const fn cet_supervisor(&self) -> XssCetSupervisor<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssCetSupervisor::wrap(bits)
+        components.component::<12>()
     }
 
     /// Mutably borrow supervisor CET state.
     #[inline]
     pub const fn cet_supervisor_mut(&mut self) -> XssCetSupervisorMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssCetSupervisor<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<12>()
     }
 
     /// Borrow hardware duty-cycle supervisor state.
     #[inline]
     #[must_use]
     pub const fn hdc(&self) -> XssHdc<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssHdc::wrap(bits)
+        components.component::<13>()
     }
 
     /// Mutably borrow hardware duty-cycle supervisor state.
     #[inline]
     pub const fn hdc_mut(&mut self) -> XssHdcMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssHdc<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<13>()
     }
 
     /// Borrow user-interrupt supervisor state.
     #[inline]
     #[must_use]
     pub const fn uintr(&self) -> XssUintr<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssUintr::wrap(bits)
+        components.component::<14>()
     }
 
     /// Mutably borrow user-interrupt supervisor state.
     #[inline]
     pub const fn uintr_mut(&mut self) -> XssUintrMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssUintr<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<14>()
     }
 
     /// Borrow architectural last-branch-record state.
     #[inline]
     #[must_use]
     pub const fn lbr(&self) -> XssLbr<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssLbr::wrap(bits)
+        components.component::<15>()
     }
 
     /// Mutably borrow architectural last-branch-record state.
     #[inline]
     pub const fn lbr_mut(&mut self) -> XssLbrMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssLbr<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<15>()
     }
 
     /// Borrow hardware-managed performance supervisor state.
     #[inline]
     #[must_use]
     pub const fn hwp(&self) -> XssHwp<'_> {
-        let &Self(ref bits) = self;
+        let &Self(ref components) = self;
 
-        XssHwp::wrap(bits)
+        components.component::<16>()
     }
 
     /// Mutably borrow hardware-managed performance supervisor state.
     #[inline]
     pub const fn hwp_mut(&mut self) -> XssHwpMut<'_> {
-        let &mut Self(ref mut bits) = self;
+        let &mut Self(ref mut components) = self;
 
-        <XssHwp<'_> as Counterpart>::Mut::wrap(bits)
+        components.component_mut::<16>()
     }
 }
 
-// SAFETY: `RawXss` is transparent over `u64` and every hardware bitmap remains representable.
+// SAFETY: RawXss has the size and alignment of u64 through transparent
+// XstateComponents storage, and every u64 bit pattern is valid.
 unsafe impl Msr for RawXss {
     type Access = ReadWrite;
 
@@ -396,27 +421,29 @@ impl super::private::Sealed for RawXss {}
 
 #[cfg(test)]
 mod tests {
+    use core::mem;
+
     use nekor_bitwise::prelude::State;
 
     use super::{Msr, RawXfd, RawXfdErr, RawXss};
 
     #[test]
-    fn xfd_bitmaps_preserve_component_identity() {
+    fn xfd_registers_share_component_storage_without_losing_identity() {
         let mut xfd = RawXfd::EMPTY;
         let mut error = RawXfdErr::EMPTY;
 
-        xfd.component_mut::<18>().const_set(State::Set);
-        error.component_mut::<18>().const_set(State::Set);
+        xfd.components_mut().component_mut::<18>().const_set(State::Set);
+        error.components_mut().component_mut::<18>().const_set(State::Set);
 
-        assert_eq!(xfd.component::<18>().const_state(), State::Set);
-        assert_eq!(error.component::<18>().const_state(), State::Set);
-        assert!(!error.is_empty());
-        assert!(RawXfdErr::EMPTY.is_empty());
+        assert_eq!(xfd.components().component::<18>().const_state(), State::Set);
+        assert_eq!(error.components().component::<18>().const_state(), State::Set);
+        assert_eq!(xfd.raw(), 1 << 18);
+        assert_eq!(error.raw(), 1 << 18);
     }
 
     #[test]
-    fn xss_components_preserve_independent_state() {
-        let mut xss = RawXss::EMPTY;
+    fn xss_named_views_preserve_unknown_components() {
+        let mut xss = RawXss::new(1 << 63);
 
         xss.cet_supervisor_mut().const_set(State::Set);
         xss.lbr_mut().const_set(State::Set);
@@ -424,10 +451,18 @@ mod tests {
         assert_eq!(xss.cet_supervisor().const_state(), State::Set);
         assert_eq!(xss.lbr().const_state(), State::Set);
         assert_eq!(xss.hdc().const_state(), State::Cleared);
+        assert_eq!(xss.components().component::<63>().const_state(), State::Set);
     }
 
     #[test]
-    fn register_indices_match_architecture() {
+    fn xstate_msr_layout_and_indices_match_architecture() {
+        assert_eq!(mem::size_of::<RawXfd>(), mem::size_of::<u64>());
+        assert_eq!(mem::align_of::<RawXfd>(), mem::align_of::<u64>());
+        assert_eq!(mem::size_of::<RawXfdErr>(), mem::size_of::<u64>());
+        assert_eq!(mem::align_of::<RawXfdErr>(), mem::align_of::<u64>());
+        assert_eq!(mem::size_of::<RawXss>(), mem::size_of::<u64>());
+        assert_eq!(mem::align_of::<RawXss>(), mem::align_of::<u64>());
+
         assert_eq!(RawXfd::REGISTER.address(), 0x1C4);
         assert_eq!(RawXfdErr::REGISTER.address(), 0x1C5);
         assert_eq!(RawXss::REGISTER.address(), 0xDA0);

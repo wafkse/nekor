@@ -31,15 +31,15 @@ pub mod fred;
 
 /// An exact model-specific register image with a statically known MSR index.
 ///
-/// Implementations select one access mode. That mode determines the canonical
+/// Implementations select an access mode. That mode determines the canonical
 /// [`nekor_register::mode::Gated`] descriptor exposed by [`Msr::REGISTER`].
 ///
 /// # Safety
 ///
-/// Every implementation must be `#[repr(transparent)]` with exactly one field
-/// of type `u64`. It must therefore have the same size and alignment as `u64`,
-/// and every `u64` bit pattern must be a valid value of the implementing type.
-/// [`RawMsr`] relies on this representation contract.
+/// Every implementation must have the same size and alignment as `u64`, and
+/// every `u64` bit pattern must be a valid value of the implementing type.
+/// Transparent wrappers may delegate through another type with that contract.
+/// [`RawMsr`] relies on these representation guarantees.
 pub unsafe trait Msr: Copy + private::Sealed {
     /// Architectural MSR index loaded into `ECX` by `rdmsr` or `wrmsr`.
     const ADDRESS: u32;
@@ -74,13 +74,13 @@ impl RawMsr {
     where
         R: Msr,
     {
-        // SAFETY: `Msr` requires `R` to be transparent over exactly one `u64`
-        // and to have identical size and alignment. `R: Copy` means copying the
-        // representation does not invalidate `target_value`.
+        // SAFETY: `Msr` requires `R` to have the size and alignment of `u64`
+        // with every bit pattern valid. `R: Copy` means copying the representation
+        // does not invalidate `target_value`.
         unsafe { mem::transmute_copy(&target_value) }
     }
 
-    /// Returns the complete erased register image.
+    /// Returns the erased register image.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> u64 {
@@ -164,7 +164,7 @@ where
     const REGISTER: Self::Register = RegisterUnaccessible::register(R::ADDRESS as usize);
 }
 
-/// Read one readable MSR directly with `rdmsr`.
+/// Read a readable MSR directly with `rdmsr`.
 ///
 /// When `FENCE` is `true`, an `LFENCE` is emitted immediately before and after
 /// `RDMSR`, preventing instruction execution from crossing the access. The
@@ -210,12 +210,12 @@ where
 
     high_field.const_merge(high);
 
-    // SAFETY: `Msr` guarantees that `R` is transparent over exactly one `u64`
+    // SAFETY: `Msr` guarantees that `R` has the size and alignment of `u64`
     // and that every `u64` bit pattern is valid for `R`.
     unsafe { mem::transmute_copy(&raw) }
 }
 
-/// Write one writable MSR directly with `wrmsr`.
+/// Write a writable MSR directly with `wrmsr`.
 ///
 /// When `FENCE` is `true`, an `LFENCE` is emitted immediately before and after
 /// `WRMSR`, preventing instruction execution from crossing the access. The
