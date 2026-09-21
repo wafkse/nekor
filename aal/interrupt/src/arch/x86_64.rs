@@ -1,13 +1,11 @@
 //! Tightly-packed raw versions of interrupt structures.
 
-use core::{arch, hash, marker, mem, num::NonZeroU32};
+use core::{arch, marker, mem, num::NonZeroU32};
 
-use nekor_aal_agnostic::{partitioned::Partitioned, reserved::Reserved};
-use nekor_aal_arch::{
-    x86::{privilege::PrivilegeLevel, segmentation::RawCodeSegment},
-    x86_64::gate::GateType64,
-};
+use nekor_aal_agnostic::partitioned::Partitioned;
+use nekor_aal_arch::{x86::privilege::PrivilegeLevel, x86_64::gate::GateType64};
 use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
+use zerocopy::{Immutable, IntoBytes};
 
 /// Private sealing implementation for [`Vector`].
 mod private {
@@ -96,12 +94,29 @@ pub type TypeAttributesPresentMut<'a> = <TypeAttributesPresent<'a> as Counterpar
 /// | 6-5  | Privilege Level | 2           | Descriptor Privilege Level     |
 /// | 7    | Present         | 1           | Present bit                    |
 ///
-/// The bit layout of this type is exact to the one expected by the CPU.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+/// The bit layout exactly matches the CPU representation.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
+// NOTE(invariant): Every byte is preserved verbatim; semantic packing is only a convenience.
 pub struct RawTypeAttributes(u8);
 
 impl RawTypeAttributes {
+    /// Constructs a raw type-attribute byte.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u8) -> Self {
+        Self(target_value)
+    }
+
+    /// Returns the raw type-attribute byte.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u8 {
+        let Self(target_value) = self;
+
+        target_value
+    }
+
     /// Construct a zeroed [`RawTypeAttributes`].
     #[inline]
     #[must_use]
@@ -190,162 +205,245 @@ impl RawTypeAttributes {
     }
 }
 
-/// A 64-bit raw *Gate Descriptor* structure.
+/// Low sixty-four bits of a long-mode gate descriptor image.
+pub type GateDescriptorLow = Partitioned<0, 63, u128>;
+
+/// High sixty-four bits of a long-mode gate descriptor image.
+pub type GateDescriptorHigh = Partitioned<64, 127, u128>;
+
+/// Low handler-offset field in a long-mode gate descriptor.
+pub type GateOffsetLow<'value> = Field<'value, 0, 15, u64>;
+
+/// Mutable counterpart to [`GateOffsetLow`].
+pub type GateOffsetLowMut<'value> = <GateOffsetLow<'value> as Counterpart>::Mut;
+
+/// Code-segment selector field in a long-mode gate descriptor.
+pub type GateSegmentSelector<'value> = Field<'value, 16, 31, u64>;
+
+/// Mutable counterpart to [`GateSegmentSelector`].
+pub type GateSegmentSelectorMut<'value> = <GateSegmentSelector<'value> as Counterpart>::Mut;
+
+/// Interrupt-stack-table field in a long-mode gate descriptor.
+pub type GateIst<'value> = Field<'value, 32, 34, u64>;
+
+/// Mutable counterpart to [`GateIst`].
+pub type GateIstMut<'value> = <GateIst<'value> as Counterpart>::Mut;
+
+/// Reserved low-word field spanning descriptor bits 35 through 39.
+pub type GateReserved35_39<'value> = Field<'value, 35, 39, u64>;
+
+/// Mutable counterpart to [`GateReserved35_39`].
+pub type GateReserved35_39Mut<'value> = <GateReserved35_39<'value> as Counterpart>::Mut;
+
+/// Type-attribute byte in a long-mode gate descriptor.
+pub type GateTypeAttributes<'value> = Field<'value, 40, 47, u64>;
+
+/// Mutable counterpart to [`GateTypeAttributes`].
+pub type GateTypeAttributesMut<'value> = <GateTypeAttributes<'value> as Counterpart>::Mut;
+
+/// Middle handler-offset field in a long-mode gate descriptor.
+pub type GateOffsetMiddle<'value> = Field<'value, 48, 63, u64>;
+
+/// Mutable counterpart to [`GateOffsetMiddle`].
+pub type GateOffsetMiddleMut<'value> = <GateOffsetMiddle<'value> as Counterpart>::Mut;
+
+/// High handler-offset field in a long-mode gate descriptor.
+pub type GateOffsetHigh<'value> = Field<'value, 0, 31, u64>;
+
+/// Mutable counterpart to [`GateOffsetHigh`].
+pub type GateOffsetHighMut<'value> = <GateOffsetHigh<'value> as Counterpart>::Mut;
+
+/// Reserved high-word field spanning descriptor bits 96 through 127.
+pub type GateReserved96_127<'value> = Field<'value, 32, 63, u64>;
+
+/// Mutable counterpart to [`GateReserved96_127`].
+pub type GateReserved96_127Mut<'value> = <GateReserved96_127<'value> as Counterpart>::Mut;
+
+/// A 128-bit raw long-mode *Gate Descriptor* image.
 ///
 /// Reference: <https://wiki.osdev.org/Interrupt_Descriptor_Table#Structure_on_x86-64>
-#[derive(Debug, Clone, Copy)]
-#[repr(
-    C,
-    // NOTE(alignment): This requires 8-byte alignment.
-    align(8))
-]
-pub struct RawGateDescriptor {
-    /// The bits `0..=15` of the interrupt handler address.
-    pub offset_0_15: Partitioned<0, 15, u64>,
-
-    /// The raw *Code Segment Selector* used for this interrupt gate.
-    pub segment: RawCodeSegment,
-
-    /// An alternative stack pointer for the handler of this interrupt gate.
-    ///
-    /// When [`None`], the stack pointer is left as-is.
-    // NOTE(layout): This is technically a 3-bit field but it is defined as an
-    // 8-bit enumeration with zeroed upper variant bits. However, underlying
-    // layout still matches as expected by the processor.
-    pub ist: Option<RawIst>,
-
-    /// The type attributes of this *Gate Descriptor*.
-    pub type_attributes: RawTypeAttributes,
-
-    /// The bits `16..=31` of the interrupt handler address.
-    pub offset_16_31: Partitioned<16, 31, u64>,
-
-    /// The bits `32..=31` of the interrupt handler address.
-    pub offset_32_63: Partitioned<32, 63, u64>,
-
-    /// These bits are reserved.
-    reserved0: Reserved<u32>,
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
+#[repr(C, align(8))]
+// NOTE(invariant): The two partitions form one exact sixteen-byte architectural
+// image. No raw bit pattern is normalized or rejected by this type.
+pub struct RawGateDescriptor(GateDescriptorLow, GateDescriptorHigh);
 
 impl RawGateDescriptor {
-    /// Determine the *Code Segment Descriptor* that is part of this
-    /// [`RawGateDescriptor`].
+    /// Constructs a raw gate-descriptor image.
     #[inline]
     #[must_use]
-    pub const fn segment(&self) -> &RawCodeSegment {
-        let &Self { ref segment, .. } = self;
-
-        segment
+    pub const fn new(low: u64, high: u64) -> Self {
+        Self(GateDescriptorLow::raw(low), GateDescriptorHigh::raw(high))
     }
 
-    /// Determine the *Code Segment Descriptor* that is part of this
-    /// [`RawGateDescriptor`].
-    #[inline]
-    pub const fn segment_mut(&mut self) -> &mut RawCodeSegment {
-        let &mut Self { ref mut segment, .. } = self;
-
-        segment
-    }
-
-    /// Determine the bits `0..=15` of the interrupt handler address.
+    /// Returns the low descriptor word.
     #[inline]
     #[must_use]
-    pub const fn offset_0_15(&self) -> &Partitioned<0, 15, u64> {
-        let &Self { ref offset_0_15, .. } = self;
+    pub const fn low(&self) -> &GateDescriptorLow {
+        let &Self(ref low, ..) = self;
 
-        offset_0_15
+        low
     }
 
-    /// Determine the mutable reference to the bits `0..=15` of the interrupt
-    /// handler address.
+    /// Returns mutable access to the low descriptor word.
     #[inline]
-    pub const fn offset_0_15_mut(&mut self) -> &mut Partitioned<0, 15, u64> {
-        let &mut Self {
-            ref mut offset_0_15, ..
-        } = self;
+    pub const fn low_mut(&mut self) -> &mut GateDescriptorLow {
+        let &mut Self(ref mut low, ..) = self;
 
-        offset_0_15
+        low
     }
 
-    /// Determine the bits `16..=31` of the interrupt handler address.
+    /// Returns the high descriptor word.
     #[inline]
     #[must_use]
-    pub const fn offset_16_31(&self) -> &Partitioned<16, 31, u64> {
-        let &Self { ref offset_16_31, .. } = self;
+    pub const fn high(&self) -> &GateDescriptorHigh {
+        let &Self(_, ref high) = self;
 
-        offset_16_31
+        high
     }
 
-    /// Determine the mutable reference to the bits `16..=31` of the interrupt
-    /// handler address.
+    /// Returns mutable access to the high descriptor word.
     #[inline]
-    pub const fn offset_16_31_mut(&mut self) -> &mut Partitioned<16, 31, u64> {
-        let &mut Self {
-            ref mut offset_16_31, ..
-        } = self;
+    pub const fn high_mut(&mut self) -> &mut GateDescriptorHigh {
+        let &mut Self(_, ref mut high) = self;
 
-        offset_16_31
+        high
     }
 
-    /// Determine the bits `32..=63` of the interrupt handler address.
+    /// Returns the low handler-offset field.
     #[inline]
     #[must_use]
-    pub const fn offset_32_63(&self) -> &Partitioned<32, 63, u64> {
-        let &Self { ref offset_32_63, .. } = self;
+    pub const fn offset_low(&self) -> GateOffsetLow<'_> {
+        let &Self(ref low, ..) = self;
 
-        offset_32_63
+        GateOffsetLow::wrap(low.value())
     }
 
-    /// Determine the mutable reference to the bits `32..=63` of the interrupt
-    /// handler address.
+    /// Returns mutable access to the low handler-offset field.
     #[inline]
-    pub const fn offset_32_63_mut(&mut self) -> &mut Partitioned<32, 63, u64> {
-        let &mut Self {
-            ref mut offset_32_63, ..
-        } = self;
+    pub const fn offset_low_mut(&mut self) -> GateOffsetLowMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
 
-        offset_32_63
+        GateOffsetLowMut::wrap(low.value_mut())
     }
 
-    /// Determine the IST (Interrupt Stack Table) field.
+    /// Returns the code-segment selector field.
     #[inline]
     #[must_use]
-    pub const fn interrupt_stack_table(&self) -> Option<RawIst> {
-        let &Self { ist, .. } = self;
+    pub const fn segment_selector(&self) -> GateSegmentSelector<'_> {
+        let &Self(ref low, ..) = self;
 
-        ist
+        GateSegmentSelector::wrap(low.value())
     }
 
-    /// Determine the mutable reference to the IST (Interrupt Stack Table)
-    /// field.
+    /// Returns mutable access to the code-segment selector field.
     #[inline]
-    pub const fn interrupt_stack_table_mut(&mut self) -> &mut Option<RawIst> {
-        let &mut Self { ref mut ist, .. } = self;
+    pub const fn segment_selector_mut(&mut self) -> GateSegmentSelectorMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
 
-        ist
+        GateSegmentSelectorMut::wrap(low.value_mut())
     }
 
-    /// Determine the type attributes of this *Gate Descriptor*.
+    /// Returns the raw three-bit interrupt-stack-table field.
     #[inline]
     #[must_use]
-    pub const fn type_attributes(&self) -> &RawTypeAttributes {
-        let &Self {
-            ref type_attributes, ..
-        } = self;
+    pub const fn interrupt_stack_table(&self) -> GateIst<'_> {
+        let &Self(ref low, ..) = self;
 
-        type_attributes
+        GateIst::wrap(low.value())
     }
 
-    /// Determine the mutable reference to the type attributes of this *Gate
-    /// Descriptor*.
+    /// Returns mutable access to the raw interrupt-stack-table field.
     #[inline]
-    pub const fn type_attributes_mut(&mut self) -> &mut RawTypeAttributes {
-        let &mut Self {
-            ref mut type_attributes,
-            ..
-        } = self;
+    pub const fn interrupt_stack_table_mut(&mut self) -> GateIstMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
 
-        type_attributes
+        GateIstMut::wrap(low.value_mut())
+    }
+
+    /// Returns reserved descriptor bits 35 through 39.
+    #[inline]
+    #[must_use]
+    pub const fn reserved_35_39(&self) -> GateReserved35_39<'_> {
+        let &Self(ref low, ..) = self;
+
+        GateReserved35_39::wrap(low.value())
+    }
+
+    /// Returns mutable access to reserved descriptor bits 35 through 39.
+    #[inline]
+    pub const fn reserved_35_39_mut(&mut self) -> GateReserved35_39Mut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        GateReserved35_39Mut::wrap(low.value_mut())
+    }
+
+    /// Returns the type-attribute byte field.
+    #[inline]
+    #[must_use]
+    pub const fn type_attributes(&self) -> GateTypeAttributes<'_> {
+        let &Self(ref low, ..) = self;
+
+        GateTypeAttributes::wrap(low.value())
+    }
+
+    /// Returns mutable access to the type-attribute byte field.
+    #[inline]
+    pub const fn type_attributes_mut(&mut self) -> GateTypeAttributesMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        GateTypeAttributesMut::wrap(low.value_mut())
+    }
+
+    /// Returns the middle handler-offset field.
+    #[inline]
+    #[must_use]
+    pub const fn offset_middle(&self) -> GateOffsetMiddle<'_> {
+        let &Self(ref low, ..) = self;
+
+        GateOffsetMiddle::wrap(low.value())
+    }
+
+    /// Returns mutable access to the middle handler-offset field.
+    #[inline]
+    pub const fn offset_middle_mut(&mut self) -> GateOffsetMiddleMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        GateOffsetMiddleMut::wrap(low.value_mut())
+    }
+
+    /// Returns the high handler-offset field.
+    #[inline]
+    #[must_use]
+    pub const fn offset_high(&self) -> GateOffsetHigh<'_> {
+        let &Self(_, ref high) = self;
+
+        GateOffsetHigh::wrap(high.value())
+    }
+
+    /// Returns mutable access to the high handler-offset field.
+    #[inline]
+    pub const fn offset_high_mut(&mut self) -> GateOffsetHighMut<'_> {
+        let &mut Self(_, ref mut high) = self;
+
+        GateOffsetHighMut::wrap(high.value_mut())
+    }
+
+    /// Returns reserved descriptor bits 96 through 127.
+    #[inline]
+    #[must_use]
+    pub const fn reserved_96_127(&self) -> GateReserved96_127<'_> {
+        let &Self(_, ref high) = self;
+
+        GateReserved96_127::wrap(high.value())
+    }
+
+    /// Returns mutable access to reserved descriptor bits 96 through 127.
+    #[inline]
+    pub const fn reserved_96_127_mut(&mut self) -> GateReserved96_127Mut<'_> {
+        let &mut Self(_, ref mut high) = self;
+
+        GateReserved96_127Mut::wrap(high.value_mut())
     }
 }
 
@@ -363,67 +461,36 @@ const _: () = {
     );
 };
 
-impl Eq for RawGateDescriptor {}
+#[cfg(test)]
+mod representation_tests {
+    use zerocopy::IntoBytes;
 
-impl PartialEq for RawGateDescriptor {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        let &Self {
-            offset_0_15,
-            segment,
-            ist,
-            type_attributes,
-            offset_16_31,
-            offset_32_63,
-            ..
-        } = self;
+    use super::{RawGateDescriptor, RawTypeAttributes};
 
-        let &Self {
-            offset_0_15: other_offset_0_15,
-            segment: other_segment,
-            ist: other_ist,
-            type_attributes: other_type_attributes,
-            offset_16_31: other_offset_16_31,
-            offset_32_63: other_offset_32_63,
-            ..
-        } = other;
+    #[test]
+    fn raw_gate_preserves_complete_descriptor_image() {
+        let low = 0x0123_4567_89ab_cdef_u64;
+        let high = 0xfedc_ba98_7654_3210_u64;
+        let gate = RawGateDescriptor::new(low, high);
+        let mut expected = [0_u8; 16];
 
-        offset_0_15 == other_offset_0_15
-            && segment == other_segment
-            && ist == other_ist
-            && type_attributes == other_type_attributes
-            && offset_16_31 == other_offset_16_31
-            && offset_32_63 == other_offset_32_63
+        expected[..8].copy_from_slice(&low.to_ne_bytes());
+        expected[8..].copy_from_slice(&high.to_ne_bytes());
+
+        assert_eq!(*gate.low().value(), low);
+        assert_eq!(*gate.high().value(), high);
+        assert_eq!(gate.as_bytes(), expected);
     }
-}
 
-impl hash::Hash for RawGateDescriptor {
-    #[inline]
-    fn hash<H>(&self, target_state: &mut H)
-    where
-        H: hash::Hasher,
-    {
-        let &Self {
-            offset_0_15,
-            segment,
-            ist,
-            type_attributes,
-            offset_16_31,
-            offset_32_63,
-            ..
-        } = self;
+    #[test]
+    fn raw_gate_reserved_fields_are_not_normalized() {
+        let gate = RawGateDescriptor::new(u64::MAX, u64::MAX);
 
-        offset_0_15.hash(target_state);
-
-        segment.hash(target_state);
-
-        ist.hash(target_state);
-
-        type_attributes.hash(target_state);
-
-        offset_16_31.hash(target_state);
-
-        offset_32_63.hash(target_state);
+        assert_eq!(gate.interrupt_stack_table().const_value(), 0b111);
+        assert_eq!(gate.reserved_35_39().const_value(), 0b1_1111);
+        assert_eq!(gate.type_attributes().const_value(), u8::MAX);
+        assert_eq!(gate.reserved_96_127().const_value(), u32::MAX);
+        assert_eq!(RawTypeAttributes::new(0b0001_0000).raw(), 0b0001_0000);
     }
 }
 
@@ -468,10 +535,10 @@ impl Service {
     ///
     /// - The stack must be either:
     ///     - Genuine to the standard stack layout and in an actual processor-invoked interrupt.
-    ///     - In the same format as a genuine one, within the guarantees of
-    ///       non-reentrancy<sup>1</sup> for the specific interrupt vector and gate type.
+    ///     - In the genuine stack format, within the guarantees of non-reentrancy[^1] for the
+    ///       specific interrupt vector and gate type.
     ///
-    /// [1]: Does not apply to *non-maskable interrupts* when in a *pseudo-interrupt* (forged or otherwise simulated) context.
+    /// [^1]: Does not apply to *non-maskable interrupts* when in a *pseudo-interrupt* (forged or otherwise simulated) context.
     ///
     /// ## Forgery
     ///
