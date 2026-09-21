@@ -50,14 +50,14 @@ pub struct Gpr(u64);
 pub struct Rip(u64);
 
 impl Rip {
-    /// Creates an instruction pointer from its complete register image.
+    /// Creates an instruction pointer from its register image.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete instruction pointer register image.
+    /// Returns the instruction pointer register image.
     #[inline]
     #[must_use]
     pub const fn unwrap(self) -> u64 {
@@ -68,7 +68,7 @@ impl Rip {
 }
 
 impl Gpr {
-    /// Creates a general-purpose register from its complete architectural
+    /// Creates a general-purpose register from its architectural
     /// value.
     #[inline]
     #[must_use]
@@ -76,7 +76,7 @@ impl Gpr {
         Self(target_value)
     }
 
-    /// Returns the complete architectural register value.
+    /// Returns the architectural register value.
     #[inline]
     #[must_use]
     pub const fn unwrap(self) -> u64 {
@@ -214,14 +214,14 @@ pub type BaseVal64Mut<'value> = <BaseVal64<'value> as Counterpart>::Mut;
 pub struct Base(u64);
 
 impl Base {
-    /// Creates an extended segment base from its complete architectural value.
+    /// Creates an extended segment base from its architectural value.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(target_value)
     }
 
-    /// Returns the complete architectural base value.
+    /// Returns the architectural base value.
     #[inline]
     #[must_use]
     pub const fn unwrap(self) -> u64 {
@@ -321,195 +321,183 @@ impl Base {
     }
 }
 
-/// Breakpoint condition zero sampled in [`Dr6`].
-pub type Dr6B0<'value> = Bit<'value, u64, 0>;
+/// Breakpoint condition zero sampled in [`RawDr6`].
+pub type Dr6Bp0<'value> = Bit<'value, u64, 0>;
 
-/// Breakpoint condition one sampled in [`Dr6`].
-pub type Dr6B1<'value> = Bit<'value, u64, 1>;
+/// Breakpoint condition 1 sampled in [`RawDr6`].
+pub type Dr6Bp1<'value> = Bit<'value, u64, 1>;
 
-/// Breakpoint condition two sampled in [`Dr6`].
-pub type Dr6B2<'value> = Bit<'value, u64, 2>;
+/// Breakpoint condition two sampled in [`RawDr6`].
+pub type Dr6Bp2<'value> = Bit<'value, u64, 2>;
 
-/// Breakpoint condition three sampled in [`Dr6`].
-pub type Dr6B3<'value> = Bit<'value, u64, 3>;
+/// Breakpoint condition three sampled in [`RawDr6`].
+pub type Dr6Bp3<'value> = Bit<'value, u64, 3>;
 
 /// Reserved DR6 bits four through ten.
 pub type Dr6Reserved4_10<'value> = Field<'value, 4, 10, u64>;
 
-/// Bus-lock debug state in [`Dr6`].
+/// Bus-lock debug state in [`RawDr6`].
 pub type Dr6Bld<'value> = Bit<'value, u64, 11>;
 
 /// Reserved DR6 bit twelve.
 pub type Dr6Reserved12<'value> = Bit<'value, u64, 12>;
 
-/// Debug-register access-detected state in [`Dr6`].
+/// Debug-register access-detected state in [`RawDr6`].
 pub type Dr6Bd<'value> = Bit<'value, u64, 13>;
 
-/// Single-step state in [`Dr6`].
+/// Single-step state in [`RawDr6`].
 pub type Dr6Bs<'value> = Bit<'value, u64, 14>;
 
-/// Task-switch debug state in [`Dr6`].
+/// Task-switch debug state in [`RawDr6`].
 pub type Dr6Bt<'value> = Bit<'value, u64, 15>;
 
-/// Restricted-transactional-memory state in [`Dr6`].
+/// Restricted-transactional-memory state in [`RawDr6`].
 pub type Dr6Rtm<'value> = Bit<'value, u64, 16>;
 
 /// Reserved DR6 bits seventeen through 63.
 pub type Dr6Reserved17_63<'value> = Field<'value, 17, 63, u64>;
 
-/// The 64-bit debug-status register.
+/// The 64-bit debug-status register image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar preserves the complete hardware DR6 image. No constructor
-// claims that reserved or feature-dependent bits have a normalized value.
-pub struct Dr6(u64);
-
-/// Raw transport representation of [`Dr6`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-pub struct RawDr6(pub u64);
+// NOTE(invariant): Every u64 hardware image remains representable, including reserved and
+// feature-dependent bits.
+pub struct RawDr6(u64);
 
 impl RawDr6 {
-    /// Erase one typed DR6 image into its complete transport representation.
+    /// Constructs a raw DR6 image.
     #[inline]
     #[must_use]
-    pub const fn take(value: Dr6) -> Self {
-        let Dr6(value) = value;
-
-        Self(value)
+    pub const fn new(target_value: u64) -> Self {
+        Self(target_value)
     }
 
-    /// Restore typed DR6 state from one complete hardware image.
+    /// Returns the raw DR6 image.
     #[inline]
     #[must_use]
-    pub const fn restore(self) -> Dr6 {
-        let Self(value) = self;
+    pub const fn raw(self) -> u64 {
+        let Self(target_value) = self;
 
-        Dr6(value)
+        target_value
     }
-}
 
-impl Dr6 {
     /// Return breakpoint-condition zero state.
     #[inline]
     #[must_use]
-    pub const fn b0(&self) -> Dr6B0<'_> {
-        let &Self(ref value) = self;
+    pub const fn b0(&self) -> Dr6Bp0<'_> {
+        let &Self(ref target_value) = self;
 
-        Dr6B0::wrap(value)
+        Dr6Bp0::wrap(target_value)
     }
 
-    /// Return breakpoint-condition one state.
+    /// Return breakpoint-condition 1 state.
     #[inline]
     #[must_use]
-    pub const fn b1(&self) -> Dr6B1<'_> {
-        let &Self(ref value) = self;
+    pub const fn b1(&self) -> Dr6Bp1<'_> {
+        let &Self(ref target_value) = self;
 
-        Dr6B1::wrap(value)
+        Dr6Bp1::wrap(target_value)
     }
 
     /// Return breakpoint-condition two state.
     #[inline]
     #[must_use]
-    pub const fn b2(&self) -> Dr6B2<'_> {
-        let &Self(ref value) = self;
+    pub const fn b2(&self) -> Dr6Bp2<'_> {
+        let &Self(ref target_value) = self;
 
-        Dr6B2::wrap(value)
+        Dr6Bp2::wrap(target_value)
     }
 
     /// Return breakpoint-condition three state.
     #[inline]
     #[must_use]
-    pub const fn b3(&self) -> Dr6B3<'_> {
-        let &Self(ref value) = self;
+    pub const fn b3(&self) -> Dr6Bp3<'_> {
+        let &Self(ref target_value) = self;
 
-        Dr6B3::wrap(value)
+        Dr6Bp3::wrap(target_value)
     }
 
     /// Return reserved bits four through ten.
     #[inline]
     #[must_use]
     pub const fn reserved_4_10(&self) -> Dr6Reserved4_10<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Reserved4_10::wrap(value)
+        Dr6Reserved4_10::wrap(target_value)
     }
 
     /// Return bus-lock debug state.
     #[inline]
     #[must_use]
     pub const fn bld(&self) -> Dr6Bld<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Bld::wrap(value)
+        Dr6Bld::wrap(target_value)
     }
 
     /// Return reserved bit twelve.
     #[inline]
     #[must_use]
     pub const fn reserved_12(&self) -> Dr6Reserved12<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Reserved12::wrap(value)
+        Dr6Reserved12::wrap(target_value)
     }
 
     /// Return debug-register access-detected state.
     #[inline]
     #[must_use]
     pub const fn bd(&self) -> Dr6Bd<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Bd::wrap(value)
+        Dr6Bd::wrap(target_value)
     }
 
     /// Return single-step state.
     #[inline]
     #[must_use]
     pub const fn bs(&self) -> Dr6Bs<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Bs::wrap(value)
+        Dr6Bs::wrap(target_value)
     }
 
     /// Return task-switch debug state.
     #[inline]
     #[must_use]
     pub const fn bt(&self) -> Dr6Bt<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Bt::wrap(value)
+        Dr6Bt::wrap(target_value)
     }
 
     /// Return restricted-transactional-memory state.
     #[inline]
     #[must_use]
     pub const fn rtm(&self) -> Dr6Rtm<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Rtm::wrap(value)
+        Dr6Rtm::wrap(target_value)
     }
 
     /// Return reserved bits seventeen through 63.
     #[inline]
     #[must_use]
     pub const fn reserved_17_63(&self) -> Dr6Reserved17_63<'_> {
-        let &Self(ref value) = self;
+        let &Self(ref target_value) = self;
 
-        Dr6Reserved17_63::wrap(value)
+        Dr6Reserved17_63::wrap(target_value)
     }
 }
 
 /// The "Carry Flag" architectural flag.
 pub type FlagCf<'value> = Bit<'value, u64, 0>;
 
-/// The architecturally reserved bit one of [`Rflags`].
-///
-/// This bit is fixed to one in the architectural reset value. It remains
-/// exposed for inspection but has no public mutable counterpart.
+/// The architecturally reserved bit 1 of [`Rflags`].
 pub type FlagReserved<'value> = Bit<'value, u64, 1>;
 
-/// Internal mutable counterpart used only to construct architectural values.
-type FlagReservedMut<'value> = <FlagReserved<'value> as Counterpart>::Mut;
+/// A mutable counterpart to [`FlagReserved`].
+pub type FlagReservedMut<'value> = <FlagReserved<'value> as Counterpart>::Mut;
 
 /// The "Parity Flag" architectural flag.
 pub type FlagPf<'value> = Bit<'value, u64, 2>;
@@ -620,19 +608,20 @@ pub struct Rflags(u64);
 /// Raw transport representation of [`Rflags`].
 ///
 /// This type exists for hardware and ABI boundaries that must preserve the
-/// complete register image without exposing a general raw constructor on
+/// register image without exposing a general raw constructor on
 /// [`Rflags`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct RawRflags(pub u64);
 
 impl RawRflags {
-    /// Erases typed flags into their complete transport representation.
+    /// Erases typed flags into their transport representation.
     #[inline]
     #[must_use]
-    pub const fn take(value: Rflags) -> Self {
-        let Rflags(value) = value;
-        Self(value)
+    pub const fn take(target_value: Rflags) -> Self {
+        let Rflags(target_value) = target_value;
+
+        Self(target_value)
     }
 
     /// Reconstructs typed flags from a trusted architectural transport image.
@@ -645,27 +634,27 @@ impl RawRflags {
     #[inline]
     #[must_use]
     pub const unsafe fn restore(self) -> Rflags {
-        let Self(value) = self;
+        let Self(target_value) = self;
 
         // SAFETY: The caller supplies the architectural validity proof and the
         // transparent representation guarantees identical size and alignment.
-        unsafe { mem::transmute_copy(&value) }
+        unsafe { mem::transmute_copy(&target_value) }
     }
 }
 
 impl Rflags {
     /// Architectural reset value.
     ///
-    /// The processor defines bit one as reserved and fixed to one in the
+    /// The processor defines bit 1 as reserved and fixed to 1 in the
     /// reset state. The value is constructed through [`FlagReserved`] rather
     /// than duplicating that architectural bit position as an integer shift.
     pub const RESET: Self = {
-        let mut value = u64::MIN;
-        let mut reserved = FlagReservedMut::wrap(&mut value);
+        let mut target_value = u64::MIN;
+        let mut reserved = FlagReservedMut::wrap(&mut target_value);
 
         reserved.const_set(State::Set);
 
-        Self(value)
+        Self(target_value)
     };
 
     /// Determine the "Carry Flag" (CF) state.
@@ -677,7 +666,7 @@ impl Rflags {
         FlagCf::wrap(target_value)
     }
 
-    /// Determine the architecturally reserved bit one state.
+    /// Determine the architecturally reserved bit 1 state.
     #[inline]
     #[must_use]
     pub const fn flag_reserved(&self) -> FlagReserved<'_> {
@@ -977,12 +966,12 @@ impl Rflags {
 mod tests {
     use nekor_bitwise::prelude::{Counterpart, State};
 
-    use super::{Dr6B0, Dr6Bd, Dr6Bld, Dr6Bs, Dr6Bt, Dr6Rtm, RawDr6, RawRflags, Rflags, Rip};
+    use super::{Dr6Bd, Dr6Bld, Dr6Bp0, Dr6Bs, Dr6Bt, Dr6Rtm, RawDr6, RawRflags, Rflags, Rip};
 
     #[test]
     fn dr6_views_preserve_named_debug_state() {
         let mut bits = u64::MIN;
-        let mut b0 = <Dr6B0<'_> as Counterpart>::Mut::wrap(&mut bits);
+        let mut b0 = <Dr6Bp0<'_> as Counterpart>::Mut::wrap(&mut bits);
 
         b0.const_set(State::Set);
 
@@ -1006,7 +995,7 @@ mod tests {
 
         rtm.const_set(State::Set);
 
-        let dr6 = RawDr6(bits).restore();
+        let dr6 = RawDr6::new(bits);
 
         assert_eq!(dr6.b0().const_state(), State::Set);
         assert_eq!(dr6.bld().const_state(), State::Set);
@@ -1015,9 +1004,7 @@ mod tests {
         assert_eq!(dr6.bt().const_state(), State::Set);
         assert_eq!(dr6.rtm().const_state(), State::Set);
 
-        let RawDr6(restored) = RawDr6::take(dr6);
-
-        assert_eq!(restored, bits);
+        assert_eq!(dr6.raw(), bits);
     }
 
     #[test]
