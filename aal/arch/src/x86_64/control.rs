@@ -29,7 +29,7 @@ pub type Cr0Ts<'value> = Bit<'value, u64, 3>;
 /// The historical "Extension Type" (ET) bit in [`Cr0`].
 ///
 /// On modern x86 processors this architectural bit is reserved and fixed to
-/// one. It is therefore exposed for inspection without a mutable counterpart.
+/// 1. It is therefore exposed for inspection without a mutable counterpart.
 pub type Cr0Et<'value> = Bit<'value, u64, 4>;
 
 /// Internal mutable counterpart used only to construct architectural values.
@@ -108,7 +108,7 @@ pub struct Cr0(u64);
 
 /// Raw transport representation of [`Cr0`].
 ///
-/// This type preserves the complete control-register image for hardware and
+/// This type preserves the control-register image for hardware and
 /// virtualization boundaries without adding a general raw constructor to
 /// [`Cr0`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -116,7 +116,7 @@ pub struct Cr0(u64);
 pub struct RawCr0(pub u64);
 
 impl RawCr0 {
-    /// Erases typed CR0 state into its complete transport representation.
+    /// Erases typed CR0 state into its transport representation.
     #[inline]
     #[must_use]
     pub const fn take(value: Cr0) -> Self {
@@ -145,7 +145,7 @@ impl RawCr0 {
 impl Cr0 {
     /// Architectural reset value.
     ///
-    /// ET is fixed to one. The architectural reset state also starts with NW
+    /// ET is fixed to 1. The architectural reset state also starts with NW
     /// and CD set. The value is assembled through the named bit aliases rather
     /// than duplicated as an integer literal.
     pub const RESET: Self = {
@@ -450,7 +450,7 @@ pub struct Cr3(u64);
 pub struct RawCr3(pub u64);
 
 impl RawCr3 {
-    /// Erases typed CR3 state into its complete transport representation.
+    /// Erases typed CR3 state into its transport representation.
     #[inline]
     #[must_use]
     pub const fn take(value: Cr3) -> Self {
@@ -635,42 +635,33 @@ impl Cr3 {
     }
 }
 
-/// The page-fault linear address held in [`Cr2`].
+/// The page-fault linear address held in [`RawCr2`].
 pub type Cr2LinearAddress<'value> = Field<'value, 0, 63, u64>;
 
-/// The 64-bit CR2 page-fault linear-address register.
+/// The 64-bit CR2 page-fault linear-address register image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar preserves the complete architectural CR2 image.
-pub struct Cr2(u64);
-
-/// Raw transport representation of [`Cr2`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-pub struct RawCr2(pub u64);
+// NOTE(invariant): Every u64 is a valid raw CR2 image; the type preserves register identity.
+pub struct RawCr2(u64);
 
 impl RawCr2 {
-    /// Erase typed CR2 state into its complete transport representation.
+    /// Constructs a raw CR2 image.
     #[inline]
     #[must_use]
-    pub const fn take(value: Cr2) -> Self {
-        let Cr2(value) = value;
-
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
-    /// Restore typed CR2 state from a complete architectural image.
+    /// Returns the raw CR2 image.
     #[inline]
     #[must_use]
-    pub const fn restore(self) -> Cr2 {
+    pub const fn raw(self) -> u64 {
         let Self(value) = self;
 
-        Cr2(value)
+        value
     }
-}
 
-impl Cr2 {
-    /// Determine the complete page-fault linear address.
+    /// Determines the page-fault linear address.
     #[inline]
     #[must_use]
     pub const fn linear_address(&self) -> Cr2LinearAddress<'_> {
@@ -702,7 +693,7 @@ pub struct Cr8(u64);
 pub struct RawCr8(pub u64);
 
 impl RawCr8 {
-    /// Erase typed CR8 state into its complete transport representation.
+    /// Erase typed CR8 state into its transport representation.
     #[inline]
     #[must_use]
     pub const fn take(value: Cr8) -> Self {
@@ -727,7 +718,7 @@ impl RawCr8 {
 
 impl Cr8 {
     /// Architectural reset value.
-    pub const RESET: Self = Self(0);
+    pub const RESET: Self = Self(u64::MIN);
 
     /// Determine the task-priority class.
     #[inline]
@@ -1027,7 +1018,7 @@ pub type Cr4FredMut<'value> = <Cr4Fred<'value> as Counterpart>::Mut;
 pub struct Cr4(u64);
 /// Raw transport representation of [`Cr4`].
 ///
-/// This type preserves the complete control-register image for hardware and
+/// This type preserves the control-register image for hardware and
 /// virtualization boundaries without adding a general raw constructor to
 /// [`Cr4`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1035,7 +1026,7 @@ pub struct Cr4(u64);
 pub struct RawCr4(pub u64);
 
 impl RawCr4 {
-    /// Erases typed CR4 state into its complete transport representation.
+    /// Erases typed CR4 state into its transport representation.
     #[inline]
     #[must_use]
     pub const fn take(value: Cr4) -> Self {
