@@ -98,7 +98,7 @@ SECTIONS {
   AT(ADDR({{ kernel.schedule.interrupt.code["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.schedule.interrupt.code.symbol.start }} = .;
 
-      KEEP(*({{ kernel.schedule.interrupt.code["section-name"] }} {{ kernel.schedule.interrupt.code["section-name"] }}.*))
+      KEEP(*(SORT_BY_NAME({{ kernel.schedule.interrupt.code["section-name"] }} {{ kernel.schedule.interrupt.code["section-name"] }}.*)))
 
       /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
       . = ALIGN({{ arch.cache.size }});
@@ -117,10 +117,10 @@ SECTIONS {
       */
 
       /* NOTE: Include code specified as "hot" explicitly by the kernel. */
-      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT({{ kernel.hot.code["section-name"] }} {{ kernel.hot.code["section-name"] }}.*)))
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.hot.code["section-name"] }} {{ kernel.hot.code["section-name"] }}.*))))
 
       /* NOTE: Include any other hot code possibly residing in `.text.hot{,.*}` sections. */
-      INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT(.text.hot .text.hot.*))
+      INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.text.hot .text.hot.*)))
 
       /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
       . = ALIGN({{ arch.cache.size }});
@@ -153,7 +153,7 @@ SECTIONS {
       {{ kernel.patch.symbol.start }} = .;
 
       /* NOTE: Make sure only executable code is included. */
-      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*))
+      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_NAME({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*)))
 
       /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
       . = ALIGN({{ arch.page.size.normal }});
@@ -169,7 +169,7 @@ SECTIONS {
   AT(ADDR({{ kernel.schedule.interrupt.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.schedule.interrupt.data.symbol.start }} = .;
 
-    KEEP(*({{ kernel.schedule.interrupt.data["section-name"] }} {{ kernel.schedule.interrupt.data["section-name"] }}.*))
+    KEEP(*(SORT_BY_NAME({{ kernel.schedule.interrupt.data["section-name"] }} {{ kernel.schedule.interrupt.data["section-name"] }}.*)))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
@@ -182,7 +182,7 @@ SECTIONS {
     {{ kernel.schedule.queue.symbol.start }} = .;
 
     /* NOTE: Include all scheduler queue sections. */
-    KEEP(*({{ kernel.schedule.queue["section-name"] }} {{ kernel.schedule.queue["section-name"] }}.*))
+    KEEP(*(SORT_BY_NAME({{ kernel.schedule.queue["section-name"] }} {{ kernel.schedule.queue["section-name"] }}.*)))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
@@ -193,7 +193,7 @@ SECTIONS {
   AT(ADDR({{ kernel.schedule.isolate["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.schedule.isolate.symbol.start }} = .;
 
-    KEEP(*({{ kernel.schedule.isolate["section-name"] }} {{ kernel.schedule.isolate["section-name"] }}.*))
+    KEEP(*(SORT_BY_NAME({{ kernel.schedule.isolate["section-name"] }} {{ kernel.schedule.isolate["section-name"] }}.*)))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
@@ -204,10 +204,10 @@ SECTIONS {
   AT(ADDR({{ kernel.hot.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.hot.data.symbol.start }} = .;
 
-    KEEP(*({{ kernel.hot.data["section-name"] }} {{ kernel.hot.data["section-name"] }}.*))
+    KEEP(*(SORT_BY_NAME({{ kernel.hot.data["section-name"] }} {{ kernel.hot.data["section-name"] }}.*)))
 
     /* NOTE: Include any other hot data possibly residing in `.data.hot{,.*}` sections. */
-    *(.data.hot .data.hot.*)
+    *(SORT_BY_NAME(.data.hot .data.hot.*))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
@@ -221,7 +221,7 @@ SECTIONS {
     {{ kernel.data.symbol.start }} = .;
 
     /* Include standard `.data` sections. */
-    *(.data .data.*)
+    *(SORT_BY_NAME(.data .data.*))
 
     /* NOTE: Make sure that the boundaries of the section are fully cacheline-aligned. */
     . = ALIGN({{ arch.cache.size }});
@@ -250,7 +250,7 @@ SECTIONS {
   AT(ADDR({{ kernel.data.zeroed["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
     {{ kernel.data.zeroed.symbol.start }} = .;
 
-    *(.bss .bss.*)
+    *(SORT_BY_NAME(.bss .bss.*))
     *(COMMON)
 
     /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
@@ -292,13 +292,13 @@ SECTIONS {
   ALIGN({{ arch.page.size.normal }}) :
   AT(ADDR({{ linkage.relocate["section-name"] }}.implicit) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto dynamic relocations with an implicit addend. */
-    *(.rel .rel.*)
+    *(SORT_BY_NAME(.rel .rel.*))
   } :data-readonly :linkage-segment
   {{ linkage.relocate["section-name"] }}.explicit
   ALIGN({{ arch.page.size.normal }}) :
   AT(ADDR({{ linkage.relocate["section-name"] }}.explicit) - {{ layout.base - layout["physical-base"] }}) {
     /* NOTE: Include the de-facto dynamic relocations with an explicit addend. */
-    *(.rela .rela.*)
+    *(SORT_BY_NAME(.rela .rela.*))
   } :data-readonly :linkage-segment
 
   /*
@@ -356,6 +356,7 @@ SECTIONS {
   AT(ADDR({{ kernel.data.readonly["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.data.readonly.symbol.start }} = .;
 
+      /* NOTE: Include the de-facto read-only data section. */
       *(SORT_BY_NAME(.rodata .rodata.*))
 
       /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
