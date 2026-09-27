@@ -20,15 +20,17 @@ use crate::mutex::{
 /// This structure does **not** release the underlying lock after its scope has
 /// ended, therefore, if not manually unlocked via [`RawMutexGuard::unlock`],
 /// the associated [`Mutex`] will remain locked forever.
+// NOTE(invariant): The non-null pointer refers into the stored mutex, and `Waited` proves this
+// guard owns the lock state that must be released explicitly.
 pub struct RawMutexGuard<'a, T>(&'a Mutex<T>, NonNull<T>, Waited);
 
 impl<'a, T> RawMutexGuard<'a, T> {
     /// Construct a new [`RawMutexGuard`] for the target [`Mutex`] and
-    /// [`Occupied`] slot.
+    /// [`Waited`] slot.
     ///
     /// # Safety
     ///
-    /// The [`Occupied`] slot must have been acquired from the same [`Mutex`].
+    /// The [`Waited`] slot must have been acquired from the same [`Mutex`].
     #[inline]
     pub const unsafe fn new(target_mutex: &'a Mutex<T>, waited_state: Waited) -> Self {
         let &Mutex { ref target_value, .. } = target_mutex;
@@ -78,11 +80,8 @@ impl<'a, T> RawMutexGuard<'a, T> {
 /// A RAII-style guard type for [`Mutex`] acquisition.
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct Guard<'a, T>(
-    // NOTE(invariant): Always is initialized, deinitialized for unlock at
-    // `Drop`.
-    MaybeUninit<RawMutexGuard<'a, T>>,
-);
+// NOTE(invariant): The raw guard remains initialized until `Drop` consumes it for unlock.
+pub struct Guard<'a, T>(MaybeUninit<RawMutexGuard<'a, T>>);
 
 impl<'a, T> Guard<'a, T> {
     /// Construct a new mutex guard.

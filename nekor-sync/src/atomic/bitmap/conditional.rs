@@ -1,8 +1,8 @@
-//! Conditional operations on [`AtomicBitmap`].
+//! Conditional operations on [`crate::atomic::bitmap::AtomicBitmap`].
 
 use core::{fmt, marker};
 
-/// A condition to be applied to an [`AtomicBitmap`];
+/// A condition to be applied to an [`crate::atomic::bitmap::AtomicBitmap`];
 pub trait Condition {
     /// Determine the status of this condition.
     fn determine(self, target_value: usize) -> Status;
@@ -36,8 +36,8 @@ impl fmt::Debug for Status {
 }
 
 /// A [`Condition`] to determine whether the bitwise-and operation on the
-/// [`AtomicBitmap`] yields zero, or, in other words, whether all the specified
-/// bits are unset.
+/// [`crate::atomic::bitmap::AtomicBitmap`] yields zero, or, in other words, whether all the
+/// specified bits are unset.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
 pub struct Unset(pub usize);
@@ -55,7 +55,7 @@ impl Condition for Unset {
 }
 
 /// A [`Condition`] to determine whether the bitwise-and operation on the
-/// [`AtomicBitmap`] yields the same condition value, or, in other words,
+/// [`crate::atomic::bitmap::AtomicBitmap`] yields the same condition value, or, in other words,
 /// whether all the specified bits are set in unison.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]

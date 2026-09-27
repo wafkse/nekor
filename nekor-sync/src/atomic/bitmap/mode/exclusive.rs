@@ -24,14 +24,14 @@ pub enum Outcome {
     ///
     /// This variant is accompanied with the latest bitmap state snapshot
     /// observed. This can be in turn used to accelerate retries in specific
-    /// scenarios. Particularly, a [`Reason::ConcurrentModification`] failure
+    /// scenarios. Particularly, a [`Reason::Contended`] failure
     /// reason corresponds to the [`Acquire`] failure ordering of the
     /// compare-exchange operation, this can be used to omit an aditional atomic
     /// load if the backoff state was not used.
     ///
     /// This generally corresponds to the operation not being able to be
     /// completed with [`Exclusive`]-level guarantees.
-    // NOTE(invariant): The last observed state must have been obtained with a
+    // NOTE: The last observed state must have been obtained with a
     // memory ordering of [`Acquire`] or stronger.
     Failure(Reason, usize),
 
@@ -41,8 +41,8 @@ pub enum Outcome {
     /// successful, as all [`Exclusive`] mode guarantees are upheld.
     ///
     /// This is accompanied by the latest observed value of the
-    /// [`AtomicBitmap`].
-    // NOTE(invariant): The last observed state must have been obtained with a
+    /// [`crate::atomic::bitmap::AtomicBitmap`].
+    // NOTE: The last observed state must have been obtained with a
     // memory ordering of [`Acquire`] or stronger.
     Success(usize),
 }

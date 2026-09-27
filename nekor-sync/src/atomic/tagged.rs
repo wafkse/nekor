@@ -63,9 +63,9 @@ maskable!(*mut T);
 maskable!(NonNull<T>);
 
 /// An integer proven to contain no bits outside `M`.
-// NOTE(invariant): The contained value always satisfies `value & M == value`.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The contained value always satisfies `value & M == value`.
 pub struct Masked<const M: usize>(usize);
 
 impl<const M: usize> Masked<M> {
@@ -193,10 +193,8 @@ pub unsafe trait Field: Tag<Type = TagField, Value = Self> {
 ///
 /// The empty set is valid. Sparse bitfield domains are also supported, so a bit
 /// inside the pointer's alignment capacity may remain unassigned.
-// NOTE(invariant): `bits` contains no bit outside `B::MASK`. Every set bit has
-// an index accepted by `B::from_index`. Safe construction and mutation validate
-// both conditions before changing the representation.
 #[repr(transparent)]
+// NOTE(invariant): `bits` contains only indices accepted by `B::from_index` inside `B::MASK`.
 pub struct BitfieldSet<B> {
     /// The one-hot union of all contained variants.
     bits: usize,
@@ -259,6 +257,7 @@ where
     #[must_use]
     pub fn contains(&self, target_bit: B) -> bool {
         let &Self { ref bits, .. } = self;
+
         let Some(target_mask) = Self::variant_bit(target_bit) else {
             return false;
         };
@@ -274,9 +273,11 @@ where
     #[inline]
     pub fn insert(&mut self, target_bit: B) -> bool {
         let &mut Self { ref mut bits, .. } = self;
+
         let Some(target_mask) = Self::variant_bit(target_bit) else {
             return false;
         };
+
         let was_absent = *bits & target_mask == usize::MIN;
 
         *bits |= target_mask;
@@ -290,9 +291,11 @@ where
     #[inline]
     pub fn remove(&mut self, target_bit: B) -> bool {
         let &mut Self { ref mut bits, .. } = self;
+
         let Some(target_mask) = Self::variant_bit(target_bit) else {
             return false;
         };
+
         let was_present = *bits & target_mask != usize::MIN;
 
         *bits &= !target_mask;
@@ -325,6 +328,7 @@ where
 
         while remaining_bits != usize::MIN {
             let target_index = remaining_bits.trailing_zeros();
+
             let Some(selected_index) = Selected::<usize>::try_new(target_index) else {
                 return false;
             };
@@ -371,6 +375,7 @@ impl<B> PartialEq for BitfieldSet<B> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         let &Self { bits: ref left, .. } = self;
+
         let &Self { bits: ref right, .. } = other;
 
         left == right
@@ -446,10 +451,9 @@ where
 /// The pointer is never dereferenced while tagged. Use
 /// [`TaggedPointer::pointer`] or [`TaggedPointer::split`] to recover its
 /// untagged address first.
-// NOTE(invariant): `tagged` is non-null. Clearing `T::MASK` yields the original
-// non-null pointer with the same provenance. The masked bits decode as
-// `T::Value` through `T::Type`.
 #[repr(transparent)]
+// NOTE(invariant): Clearing `T::MASK` recovers the non-null pointer, and the tag bits decode as
+// `T::Value`.
 pub struct TaggedPointer<P, T>
 where
     T: Tag,
@@ -509,6 +513,7 @@ where
     #[must_use]
     pub fn pointer(self) -> NonNull<P> {
         let Self { tagged, .. } = self;
+
         let target_pointer = tagged.as_ptr().map_addr(|target_address| target_address & !T::MASK);
 
         // SAFETY: The representation invariant guarantees that clearing the tag
@@ -521,6 +526,7 @@ where
     #[must_use]
     pub fn tag(self) -> Option<T::Value> {
         let Self { tagged, .. } = self;
+
         let encoded_tag = tagged.as_ptr().addr() & T::MASK;
 
         <T::Type as TagEncoding<T>>::decode(encoded_tag)
@@ -542,27 +548,6 @@ where
     #[must_use]
     pub fn retag(self, target_tag: T::Value) -> Option<Self> {
         Self::new(self.pointer(), target_tag)
-    }
-
-    /// Returns the tagged pointer for atomic storage and comparison.
-    #[inline]
-    const fn as_tagged_ptr(self) -> *mut P {
-        let Self { tagged, .. } = self;
-
-        tagged.as_ptr()
-    }
-
-    /// Reconstructs a tagged pointer read from a trusted atomic container.
-    ///
-    /// # Safety
-    ///
-    /// `tagged` must have been produced by a valid `TaggedPointer<P, T>` with
-    /// the same `P`, `T`, and tag-category implementation.
-    #[inline]
-    const unsafe fn from_tagged(tagged: NonNull<P>) -> Self {
-        let marker = marker::PhantomData;
-
-        Self { tagged, marker }
     }
 }
 
@@ -593,6 +578,7 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         let &Self { tagged: ref left, .. } = self;
+
         let &Self { tagged: ref right, .. } = other;
 
         ptr::eq(left.as_ptr(), right.as_ptr())
@@ -614,10 +600,9 @@ pub type CompareExchangeResult<P, T> = Result<Option<TaggedPointer<P, T>>, Optio
 ///
 /// This type delegates progress and ordering properties to [`AtomicPtr`]. It
 /// does not make platform atomics wait-free and does not prevent pointer ABA.
-// NOTE(invariant): `pointer` is either null or a tagged pointer produced with
-// the same `P` and `T`. All non-null writes pass through methods accepting
-// `TaggedPointer<P, T>`.
 #[repr(transparent)]
+// NOTE(invariant): The atomic word is null or holds a tagged pointer produced with this `P` and
+// `T`.
 pub struct AtomicTaggedPointer<P, T>
 where
     T: Tag,
@@ -679,6 +664,7 @@ where
         target_order: Ordering,
     ) -> Option<TaggedPointer<P, T>> {
         let &Self { ref pointer, .. } = self;
+
         let previous_pointer = pointer.swap(Self::encode(target_pointer), target_order);
 
         Self::decode(previous_pointer)
@@ -739,16 +725,23 @@ where
     /// Encodes an optional tagged pointer as a nullable raw pointer.
     #[inline]
     fn encode(target_pointer: Option<TaggedPointer<P, T>>) -> *mut P {
-        target_pointer.map_or(ptr::null_mut(), TaggedPointer::as_tagged_ptr)
+        target_pointer.map_or(ptr::null_mut(), |target_pointer| {
+            let TaggedPointer { tagged, .. } = target_pointer;
+
+            tagged.as_ptr()
+        })
     }
 
     /// Decodes a nullable raw pointer from this trusted atomic container.
     #[inline]
     fn decode(target_pointer: *mut P) -> Option<TaggedPointer<P, T>> {
         NonNull::new(target_pointer).map(|tagged_pointer| {
-            // SAFETY: The atomic representation invariant guarantees that every
+            // NOTE: The atomic representation invariant guarantees that every
             // non-null value was written from `TaggedPointer<P, T>`.
-            unsafe { TaggedPointer::from_tagged(tagged_pointer) }
+            TaggedPointer {
+                tagged: tagged_pointer,
+                marker: marker::PhantomData,
+            }
         })
     }
 }
@@ -849,7 +842,7 @@ mod tests {
     }
 
     #[repr(C, align(8))]
-    struct AlignedBytes([u8; 4]);
+    struct AlignedBytes(pub [u8; 4]);
 
     #[test]
     fn masked_value_checks_bits() {
@@ -914,6 +907,7 @@ mod tests {
         let Some(tagged_pointer) = tagged_pointer else {
             return;
         };
+
         let split = tagged_pointer.split();
 
         assert!(split.is_some());
@@ -942,6 +936,7 @@ mod tests {
         let Some(tagged_pointer) = tagged_pointer else {
             return;
         };
+
         let split = tagged_pointer.split();
 
         assert_eq!(split, Some((target_pointer, target_set)));
@@ -964,6 +959,7 @@ mod tests {
 
         // SAFETY: The four-byte array contains the requested one-byte offset.
         let offset_pointer = unsafe { base_pointer.as_ptr().add(1) };
+
         let Some(offset_pointer) = NonNull::new(offset_pointer) else {
             return;
         };
@@ -982,6 +978,7 @@ mod tests {
         let Some(original) = original else {
             return;
         };
+
         let retagged = original.retag(TestTag::Three);
 
         assert!(retagged.is_some());
@@ -1005,6 +1002,7 @@ mod tests {
         let Some(tagged_pointer) = tagged_pointer else {
             return;
         };
+
         let target_atomic = AtomicTaggedPointer::null();
 
         assert!(target_atomic.is_null(Ordering::SeqCst));
@@ -1027,9 +1025,11 @@ mod tests {
         let Some(first) = first else {
             return;
         };
+
         let Some(second) = second else {
             return;
         };
+
         let target_atomic = AtomicTaggedPointer::new(Some(first));
         let failed = target_atomic.compare_exchange(Some(second), None, Ordering::SeqCst, Ordering::SeqCst);
 

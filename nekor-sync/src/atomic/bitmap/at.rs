@@ -4,36 +4,37 @@ use nekor_aal_signal::{monitor::MonitorGuard, prelude::Monitor};
 
 use crate::atomic::bitmap::mode::{InMode, Mode};
 
-/// An engaged [`AtomicBitmap`] bit.
+/// An engaged [`crate::atomic::bitmap::AtomicBitmap`] bit.
 ///
 /// This serves as the base for all bit-level atomic operations.
 ///
 /// # Engagement Finalization
 ///
-/// An [`Engaged`] bit in an [`AtomicBitmap`] is finalized through a Finalizer
+/// An [`At`] bit in an [`crate::atomic::bitmap::AtomicBitmap`] is finalized through a Finalizer
 /// Operation.
 ///
-/// All associated functions contained within the [`Engaged`] type are Finalizer
+/// All associated functions contained within the [`At`] type are Finalizer
 /// Operations.
 ///
 /// A Finalizer Operation always has an *engagement* [`Mode`] associated to it.
 /// The engagement mode determines whether the Finalizer Operation is:
 ///
-/// - [`Exclusive`]: The engaged bit is guaranteed to have been uniquely interacted by us.
-/// - [`Cooperative`]: The engaged bit is guaranteed to have been interacted by us, but there is no
-///   guarantee that it was uniquely interacted by us.
+/// - [`super::mode::exclusive::Exclusive`]: The engaged bit is guaranteed to have been uniquely
+///   interacted by us.
+/// - [`super::mode::cooperative::Cooperative`]: The engaged bit is guaranteed to have been
+///   interacted by us, but there is no guarantee that it was uniquely interacted by us.
 ///
 /// This kind of distinction is required for subtle concurrency and
-/// synchronization needs. For instance, an [`Exclusive`] engagement mode is
+/// synchronization needs. For instance, an [`super::mode::exclusive::Exclusive`] engagement mode is
 /// required for operations that require exclusive access to the bit, such as
-/// setting or clearing it. In contrast, a [`Cooperative`] engagement mode is
-/// suitable for operations that only require read access to the bit, such as
+/// setting or clearing it. In contrast, a [`super::mode::cooperative::Cooperative`] engagement mode
+/// is suitable for operations that only require read access to the bit, such as
 /// checking its value.
 #[derive(Debug, Copy, Clone)]
+// NOTE(invariant): The stored bit index is in bounds for the referenced `usize` bitmap.
 pub struct At<'a>(
     pub(in crate::atomic::bitmap) &'a Monitor<AtomicUsize>,
     pub(in crate::atomic::bitmap) usize,
-    // NOTE(invariant): The bit index is always within bounds for an `usize`.
     pub(in crate::atomic::bitmap) u32,
 );
 
@@ -98,16 +99,15 @@ impl At<'_> {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is zeroed.
     /// - Bail out if the engaged bit was zeroed already, but not by us.
     ///
-    /// For cases where a specified [`Backoff`] is required, the
-    /// [`Engaged::zero_with`] associated function can be used.
+    /// For cases where a specified mode state is required, the
+    /// [`At::zero_with`] associated function can be used.
     ///
-    /// This is equivalent to calling [`Engaged::zero_with`] with a
-    /// [`Backoff::minimal()`].
+    /// This is equivalent to calling [`At::zero_with`] with the default mode state.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn zero<M>(self) -> M::Signal
@@ -122,13 +122,14 @@ impl At<'_> {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is zeroed.
     /// - Bail out if the engaged bit was zeroed already, but not by us.
     ///
-    /// This will engage with the specified [`Backoff`] strategy when the
-    /// [`AtomicBitmap`] is under contention and the operation warrants a retry.
+    /// This will use the specified mode state when the
+    /// [`crate::atomic::bitmap::AtomicBitmap`] is under contention and the operation warrants a
+    /// retry.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn zero_with<M>(self, target_state: &mut M::State) -> M::Signal
@@ -145,16 +146,15 @@ impl At<'_> {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is zeroed.
     /// - Bail out if the engaged bit was zeroed already, but not by us.
     ///
-    /// For cases where a specified [`Backoff`] is required, the
-    /// [`Engaged::one_with`] associated function can be used.
+    /// For cases where a specified mode state is required, the
+    /// [`At::one_with`] associated function can be used.
     ///
-    /// This is equivalent to calling [`Engaged::one_with`] with a
-    /// [`Backoff::minimal()`].
+    /// This is equivalent to calling [`At::one_with`] with the default mode state.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn one<M>(self) -> M::Signal
@@ -169,13 +169,14 @@ impl At<'_> {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is set.
     /// - Bail out if the engaged bit was set already, but not by us.
     ///
-    /// This will engage with the specified [`Backoff`] strategy when the
-    /// [`AtomicBitmap`] is under contention and the operation warrants a retry.
+    /// This will use the specified mode state when the
+    /// [`crate::atomic::bitmap::AtomicBitmap`] is under contention and the operation warrants a
+    /// retry.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn one_with<M>(self, target_state: &mut M::State) -> M::Signal

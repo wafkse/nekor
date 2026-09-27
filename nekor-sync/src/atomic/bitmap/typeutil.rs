@@ -107,6 +107,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitIndex<0>>();
     }
 
@@ -117,6 +118,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitIndex<15>>();
     }
 
@@ -128,6 +130,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitIndex<31>>();
     }
 
@@ -139,6 +142,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitIndex<63>>();
     }
 
@@ -210,6 +214,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitMap<1>>();
     }
 
@@ -220,6 +225,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitMap<16>>();
     }
 
@@ -231,6 +237,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitMap<32>>();
     }
 
@@ -242,6 +249,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitMap<64>>();
     }
 
@@ -312,6 +320,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitIndex<0>>();
     }
 
@@ -322,6 +331,7 @@ mod tests {
             T: InBound,
         {
         }
+
         assert_in_bound::<BitMap<1>>();
     }
 
@@ -335,6 +345,7 @@ mod tests {
             T: detail::Sealed,
         {
         }
+
         check_sealed::<BitIndex<0>>();
         check_sealed::<BitMap<1>>();
     }

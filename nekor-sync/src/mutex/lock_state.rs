@@ -35,19 +35,14 @@ pub enum Observed {
 
 /// A new-type that describes an occupied slot in an [`LockState`].
 #[derive(Debug, Clone, Copy)]
-pub struct Waiting<'a>(
-    &'a LockState,
-    // NOTE(invariant): Only a single bit is always set.
-    NonZero<usize>,
-);
+// NOTE(invariant): The nonzero bitmask contains exactly one set bit for the referenced lock state.
+pub struct Waiting<'a>(&'a LockState, NonZero<usize>);
 
 /// A wait token, used to prove that the turn has been taken for the current
 /// thread of execution.
 #[repr(transparent)]
-pub struct Waited(
-    // NOTE(invariant): Only a single bit is always set.
-    NonZero<usize>,
-);
+// NOTE(invariant): The nonzero bitmask contains exactly one set bit for the acquired turn.
+pub struct Waited(NonZero<usize>);
 
 impl Waiting<'_> {
     /// Wait for the associated lock to be in our turn.
@@ -107,6 +102,7 @@ impl Waiting<'_> {
 /// becomes effectively undefined and first-come-first-serve for all contenders
 /// beyond [`usize::BITS`].
 #[derive(Debug)]
+// NOTE(invariant): The bitmap tracks waiting turns and the monitored owner records the active turn.
 pub struct LockState(AtomicBitmap, Monitor<AtomicUsize>);
 
 impl LockState {
@@ -159,7 +155,7 @@ impl LockState {
     /// without regard for the number of attempts or any other factors.
     ///
     /// For an alternative with a bounded attempt limit, see
-    /// [`Self::acquire_with_limit`].
+    /// [`Self::acquire_with_state`].
     pub fn acquire(&self) -> Waiting<'_> {
         // FIXME(backoff): This needs to be benchmarked to find appropiate
         // parameters.
@@ -182,6 +178,7 @@ impl LockState {
     #[inline]
     pub fn acquire_with_state(&self, retry_state: &mut Retry) -> Option<Waiting<'_>> {
         let &Self(ref target_state, ..) = self;
+
         let full_backoff = &mut Backoff::state(Backoff::minimal());
 
         loop {
@@ -209,7 +206,7 @@ impl LockState {
         }
     }
 
-    /// Release the target [`Occupied`] slot from this [`LockState`].
+    /// Release the target [`Waited`] slot from this [`LockState`].
     ///
     /// This yields the [`Observed`] state of the slot that was released, but
     /// previous to the release operation.
@@ -298,8 +295,10 @@ mod tests {
             let lock_state = Arc::clone(&lock_state);
             let barrier = Arc::clone(&barrier);
             let snapshot_barrier = Arc::clone(&snapshot_barrier);
+
             handles.push(thread::spawn(move || {
                 let waiting = lock_state.acquire();
+
                 barrier.wait(); // Ensure all have acquired
 
                 // Wait for main thread to check snapshot
@@ -377,6 +376,7 @@ mod tests {
 
             handles.push(thread::spawn(move || {
                 let waiting = lock_state.acquire();
+
                 barrier.wait();
 
                 // SAFETY: waiting is from this lock_state
@@ -473,6 +473,7 @@ mod tests {
 
                 // Increment counter while holding lock
                 let value = counter.load(Ordering::SeqCst);
+
                 counter.store(value + 1, Ordering::SeqCst);
 
                 // SAFETY: waited is from this lock_state
@@ -570,6 +571,7 @@ mod tests {
 
             handles.push(thread::spawn(move || {
                 let waiting = lock_state.acquire();
+
                 barrier.wait();
 
                 // SAFETY: waiting is from this lock_state
@@ -610,7 +612,9 @@ mod tests {
             handles.push(thread::spawn(move || {
                 barrier.wait();
                 // All try to acquire simultaneously
+
                 let waiting = lock_state.acquire();
+
                 success_count.fetch_add(1, Ordering::SeqCst);
 
                 // Wait and release

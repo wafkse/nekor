@@ -33,6 +33,7 @@ pub mod conditional;
 /// [`AtomicUsize`].
 #[repr(transparent)]
 #[derive(Debug)]
+// NOTE(invariant): The monitor encloses the atomic word used by all bitmap operations.
 pub struct AtomicBitmap(Monitor<AtomicUsize>);
 
 impl AtomicBitmap {
@@ -239,7 +240,7 @@ impl AtomicBitmap {
 
         let snapshot_value = target_value.load(Acquire);
 
-        // NOTE(invariant): The valid bit indice range is maintained by the
+        // NOTE: The valid bit indice range is maintained by the
         // `BitIndex` generic bound.
         At(target_value, snapshot_value, N)
     }
@@ -260,7 +261,7 @@ impl AtomicBitmap {
     {
         let &Self(ref target_value) = self;
 
-        // NOTE(invariant): The valid bit indice range is maintained by the
+        // NOTE: The valid bit indice range is maintained by the
         // `BitIndex` generic bound.
         At(target_value, snapshot_value, N)
     }

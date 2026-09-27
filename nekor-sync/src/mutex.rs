@@ -34,6 +34,7 @@ use crate::mutex::{
 /// - Be eventually unlocked, but with the ability to present itself or the underlying `T` with
 ///   broken invariants.
 #[derive(Debug)]
+// NOTE(invariant): The lock state gates exclusive access to the value held in `UnsafeCell`.
 pub struct Mutex<T> {
     /// The monitored [`usize`]-sized bitset used to manage the lock state.
     lock_state: CachePadded<LockState>,
@@ -129,8 +130,10 @@ mod tests {
     #[test]
     fn modify_protected_value() {
         let mutex = Mutex::new(0);
+
         {
             let mut guard = mutex.lock();
+
             *guard = 100;
         }
         assert_eq!(*mutex.lock(), 100);
@@ -140,6 +143,7 @@ mod tests {
     #[test]
     fn get_mut_access() {
         let mut mutex = Mutex::new(10);
+
         *mutex.get_mut() = 20;
         assert_eq!(*mutex.lock(), 20);
     }
@@ -207,9 +211,11 @@ mod tests {
 
         for _ in 0..10 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..100 {
                     let mut guard = mutex.lock();
+
                     *guard += 1;
                 }
             }));
@@ -231,6 +237,7 @@ mod tests {
 
         for thread_id in 0..8 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..50 {
                     let mut guard = mutex.lock();
@@ -267,7 +274,9 @@ mod tests {
 
             handles.push(thread::spawn(move || {
                 barrier.wait();
+
                 let mut guard = mutex.lock();
+
                 guard.push(thread_id);
             }));
         }
@@ -277,6 +286,7 @@ mod tests {
         }
 
         fence(Ordering::Acquire);
+
         let guard = mutex.lock();
 
         // All 8 threads should have successfully acquired the lock
@@ -290,6 +300,7 @@ mod tests {
 
         {
             let mut guard = mutex.lock();
+
             *guard = 42;
             // Guard drops here
         }
@@ -308,9 +319,11 @@ mod tests {
         // 5 threads incrementing
         for _ in 0..5 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..100 {
                     let mut guard = mutex.lock();
+
                     *guard += 1;
                 }
             }));
@@ -319,9 +332,11 @@ mod tests {
         // 5 threads decrementing
         for _ in 0..5 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..100 {
                     let mut guard = mutex.lock();
+
                     *guard -= 1;
                 }
             }));
@@ -345,9 +360,11 @@ mod tests {
 
         for _ in 0..num_threads {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..iterations {
                     let mut guard = mutex.lock();
+
                     *guard += 1;
                 }
             }));
@@ -373,6 +390,7 @@ mod tests {
 
         for _ in 0..50 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..20 {
                     // Very short - just increment
@@ -396,6 +414,7 @@ mod tests {
 
         {
             let mut guard = mutex.lock();
+
             guard.push(1);
             guard.push(2);
             guard.extend_from_slice(&[3, 4, 5]);
@@ -427,6 +446,7 @@ mod tests {
 
         for i in 0..100 {
             let mut guard = mutex.lock();
+
             *guard = i;
             drop(guard);
 
@@ -444,8 +464,10 @@ mod tests {
 
         for _ in 0..num_threads {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 let mut guard = mutex.lock();
+
                 *guard += 1;
             }));
         }
@@ -504,6 +526,7 @@ mod tests {
     #[test]
     fn zero_sized_type() {
         struct ZeroSized;
+
         let mutex = Mutex::new(ZeroSized);
         let _guard = mutex.lock();
     }
@@ -525,6 +548,7 @@ mod tests {
 
         {
             let mut guard = mutex.lock();
+
             guard.push_str(" world");
         }
 
@@ -540,9 +564,11 @@ mod tests {
 
         for thread_id in 0..10 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for i in 0..10 {
                     let mut guard = mutex.lock();
+
                     guard.push((thread_id, i));
                 }
             }));
@@ -553,6 +579,7 @@ mod tests {
         }
 
         fence(Ordering::Acquire);
+
         let guard = mutex.lock();
         assert_eq!(guard.len(), 100, "all writes should be visible");
     }
@@ -565,9 +592,11 @@ mod tests {
 
         for i in 0..10 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 for _ in 0..20 {
                     let mut guard = mutex.lock();
+
                     if i % 2 == 0 {
                         *guard += 1;
                     } else {
@@ -601,6 +630,7 @@ mod tests {
         let mutex = Mutex::new(String::from("test"));
         let mut guard = mutex.lock();
         let value_ref = guard.value_mut();
+
         value_ref.push_str("ing");
         assert_eq!(value_ref, "testing");
     }
@@ -615,8 +645,10 @@ mod tests {
 
         for i in 0..10 {
             let mutex = Arc::clone(&mutex);
+
             handles.push(thread::spawn(move || {
                 let mut guard = mutex.lock();
+
                 guard.insert(i, i * 10);
             }));
         }
@@ -626,6 +658,7 @@ mod tests {
         }
 
         fence(Ordering::Acquire);
+
         let guard = mutex.lock();
         assert_eq!(guard.len(), 10);
         assert_eq!(guard.get(&5), Some(&50));

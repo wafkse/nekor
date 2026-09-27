@@ -1,4 +1,4 @@
-//! Engagement modes for the [`AtomicBitmap`] atomic construct.
+//! Engagement modes for the [`crate::atomic::bitmap::AtomicBitmap`] atomic construct.
 
 use core::{
     fmt::{self, Display},
@@ -11,7 +11,7 @@ pub mod cooperative;
 
 pub mod exclusive;
 
-/// An *engagement* mode for a particular bit in an [`AtomicBitmap`].
+/// An *engagement* mode for a particular bit in an [`crate::atomic::bitmap::AtomicBitmap`].
 ///
 /// The associated functions in this trait mirror the behavior of the [`At`]
 /// associated functions.
@@ -45,7 +45,7 @@ pub unsafe trait Mode {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is zeroed.
     /// - Bail out if the engaged bit was zeroed already, but not by us.
@@ -56,7 +56,7 @@ pub unsafe trait Mode {
     ///
     /// # [`Mode`]-specific behavior
     ///
-    /// On the [`Exclusive`] mode, this Finalizer Operation can:
+    /// On the [`exclusive::Exclusive`] mode, this Finalizer Operation can:
     ///
     /// - Block until the engaged bit is zeroed.
     /// - Bail out if the engaged bit was zeroed already, but not by us.
@@ -75,6 +75,7 @@ pub unsafe trait Mode {
 /// This is not user-constructible, and is passed to each [`Mode`]
 /// associated function.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction requires execution inside a bitmap mode finalizer.
 pub struct InMode(marker::PhantomData<Self>);
 
 impl InMode {

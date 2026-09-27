@@ -18,6 +18,7 @@ use nekor_aal_signal::{monitor::MonitorGuard, prelude::Monitor};
 /// [`sequence snapshot`]: Sequence
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): The monitor and atomic counter form the single sequence state.
 pub struct AtomicSequence(Monitor<AtomicUsize>);
 
 impl AtomicSequence {
@@ -67,6 +68,7 @@ impl Default for AtomicSequence {
 /// cause logical bugs (for example, losing a wakeup event), but it will never
 /// cause memory unsafety.
 #[derive(Debug)]
+// NOTE(invariant): The snapshot count came from the same guarded atomic sequence.
 pub struct Sequence<'a>(MonitorGuard<'a, AtomicUsize>, usize);
 
 impl Sequence<'_> {

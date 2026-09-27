@@ -142,6 +142,7 @@ mod tests {
         // Spawn threads to set different bits concurrently
         for i in 0..16 {
             let bitmap_clone = Arc::clone(&bitmap);
+
             handles.push(thread::spawn(move || {
                 let _: Snapshot = bitmap_clone.at(i).one::<Cooperative>();
             }));
@@ -178,8 +179,10 @@ mod tests {
         for _ in 0..10 {
             let bitmap_clone = Arc::clone(&bitmap);
             let barrier_clone = Arc::clone(&barrier);
+
             handles.push(thread::spawn(move || {
                 barrier_clone.wait(); // Synchronize start
+
                 let _: Snapshot = bitmap_clone.at(5).one::<Cooperative>();
                 // In cooperative mode, this never fails - no return value to
                 // check
@@ -212,6 +215,7 @@ mod tests {
         for i in 0..20 {
             let bitmap_clone = Arc::clone(&bitmap);
             let barrier_clone = Arc::clone(&barrier);
+
             handles.push(thread::spawn(move || {
                 barrier_clone.wait();
                 if i % 2 == 0 {
