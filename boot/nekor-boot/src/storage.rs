@@ -12,6 +12,7 @@ use crate::protocol::{BootRequest, Slug};
 
 /// The head structure of a request-response structure.
 #[repr(transparent)]
+// NOTE(invariant): The raw header is constructed for the same boot request type carried by `R`.
 pub struct Head<R>(RawHead, marker::PhantomData<R>)
 where
     R: BootRequest;
@@ -42,6 +43,7 @@ where
 /// This is a low-level structure, and has no specific [`BootRequest`]
 /// associated with it.
 #[repr(C)]
+// NOTE(invariant): The slug and block size are produced together for one boot request block type.
 pub struct RawHead {
     /// The slug identifier of the particular value stored in the encompassed
     /// union.
@@ -72,19 +74,20 @@ impl RawHead {
 ///
 /// This encompasses all state required for bootloader functionality.
 #[repr(C)]
+// NOTE(invariant): The header describes `R`, and the storage contains either that request or its
+// associated response while remaining writable for bootloader handoff.
 pub struct Block<R>
 where
     R: BootRequest,
 {
     /// The fixed-size header of this request-response block.
-    // NOTE(invariant): The layout of this type requires this field to serve as a header.
     block_head: Head<R>,
 
     /// The request-or-response storage union.
     ///
     /// The underlying value is dictated by the value of the
     /// [`Block::block_head`] header.
-    // NOTE(invariant): This is to guarantee that the static memory region is marked as
+    // NOTE: `UnsafeCell` guarantees that the static memory region is marked as
     // non-`Freeze`, as a `static mut` could be downgraded to a read-only program section when
     // there is no visible program-side write. The response is written in-place before the
     // Rust abstract machine is started and never again during its execution, so it can be used

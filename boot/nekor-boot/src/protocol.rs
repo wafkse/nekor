@@ -2,11 +2,12 @@
 
 use nekor_bitwise::prelude::Le;
 
-/// The slug of a boot-protocol [`Block`].
+/// The slug of a boot-protocol [`crate::storage::Block`].
 ///
-/// This is used to identify a particular [`Block`] dynamically.
+/// This is used to identify a particular [`crate::storage::Block`] dynamically.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
+// NOTE(invariant): The stored little-endian value is the stable identifier hash for this slug.
 pub struct Slug(Le<u64>);
 
 impl Slug {
@@ -44,7 +45,11 @@ impl Slug {
 impl PartialEq for Slug {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.0.raw() == other.0.raw()
+        let Self(left_slug) = self;
+
+        let Self(right_slug) = other;
+
+        left_slug.raw() == right_slug.raw()
     }
 }
 
