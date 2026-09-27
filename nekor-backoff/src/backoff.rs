@@ -90,6 +90,7 @@ pub enum ExponentialBase {
 /// higher-backoff delay, possibly increasing throughput across the critical
 /// section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+// NOTE(invariant): The ceiling never exceeds the largest shift count representable by `usize`.
 pub struct Backoff {
     /// The exponential base used for the exponential backoff.
     exponential_base: ExponentialBase,
@@ -185,6 +186,7 @@ impl Backoff {
 /// This is used to keep track of the performed backoff cycles and determined
 /// strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+// NOTE(invariant): `cycle_count` is absent before the first cycle and remains present afterwards.
 pub struct BackoffState {
     /// The [`Backoff`] strategy that is engaged.
     backoff_strategy: Backoff,

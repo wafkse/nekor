@@ -12,6 +12,8 @@ use crate::{
 /// This incorporates the functionality of [`Limit`] and [`Backoff`] to form an
 /// unified interface for controlled limit and backoff policies.
 #[derive(Debug)]
+// NOTE(invariant): An absent limit denotes unlimited retries while the backoff state records the
+// delay progression for the same retry sequence.
 pub struct Retry(Option<Limit>, BackoffState);
 
 impl Retry {

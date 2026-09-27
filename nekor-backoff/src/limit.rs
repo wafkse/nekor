@@ -12,6 +12,8 @@ use core::{num::NonZero, ops::ControlFlow};
 /// This exactly encompasses the imposed limit and the associated actuation
 /// count.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The first value is the imposed attempt limit and the optional second value is
+// the accumulated actuation count for that same limit.
 pub struct Limit(NonZero<usize>, Option<NonZero<usize>>);
 
 impl Limit {

@@ -9,8 +9,8 @@
 //!
 //! The core components of this crate are:
 //!
-//! * [`Backoff`]: for cycle-based controlled backoff
-//! * [`Limit`]: for well-defined self-imposed limits
+//! * [`backoff::Backoff`]: for cycle-based controlled backoff
+//! * [`limit::Limit`]: for well-defined self-imposed limits
 
 pub mod backoff;
 
