@@ -56,6 +56,9 @@ keywords = ["kernel", "unikernel", "no-std"]
 categories = ["no-std"]
 
 [workspace.dependencies]
+proc-macro2 = "1.0.107"
+syn = "3.0.6"
+quote = "1.0.47"
 bitflags = "2.13.2"
 camino = "1.2.2"
 fack = "0.4.0"
