@@ -120,7 +120,9 @@ impl PlatformTemplateCommand {
     /// Determine the generated output path for a template source.
     fn output_path(source: &Utf8Path) -> Utf8PathBuf {
         let mut output = source.to_path_buf();
+
         _ = output.set_extension("");
+
         output
     }
 }
@@ -188,6 +190,7 @@ impl Output for PlatformTemplateOutput {
         match structured {
             Some(OutputStructured::Json) => {
                 let value = serde_json::to_string(&self)?;
+
                 writer.write_str(value.as_str())?;
 
                 Ok(())

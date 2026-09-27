@@ -12,6 +12,7 @@ use crate::{
 
 /// An ordered sequence of scalar configuration values.
 #[derive(Debug, Clone, Default, PartialEq)]
+// NOTE(invariant): The vector preserves the source order of the scalar values in this list.
 pub struct ScalarList(Vec<Scalar>);
 
 impl ScalarList {
@@ -72,6 +73,8 @@ pub enum StructureKind {
 
 /// A named semantic node in a typed configuration document.
 #[derive(Debug, Clone, PartialEq)]
+// NOTE(invariant): The annotation, structural value, and origin are retained together from
+// construction.
 pub struct Node {
     /// The application-defined annotation attached to the node.
     annotation: Option<NodeAnnotation>,
@@ -111,6 +114,7 @@ impl Node {
 
     /// Construct a node after parsing and type interpretation have succeeded.
     #[inline]
+    // NOTE(rationale): Parsing constructs semantic nodes from a sibling module in this crate.
     pub(crate) const fn from_parts(annotation: Option<NodeAnnotation>, kind: NodeKind, origin: Origin) -> Self {
         Self {
             annotation,
@@ -142,6 +146,7 @@ impl Merge for Node {
             kind,
             origin,
         } = self;
+
         let Self {
             annotation: incoming_annotation,
             kind: incoming_kind,
@@ -201,6 +206,7 @@ impl Overlay for Node {
             kind,
             origin,
         } = self;
+
         let Self {
             annotation: derived_annotation,
             kind: derived_kind,

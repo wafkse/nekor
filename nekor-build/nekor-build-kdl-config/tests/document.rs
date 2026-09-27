@@ -109,6 +109,7 @@ mod tests {
                     let &NodeKind::Object(ref layout) = layout.kind() else {
                         return false;
                     };
+
                     layout.get("base").is_some_and(|node| {
                         matches!(
                             node.kind(),

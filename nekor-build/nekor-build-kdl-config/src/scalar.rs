@@ -25,9 +25,9 @@ pub enum ScalarKind {
 
 /// A scalar value and its KDL value annotation.
 #[derive(Debug, Clone, PartialEq)]
+// NOTE(invariant): A reserved representation annotation is paired only with a value already range
+// checked for that representation.
 pub struct Scalar {
-    // NOTE(invariant): When `annotation` is a reserved representation,
-    // `value` has already been range checked for that representation.
     /// The optional reserved or application-defined annotation.
     annotation: Option<TypeAnnotation>,
     /// The scalar value after applying any reserved representation.
@@ -191,6 +191,8 @@ impl TypeAnnotation {
 impl Scalar {
     /// Construct a scalar after type interpretation has succeeded.
     #[inline]
+    // NOTE(rationale): Parsing constructs interpreted scalar values from a sibling module in this
+    // crate.
     pub(crate) const fn from_parts(annotation: Option<TypeAnnotation>, value: ScalarValue, origin: Origin) -> Self {
         Self {
             annotation,
@@ -259,6 +261,7 @@ impl Overlay for Scalar {
 
     fn overlay(self, derived: Self) -> Result<Self, Self::Error> {
         let Self { annotation, origin, .. } = self;
+
         let Self {
             annotation: derived_annotation,
             value,

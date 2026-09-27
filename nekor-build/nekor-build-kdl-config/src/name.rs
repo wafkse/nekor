@@ -4,6 +4,7 @@ use core::{borrow::Borrow, fmt};
 
 /// A node name in a typed configuration document.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The stored string is the complete semantic node name represented by this value.
 pub struct Name(String);
 
 impl Name {
@@ -32,6 +33,7 @@ impl fmt::Display for Name {
 
 /// A semantic path through a typed configuration document.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Stored names are ordered from the path root to its terminal node.
 pub struct Path(Vec<Name>);
 
 impl Path {
@@ -54,6 +56,7 @@ impl Path {
     #[must_use]
     pub fn child(&self, name: Name) -> Self {
         let &Self(ref parts) = self;
+
         let mut target = parts.clone();
 
         target.push(name);
@@ -65,6 +68,7 @@ impl Path {
     #[must_use]
     pub fn prefixed(self, name: Name) -> Self {
         let Self(parts) = self;
+
         let mut target = Vec::with_capacity(parts.len() + 1);
 
         target.push(name);

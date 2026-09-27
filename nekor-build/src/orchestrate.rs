@@ -44,6 +44,8 @@ pub trait Orchestrate {
 /// Optionally, both command vectors and individual orchestration commands can
 /// have their own names, for clarity.
 #[derive(Debug, Clone)]
+// NOTE(invariant): Vector order is barrier order; commands inside one vector may execute
+// concurrently.
 pub struct OrchestrationContext(Vec<OrchestrateVector>);
 
 impl OrchestrationContext {
@@ -132,6 +134,7 @@ impl OrchestrationContext {
 
 /// An orchestration vector.
 #[derive(Debug, Clone)]
+// NOTE(invariant): Every command in this vector belongs to the same concurrent orchestration burst.
 pub struct OrchestrateVector {
     /// The list of [`Orchestrate`] commands contained within this vector.
     orchestrate_list: Vec<OrchestrateCommand>,

@@ -14,9 +14,9 @@ use crate::{
 
 /// A typed semantic configuration document.
 #[derive(Debug, Clone, Default, PartialEq)]
+// NOTE(invariant): Every semantic path has at most one node; construction and merging reject
+// conflicting terminal definitions before storing them.
 pub struct Document {
-    // NOTE(invariant): Every semantic path has at most one node. Parsing and
-    // merging reject conflicting terminal definitions before construction.
     /// The top-level nodes keyed by their semantic names.
     fields: IndexMap<Name, Node>,
 }
@@ -52,12 +52,14 @@ impl Document {
 
     /// Construct a document from a map whose semantic paths are unique.
     #[inline]
+    // NOTE(rationale): Parsing constructs complete documents across sibling modules in this crate.
     pub(crate) const fn from_fields(fields: IndexMap<Name, Node>) -> Self {
         Self { fields }
     }
 
     /// Determine the backing map for Serde projection.
     #[inline]
+    // NOTE(rationale): Serialization projects the document map from a sibling module in this crate.
     pub(crate) const fn fields(&self) -> &IndexMap<Name, Node> {
         let &Self { ref fields } = self;
 
@@ -70,11 +72,13 @@ impl Merge for Document {
 
     fn merge(self, incoming: Self) -> Result<Self, Self::Error> {
         let Self { mut fields } = self;
+
         let Self { fields: incoming } = incoming;
 
         for (name, node) in incoming {
             if let Some((index, existing_name, existing)) = fields.shift_remove_full(&name) {
                 let merged = existing.merge(node).map_err(|error| error.prefixed(name))?;
+
                 _ = fields.shift_insert(index, existing_name, merged);
             } else {
                 _ = fields.insert(name, node);
@@ -90,11 +94,13 @@ impl Overlay for Document {
 
     fn overlay(self, derived: Self) -> Result<Self, Self::Error> {
         let Self { mut fields } = self;
+
         let Self { fields: derived } = derived;
 
         for (name, node) in derived {
             if let Some((index, inherited_name, inherited)) = fields.shift_remove_full(&name) {
                 let resolved = inherited.overlay(node).map_err(|error| error.prefixed(name))?;
+
                 _ = fields.shift_insert(index, inherited_name, resolved);
             } else {
                 _ = fields.insert(name, node);

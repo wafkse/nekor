@@ -35,6 +35,7 @@ fn parse_document(parsed: &KdlDocument, source: &Source) -> Result<Document, Loa
             use crate::merge::Merge;
 
             let merged = existing.merge(target).map_err(|error| error.prefixed(name))?;
+
             _ = fields.shift_insert(index, existing_name, merged);
         } else {
             _ = fields.insert(name, target);

@@ -49,6 +49,7 @@ impl Output for PlatformShowOutput<'_> {
         match structured {
             Some(OutputStructured::Json) => {
                 let value = serde_json::to_string(&self)?;
+
                 writer.write_str(value.as_str())?;
 
                 Ok(())
@@ -101,6 +102,7 @@ impl PlatformShowOutput<'_> {
         W: fmt::Write,
     {
         let value = serde_json::to_string_pretty(platform)?;
+
         writeln!(writer, "{value}")?;
 
         Ok(())

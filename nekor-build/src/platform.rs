@@ -19,6 +19,7 @@ use crate::manifest::{PlatformDatabase, PlatformDesc, PlatformName};
 
 /// A platform data layer or fully resolved platform.
 #[derive(Debug, Clone)]
+// NOTE(invariant): The root identifies the most-derived layer represented by the paired document.
 pub struct Platform {
     /// The root directory of the most-derived platform layer.
     root: Utf8PathBuf,
@@ -132,9 +133,11 @@ impl Platform {
             let Some(base) = current.base() else {
                 break;
             };
+
             let Some(base_desc) = database.get(base) else {
                 return Err(PlatformResolveError::PlatformNotFound { name: base.clone() });
             };
+
             current = base_desc;
         }
 
@@ -149,6 +152,7 @@ impl Platform {
                 name: desc.name().clone(),
                 error: Box::new(error),
             })?;
+
             resolved = resolved.overlay(layer).map_err(|error| PlatformResolveError::Overlay {
                 name: desc.name().clone(),
                 error: Box::new(error),
@@ -171,11 +175,13 @@ impl Platform {
                 path: path.clone(),
                 error,
             })?;
+
             let source = Source::file(path.clone());
             let fragment = Document::parse(input.as_str(), &source).map_err(|error| PlatformLoadError::Load {
                 path,
                 error: Box::new(error),
             })?;
+
             document = document
                 .merge(fragment)
                 .map_err(|error| PlatformLoadError::Merge(Box::new(error)))?;
@@ -225,16 +231,21 @@ impl Platform {
                 root: root.to_path_buf(),
                 error,
             })?;
+
             if !entry.file_type().is_file() {
                 continue;
             }
+
             let path = Utf8PathBuf::from_path_buf(entry.into_path())
                 .map_err(|path| PlatformFileError::NonUtf8Path { path })?;
+
             if path.extension().is_some_and(|value| value == extension) {
                 target.push(path);
             }
         }
+
         target.sort();
+
         Ok(target)
     }
 }
@@ -244,6 +255,7 @@ impl Overlay for Platform {
 
     fn overlay(self, derived: Self) -> Result<Self, Self::Error> {
         let Self { document, .. } = self;
+
         let Self {
             root,
             document: derived,

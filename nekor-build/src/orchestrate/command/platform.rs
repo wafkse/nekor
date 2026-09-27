@@ -25,6 +25,7 @@ use crate::{
 
 /// An orchestrate platform command.
 #[derive(Parser, Debug, Clone)]
+// NOTE(invariant): The selected platform name and subcommand belong to the same parsed CLI request.
 pub struct OrchestratePlatform {
     /// The name of the platform to orchestrate build for.
     #[arg(long, short)]
@@ -83,12 +84,16 @@ impl Orchestrate for OrchestratePlatform {
 
     fn execute(self, context: &InvokeContext) -> Result<(), Self::Error> {
         let Self { name, platform_command } = self;
+
         let database = context.manifest().platform();
+
         let Some(desc) = database.get(name.as_str()) else {
             return Err(OrchestratePlatformError::PlatformNotFound { name });
         };
+
         let platform =
             Platform::resolve(context.root(), database, desc).map_err(OrchestratePlatformError::PlatformResolve)?;
+
         let target_output = platform_command.command(context, (&platform, desc))?;
         let mut target_buffer = String::new();
 

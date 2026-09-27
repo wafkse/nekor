@@ -52,6 +52,7 @@ impl fmt::Display for Source {
 
 /// The exact source location that supplied a semantic value.
 #[derive(Debug, Clone, PartialEq, Eq)]
+// NOTE(invariant): The source identity and span are retained together as supplied at construction.
 pub struct Origin {
     /// The source identity associated with the span.
     source: Source,

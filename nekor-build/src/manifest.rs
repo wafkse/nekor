@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 
 /// A build manifest.
 #[derive(Debug, Clone, Deserialize)]
+// NOTE(invariant): Build settings and the platform database are deserialized from the same
+// manifest.
 pub struct Manifest {
     /// The manifest build information.
     build: ManifestBuildInfo,
@@ -41,6 +43,7 @@ impl Manifest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+// NOTE(invariant): The optional default is stored as a typed platform name.
 pub struct ManifestBuildInfo {
     /// The default platform to build for, if specified.
     default: Option<PlatformName>,
@@ -60,6 +63,7 @@ impl ManifestBuildInfo {
 /// The stable manifest identity of a platform.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
+// NOTE(invariant): The stored string is the complete stable manifest identity of one platform.
 pub struct PlatformName(String);
 
 impl PlatformName {
@@ -106,6 +110,7 @@ impl FromStr for PlatformName {
 /// This is a new-type over a [`BTreeMap<PlatformName, PlatformDesc>`].
 #[derive(Debug, Clone, Deserialize)]
 #[serde(from = "Vec<PlatformDesc>")]
+// NOTE(invariant): Every map key equals the `name` stored by its associated platform description.
 pub struct PlatformDatabase(BTreeMap<PlatformName, PlatformDesc>);
 
 impl From<Vec<PlatformDesc>> for PlatformDatabase {
@@ -139,6 +144,8 @@ impl DerefMut for PlatformDatabase {
 
 /// A basic description about a platform.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+// NOTE(invariant): Name, path, optional base, and description all describe the same manifest
+// platform.
 pub struct PlatformDesc {
     /// The name of the platform in question.
     name: PlatformName,

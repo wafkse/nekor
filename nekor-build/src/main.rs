@@ -11,6 +11,8 @@ use nekor_build::invoke::{Invoke, InvokeError};
 /// A new-type that forwards the [`Debug`] implementation as the [`Display`]
 /// one.
 #[repr(transparent)]
+// NOTE(invariant): The wrapped value is the sole representation and supplies all formatting/error
+// behavior.
 struct DisplayAsDebug<D>(D)
 where
     D: Display;
@@ -55,6 +57,7 @@ where
 /// A newtype that takes an error and forwards it as an error-chain for its
 /// [`Debug`] implementation.
 #[repr(transparent)]
+// NOTE(invariant): The wrapped error is the root of the source chain rendered by this adapter.
 struct ErrorChain<E>(E)
 where
     E: Error;

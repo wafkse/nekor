@@ -23,6 +23,7 @@ use crate::{
 /// This is metadata found in the `Cargo.toml` manifest of either the workspace
 /// or the crate.
 #[derive(Debug, Clone, Deserialize)]
+// NOTE(invariant): The manifest path is interpreted relative to the invocation workspace root.
 pub struct RootMetadata {
     /// The path to the manifest for the Nekor Build System.
     manifest: Utf8PathBuf,
@@ -30,6 +31,8 @@ pub struct RootMetadata {
 
 /// The invoke context used for individual orchestration.
 #[derive(Debug, Clone)]
+// NOTE(invariant): All stored paths, metadata, manifest data, scheduling state, and output options
+// belong to the same top-level invocation.
 pub struct InvokeContext {
     /// The root directory used for path resolution.
     ///
@@ -129,6 +132,8 @@ impl InvokeContext {
 
 /// An individual build system for the Nekor Unikernel.
 #[derive(Parser, Debug, Clone)]
+// NOTE(invariant): Output options and the optional orchestration command come from one parsed
+// invocation.
 pub struct Invoke {
     /// The global output options of the invocation.
     #[command(flatten)]
@@ -142,7 +147,7 @@ pub struct Invoke {
 impl Invoke {
     /// The entry point to an invocation.
     ///
-    /// This takes a parsed [`Invocation`] top-level structure and commences the
+    /// This takes a parsed [`Invoke`] top-level structure and commences the
     /// orchestration process.
     ///
     /// # Errors

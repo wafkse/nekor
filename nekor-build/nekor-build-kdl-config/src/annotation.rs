@@ -4,6 +4,7 @@ use core::fmt;
 
 /// An application-defined KDL annotation identifier.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The stored string is the complete identifier represented by this annotation.
 pub struct Annotation(String);
 
 impl Annotation {
@@ -32,6 +33,7 @@ impl fmt::Display for Annotation {
 
 /// A KDL annotation attached to a node rather than to one of its values.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The wrapped annotation is interpreted specifically as a node annotation.
 pub struct NodeAnnotation(Annotation);
 
 impl NodeAnnotation {
