@@ -12,6 +12,28 @@ permissions:
     contents: read
 
 jobs:
+    rust-toolchains:
+        name: Resolve Rust Toolchains
+        runs-on: ubuntu-26.04
+        timeout-minutes: 5
+        outputs:
+            matrix: ${{ steps.toolchains.outputs.matrix }}
+        steps:
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: stable
+
+            - id: toolchains
+              name: Resolve latest stable releases
+              shell: bash
+              run: |
+                  stable="$(rustc +stable --version | awk '{ print $2 }')"
+                  IFS=. read -r major minor patch <<< "${stable}"
+                  previous_channel="${major}.$((minor - 1))"
+                  rustup toolchain install "${previous_channel}" --profile minimal --no-self-update
+                  previous="$(rustc +"${previous_channel}" --version | awk '{ print $2 }')"
+                  echo "matrix=[\"${stable}\",\"${previous}\"]" >> "${GITHUB_OUTPUT}"
+
     lint-rust:
         name: Automated Linting (Rust)
         runs-on: ubuntu-26.04
@@ -33,17 +55,24 @@ jobs:
               run: cargo clippy --workspace --all-targets -- -D warnings
 
     userspace-tests:
-        name: Userspace Tests
+        name: Userspace Tests (${{ matrix.toolchain }})
+        needs: rust-toolchains
         runs-on: ubuntu-26.04
         timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                toolchain: ${{ fromJSON(needs.rust-toolchains.outputs.matrix) }}
         steps:
             - uses: actions/checkout@v7
 
             - uses: dtolnay/rust-toolchain@stable
               with:
-                  toolchain: stable
+                  toolchain: ${{ matrix.toolchain }}
 
             - uses: Swatinem/rust-cache@v2
+              with:
+                  key: ${{ matrix.toolchain }}
 
             - name: Render userspace platform
               run: cargo run --package nekor-build -- platform --name x86_64/usermode template build
@@ -52,3 +81,22 @@ jobs:
               run: cargo test --workspace
               env:
                   RUSTFLAGS: --cfg usermode
+
+    miri:
+        name: Miri
+        runs-on: ubuntu-26.04
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: nightly
+                  components: miri
+
+            - uses: Swatinem/rust-cache@v2
+
+            - name: Run Miri
+              run: cargo miri test --workspace
+              env:
+                  MIRIFLAGS: -Zmiri-ignore-leaks
