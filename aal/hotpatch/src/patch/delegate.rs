@@ -78,6 +78,7 @@ pub unsafe trait Delegator: Pod {
 
 /// A [`Delegator`] that encompasses a single [`Delegated`] and a target value.
 #[derive(Debug, Copy, Clone)]
+// NOTE(invariant): The uninhabited field prevents constructing a value of this namespace type.
 pub struct Single<D, P>(convert::Infallible, marker::PhantomData<fn() -> (D, P)>)
 where
     D: Delegated,
@@ -102,11 +103,12 @@ where
 /// A [`Delegator`] that selects between two [`Delegated`]s based on a logical
 /// condition.
 ///
-/// The default [`Delegate`] is defined by the provided const-generic parameter.
+/// The default [`Delegated`] type is defined by the provided const-generic parameter.
 ///
 /// - If it is `true`, the first [`Delegated`] (`T`) is chosen.
 /// - If it is `false`, the second [`Delegated`] (`F`) is chosen.
 #[derive(Debug, Copy, Clone)]
+// NOTE(invariant): The marker retains both delegate types while `S` selects the default branch.
 pub struct Logical<T, F, const S: bool>(marker::PhantomData<(T, F)>)
 where
     T: Delegated,

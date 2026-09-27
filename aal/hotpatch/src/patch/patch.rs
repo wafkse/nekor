@@ -27,6 +27,7 @@ type PatchIdentity<D, I, O> = fn() -> (D, I, O);
 /// [`Delegated`] implementation.
 #[derive(Debug, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The word contains the architecture-specific diversion instruction image.
 pub struct Diversion(
     /// NOTE(x86): We use `jmp rel32` in `IA-32{,e}`, which is 5-bytes in size.
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -91,8 +92,12 @@ type JmpRel32Mut<'a> = <JmpRel32<'a> as Counterpart>::Mut;
 /// [`Delegated`] implementation.
 #[derive(Debug)]
 #[repr(C)]
+// NOTE(invariant): The function pointer has the delegated input and output types associated with
+// `D`.
 pub struct Template<D>(
+    // NOTE(rationale): The sibling selection module builds templates for this patch module.
     pub(crate) fn(DelegatedInput<D>) -> DelegatedOutput<D>,
+    // NOTE(rationale): The sibling selection module constructs the typed template marker.
     pub(crate) marker::PhantomData<fn() -> D>,
 )
 where
@@ -127,12 +132,15 @@ where
             } else {
                 i64::try_from(base_address - target_address).map(|offset| -offset)
             };
+
             let relative_address = relative_address.and_then(i32::try_from);
+
             let Ok(relative_address) = relative_address else {
                 // SAFETY: The small code model guarantees that the linked
                 // addresses differ by a signed 32-bit displacement.
                 unsafe { unreachable_unchecked() }
             };
+
             let relative_address = u32::from_ne_bytes(relative_address.to_ne_bytes());
 
             let mut encoded_instr = X86::JMP_REL32_UD2_NOP_TEMPLATE;
@@ -147,6 +155,7 @@ where
 /// A patched [`Delegator`] and [`Delegated`] pair for some implementation.
 #[derive(Debug, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The function pointer implements the input and output contract of delegator `D`.
 pub struct Patched<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
     D: Delegator,
@@ -155,6 +164,7 @@ where
 /// The patchsite for a [`Delegator`] and [`Delegated`] pair.
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): Pinning fixes the address of this typed atomic diversion word.
 pub struct Patchsite<D, I, O>(
     /// NOTE(x86): We use `jmp rel32` in `IA-32{,e}`, which is 5-bytes in size.
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -189,7 +199,7 @@ where
     /// changes the patchsite before this operation completes.
     #[inline]
     pub unsafe fn stale(self: Pin<&'static Self>, target_chosen: Chosen<D, I, O>) -> Result<Diversion, Diversion> {
-        let atomic_variable = &self.get_ref().0;
+        let Self(atomic_variable, ..) = self.get_ref();
 
         let target_template = Chosen::template(target_chosen);
 
@@ -219,6 +229,8 @@ where
 }
 
 /// A marker type to serve as an umbrella type for [`Delegator`] patchsites.
+// NOTE(invariant): The uninhabited field prevents constructing an unsupported patch namespace
+// value.
 pub struct Patch<T, P>(
     // FIXME(unstable): Use the `never` (`!`) type explicitly here when stable.
     convert::Infallible,
@@ -348,80 +360,3 @@ where
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-// use super::*;
-// use crate::{
-// cmc::Publish,
-// patch::{
-// choose::Chosen,
-// delegate::{Delegated, Delegator, Single},
-// },
-// };
-//
-// A simple delegated implementation for testing.
-// #[derive(Debug, Copy, Clone)]
-// struct TestImpl;
-//
-// impl Delegated for TestImpl {
-// type Input = u32;
-// type Output = u32;
-//
-// fn implementation(input: Self::Input) -> Self::Output {
-// input.wrapping_add(42)
-// }
-// }
-//
-// A simple delegated implementation for testing.
-// #[derive(Debug, Copy, Clone)]
-// struct TestImpl2;
-//
-// impl Delegated for TestImpl2 {
-// type Input = u32;
-// type Output = u32;
-//
-// fn implementation(input: Self::Input) -> Self::Output {
-// input.wrapping_add(52)
-// }
-// }
-//
-// A simple Pod value for testing.
-// #[derive(Debug, Copy, Clone)]
-// struct TestPod;
-//
-// type TestDelegator = Single<TestImpl, TestPod>;
-//
-// #[derive(Copy, Clone, Debug)]
-// struct TestDelegator2 {}
-//
-// unsafe impl Delegator for TestDelegator2 {
-// type Target = TestImpl;
-//
-// type Value = ();
-//
-// fn choose(
-// target_value: &'static Self::Value,
-// ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>
-// {
-// Chosen::delegated::<TestImpl2>()
-// }
-// }
-//
-// #[test]
-// fn patchsite_and_delegator_integration() {
-// dbg!(Patch::<TestDelegator2, ()>::run(10));
-//
-// Verify delegator choice mechanism
-// let chosen = TestDelegator2::choose(&());
-//
-// Verify patchsite can be retrieved
-// let patchsite = Chosen::<TestDelegator2, u32, u32>::patchsite();
-//
-// println!("{patchsite:?}");
-//
-// let _ = unsafe { Patchsite::stale(patchsite, chosen) };
-//
-// dbg!(Patch::<TestDelegator2, ()>::run(10));
-// }
-// }

@@ -17,6 +17,7 @@ use nekor_aal_cache::line::Cacheline;
 
 /// A target for either a *CMC-Acquire* or *CMC-Publish* abstract operation.
 #[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Hash)]
+// NOTE(invariant): The cacheline pointer is non-null and the target count is nonzero.
 pub struct Target(NonNull<Cacheline>, NonZero<usize>);
 
 /// An umbrella type for the *CMC-Publish* abstract operation.

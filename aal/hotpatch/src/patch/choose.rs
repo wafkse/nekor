@@ -11,6 +11,7 @@ use crate::patch::{
 
 /// A chosen [`Delegated`] template for a specific [`Delegator`] `D`.
 #[repr(transparent)]
+// NOTE(invariant): The function pointer has the input and output types required by `D`.
 pub struct Chosen<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
     D: Delegator,
