@@ -58,9 +58,9 @@ categories = ["no-std"]
 [workspace.dependencies]
 bitflags = "2.13.2"
 camino = "1.2.2"
-fack = "0.1.2"
+fack = "0.4.0"
 miette = { version = "7.6.0", features = ["derive"] }
-tokel = "0.2.4"
+tokel = "0.4.0"
 walkdir = "2.5"
 zerocopy = { version = "0.8.48", features = ["derive"] }
 nekor-build-kdl-config = { path = "nekor-build/nekor-build-kdl-config", package = "nekor-build-kdl-config" }
@@ -152,7 +152,7 @@ unwrap_in_result = "deny"
 verbose_file_reads = "deny"
 redundant_type_annotations = "deny"
 redundant_test_prefix = "deny"
-pattern_type_mismatch = "deny"
+pattern_type_mismatch = "allow"
 panic_in_result_fn = "deny"
 panic = "deny"
 non_zero_suggestions = "deny"

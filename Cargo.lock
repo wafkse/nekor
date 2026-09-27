@@ -147,7 +147,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -170,39 +170,32 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "fack"
-version = "0.1.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fa1171fba1ee1a0653aa7bc3ab9fdd4bd7b03e5b0e44e5bb3a5e6d1eb53d027"
+checksum = "85ed9bf262997b7b5609706804de7fbf702120232bde97c23a4f0f0d9baf6ed4"
 dependencies = [
- "fack-core",
  "fack-macro",
 ]
 
 [[package]]
 name = "fack-codegen"
-version = "0.1.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0116a9d10fc7c4c264974b08dc5fc785db06623ba93fa8aff1af0e8f6fbe2bce"
+checksum = "83503b54c171c0bcbc84ce84e8a27e20474014f5139e0b64f5513ae0159c17e7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 3.0.6",
 ]
 
 [[package]]
-name = "fack-core"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16caf1e99787156beeb5fa3ad66fdaa30902eb47fbd3e7017cedf43237831482"
-
-[[package]]
 name = "fack-macro"
-version = "0.1.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53771f0e14299c2146c3b18af61cd28fb54e0a299ac3d6ca1e3347f581c53010"
+checksum = "47081e220f4163ebe9c283b0c85becadb5b2e836d3f0164a3d53ea8520ecda78"
 dependencies = [
  "fack-codegen",
- "syn",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -302,7 +295,7 @@ checksum = "db5b29714e950dbb20d5e6f74f9dcec4edbcc1067bb7f8ed198c097b8c1a818b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -643,7 +636,7 @@ version = "0.0.0"
 dependencies = [
  "nekor-bitwise-extract-macro-impl",
  "proc-macro2",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -652,7 +645,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -749,7 +742,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -758,7 +751,7 @@ version = "0.1.0"
 dependencies = [
  "nekor-project-core",
  "proc-macro2",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -887,7 +880,7 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -930,6 +923,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,52 +950,52 @@ checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
 name = "tokel"
-version = "0.2.4"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f395a3c2eb00066caf6a1b31587723bb06a6e56c72d394fafb283dd668b097c3"
+checksum = "6fd2baff375cf68b646d536e96f4526589935da6315f18ca58caf29a430217af"
 dependencies = [
  "tokel-derive",
 ]
 
 [[package]]
 name = "tokel-derive"
-version = "0.2.4"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a097605ef197c2343d261b2444d2e2cee7f1186a339db141edcba9ad60099fea"
+checksum = "20af63ef126f6437f8568c39d4458b9e76a981cbb195f18e901486fc9a76eac2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 3.0.6",
  "tokel-engine",
  "tokel-std",
 ]
 
 [[package]]
 name = "tokel-engine"
-version = "0.2.4"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dcd12178c0c2acac48ce5dae6832de7e6ef7394a154bbabb10ec507ae3a24bb"
+checksum = "78a0d53ea2130bacf3bc9b3acec07085b11d5a86a1af19482230984e7f2fc89e"
 dependencies = [
  "ahash",
  "proc-macro2",
- "syn",
+ "syn 3.0.6",
 ]
 
 [[package]]
 name = "tokel-std"
-version = "0.2.4"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c26a90e5e1a56459ac13d11f706ddf50791ce87ca2dbc8cea8e90c9f938927e0"
+checksum = "e12660a4d30921cd6967fe7cfe176565196535b950ab783b72b98e73b15791bb"
 dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 3.0.6",
  "tokel-engine",
 ]
 
@@ -1139,7 +1143,7 @@ checksum = "70e3cd084b1788766f53af483dd21f93881ff30d7320490ec3ef7526d203bad4"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]
