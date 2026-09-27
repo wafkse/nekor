@@ -57,6 +57,7 @@ use core::{
     )),
     repr(align(64))
 )]
+// NOTE(invariant): The wrapped value starts at the target cache-line alignment selected above.
 pub struct CachePadded<T>(T);
 
 impl<T> CachePadded<T> {

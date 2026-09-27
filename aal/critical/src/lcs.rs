@@ -32,17 +32,14 @@ impl Lcs {
     /// - The output [`LcsToken`] must not outlive the actual *LCS*.
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
-    ///     - [`Gcs`]: *Global Critical Section*
-    ///     - [`MsCs`]: *Machine-Stop Critical Section*
+    ///     - [`crate::gcs::Gcs`]: *Global Critical Section*
+    ///     - [`crate::mscs::MsCs`]: *Machine-Stop Critical Section*
     ///
     /// - The code region the [`LcsToken`] is linked with must be surrounded by a [`SeqCst`]
     ///   [`compiler fence`].
     ///
-    /// - In `x86`, the calling core must^[1] have *I/O Privileges* as per their current `CPL`.
-    ///
-    /// [1]: This is not required when the `usermode` crate feature is enabled.
-    ///
-    /// [`MsCs`]: crate::mscs::MsCs
+    /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
+    ///   `usermode` crate feature is enabled.
     ///
     /// [`SeqCst`]: core::sync::atomic::Ordering::SeqCst
     /// [`compiler fence`]: core::sync::atomic::compiler_fence
@@ -74,15 +71,11 @@ impl Lcs {
     /// - The output [`LcsToken`] must not outlive the actual *LCS*.
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
-    ///     - [`Gcs`]: *Global Critical Section*
-    ///     - [`MsCs`]: *Machine-Stop Critical Section*
+    ///     - [`crate::gcs::Gcs`]: *Global Critical Section*
+    ///     - [`crate::mscs::MsCs`]: *Machine-Stop Critical Section*
     ///
-    /// - In `x86`, the calling core must<sup>[1]</sup> have *I/O Privileges* as per their current
-    ///   `CPL`.
-    ///
-    /// [1]: This is not required when the `usermode` crate feature is enabled.
-    ///
-    /// [`MsCs`]: crate::mscs::MsCs
+    /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
+    ///   `usermode` crate feature is enabled.
     pub unsafe fn release(_: LcsToken) {
         #[cfg(not(usermode))]
         // SAFETY: Caller asserts required IO privileges.
@@ -105,13 +98,11 @@ impl Lcs {
     ///
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
-    ///     - [`Gcs`]: *Global Critical Section*
-    ///     - [`MsCs`]: *Machine-Stop Critical Section*
+    ///     - [`crate::gcs::Gcs`]: *Global Critical Section*
+    ///     - [`crate::mscs::MsCs`]: *Machine-Stop Critical Section*
     ///
-    /// - In `x86`, the calling core must<sup>1</sup> have *I/O Privileges* as per their current
-    ///   `CPL`.
-    ///
-    /// `1`: This is not required when the `usermode` crate feature is enabled.
+    /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
+    ///   `usermode` crate feature is enabled.
     #[inline]
     pub unsafe fn closure<F, O>(target_closure: F) -> O
     where
@@ -159,8 +150,9 @@ impl Lcs {
 /// }
 /// ```
 #[derive(Debug)]
+// NOTE(invariant): Only a caller in the local critical section may construct this authority token.
 pub struct LcsToken(
-    // NOTE(invariant): Do not implement `Send` or `Sync` for this type.
+    // The raw-pointer marker keeps critical-section authority local to its execution context.
     marker::PhantomData<*mut Self>,
 );
 

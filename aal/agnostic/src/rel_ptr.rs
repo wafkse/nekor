@@ -5,6 +5,8 @@ use core::{marker, mem::MaybeUninit, pin::Pin, ptr};
 /// A base-relative pointer to an instance of `T`.
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): Once pinned, the stored pointer value is the byte-relative offset from this
+// object's address to the target pointer.
 pub struct RelPtr<T>(*const T, marker::PhantomPinned);
 
 impl<T> RelPtr<T> {
@@ -52,6 +54,8 @@ impl<T> RelPtr<T> {
 /// A base-relative mutable pointer to an instance of `T`.
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): Once pinned, the stored pointer value is the byte-relative offset from this
+// object's address to the mutable target pointer.
 pub struct RelPtrMut<T>(*mut T, marker::PhantomPinned);
 
 impl<T> RelPtrMut<T> {

@@ -88,9 +88,10 @@ pub unsafe trait Contextual {}
 ///   it. It cannot be safely sent to another CPU core or user-space thread where the original
 ///   hardware invariants no longer apply.
 #[repr(transparent)]
+// NOTE(invariant): The private marker prevents public structural construction and binds the token
+// to its originating thread by making the wrapper `!Send` and `!Sync`.
 pub struct LowLevel<T>(
     pub T,
-    // NOTE(invariant): This is to remain private to avoid a public constructor.
     // NOTE(variance): Force `LowLevel` to be covariant over `T`.
     marker::PhantomData<*mut ()>,
 );

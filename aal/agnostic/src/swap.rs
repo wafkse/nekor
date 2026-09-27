@@ -11,12 +11,9 @@ use nekor_primitive::scalar::Scalar;
 
 /// A swap mechanism between two distinct structures of the same type.
 #[derive(Debug)]
-pub struct Swap<S>(
-    // NOTE(invariant): The `bool`, when casted to an integer, points to the
-    // currently-active and initialized `S`.
-    [MaybeUninit<S>; 2],
-    bool,
-)
+// NOTE(invariant): The boolean selects the currently active array slot, and that selected slot is
+// always initialized with a valid `S`.
+pub struct Swap<S>([MaybeUninit<S>; 2], bool)
 where
     S: Scalar;
 

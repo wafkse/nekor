@@ -9,6 +9,8 @@ use core::mem::MaybeUninit;
 /// representation permits that state.
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): The wrapped storage may be initialized or uninitialized and is never read by
+// this abstraction without an explicit caller action.
 pub struct Reserved<S>(MaybeUninit<S>);
 
 impl<S> Copy for Reserved<S> where S: Copy {}

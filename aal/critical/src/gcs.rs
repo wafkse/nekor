@@ -2,8 +2,8 @@
 //!
 //! - *Global Critical Sections* (*GCS*) are those who:
 //!     - *Disable interrupts* for the currently-active core.
-//!     - *Lock* a corresponding [`Mutex`] for the desired global lock category. This will inhibit
-//!       any other global contenders for the same *GCS* kind.
+//!     - Hold the corresponding global lock for the desired category. This inhibits other
+//!       contenders for the same *GCS* kind.
 //!
 //! Used for access control to a non-concurrent subsystem.
 //!
@@ -17,6 +17,7 @@ pub trait Contender {}
 
 /// A Global Critical Section for a particular global [`Contender`] `C`.
 #[repr(transparent)]
+// NOTE(invariant): The marker binds this critical section authority to contender `C`.
 pub struct Gcs<C>(marker::PhantomData<fn() -> C>)
 where
     C: Contender;
@@ -29,8 +30,7 @@ where
     ///
     /// # Safety
     ///
-    /// - A call to this function must be matched with a posterior [`Gcs::release`] call for the
-    ///   same `C`.
+    /// - The caller must hold the global lock for `C` while the returned token remains valid.
     /// - The output [`GcsToken`] must not outlive the actual *GCS*.
     /// - The calling core must not be in the following Critical Section types:
     ///     - [`Gcs<C>`]: *Global Critical Section* for the same [`Contender`] `C`.
@@ -48,6 +48,7 @@ where
 /// A private-constructible token that can *prove* whether a caller is currently
 /// inside a [`Gcs<C>`] for a particular global [`Contender`].
 #[derive(Debug)]
+// NOTE(invariant): Only a caller inside the matching global critical section may create this token.
 pub struct GcsToken<C>(marker::PhantomData<fn() -> C>)
 where
     C: Contender;

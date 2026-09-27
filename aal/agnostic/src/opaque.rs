@@ -10,6 +10,8 @@ use nekor_primitive::scalar::Scalar;
 /// used as a safety barrier, as all accesses are marked unsafe.
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The scalar remains inaccessible through safe APIs because its only field is
+// private.
 pub struct Opaque<S>(S)
 where
     S: Scalar;
