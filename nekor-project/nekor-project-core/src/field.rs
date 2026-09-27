@@ -22,9 +22,8 @@ use crate::attribute::{ProjectAttribute, UnsafeClauseTarget};
 /// positional order. Unit inputs remain unit projections.
 ///
 /// Empty named and empty unnamed field sets remain distinct from unit inputs.
-// NOTE(invariant): Every field in `Named` has an identifier. Every field in
-// `Unnamed` has its original positional index. `ProjectFields::new` establishes
-// this relationship and no mutation API can change it.
+// NOTE: `Named` fields carry identifiers and `Unnamed` fields retain source
+// positional indices. The enum variants encode that field-shape distinction.
 pub enum ProjectFields {
     /// Named fields.
     Named(ProjectFieldsNamed),
@@ -93,6 +92,7 @@ impl ProjectFields {
 /// A source-order collection of named project fields.
 ///
 /// Every contained field has an [`IdentOrIndex::Ident`] name.
+// NOTE(invariant): Every stored field has an identifier and source declaration order is preserved.
 pub struct ProjectFieldsNamed {
     /// Fields in source order.
     field_list: Vec<ProjectField>,
@@ -118,6 +118,7 @@ impl ProjectFieldsNamed {
 ///
 /// Every contained field has an [`IdentOrIndex::Index`] name that matches its
 /// position in this collection.
+// NOTE(invariant): Every stored field carries the positional index matching its place in the list.
 pub struct ProjectFieldsUnnamed {
     /// Fields in source order.
     field_list: Vec<ProjectField>,
@@ -143,6 +144,8 @@ impl ProjectFieldsUnnamed {
 ///
 /// The private representation prevents later stages from changing the source
 /// type, visibility, member identity, or structural pinning decision.
+// NOTE(invariant): The stored member identity matches the source field, and `pinned` is the
+// validated structural pinning decision for that same field.
 pub struct ProjectField {
     /// Source field visibility.
     visibility: Visibility,

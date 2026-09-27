@@ -6,6 +6,8 @@ use nekor_project::Project;
 
 /// A task whose state must stay at one address after pinning.
 #[derive(Project)]
+// NOTE(invariant): `state` is structurally pinned after the task is pinned while `priority` remains
+// ordinary mutable data.
 struct Task {
     /// State whose address is part of the task's pinning contract.
     #[project(pin)]
@@ -24,11 +26,14 @@ fn main() {
     let mut task = core::pin::pin!(task);
 
     let TaskProjection { state, priority } = task.as_ref().project();
+
     let _: Pin<&PhantomPinned> = state;
     assert_eq!(*priority, 4, "immutable projection reads ordinary data");
 
     let TaskProjectionMut { state, priority } = task.as_mut().project_mut();
+
     let _: Pin<&mut PhantomPinned> = state;
+
     *priority = 7;
 
     let TaskProjection { priority, .. } = task.as_ref().project();

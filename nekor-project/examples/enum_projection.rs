@@ -34,6 +34,7 @@ fn main() {
     match state.as_mut().project_mut() {
         StateProjectionMut::Active { marker, generation } => {
             let _: Pin<&mut PhantomPinned> = marker;
+
             *generation = 4;
         },
         StateProjectionMut::Waiting(..) | StateProjectionMut::Complete => {
@@ -52,6 +53,7 @@ fn main() {
     }
 
     let waiting = core::pin::pin!(State::Waiting(PhantomPinned, 5));
+
     match waiting.as_ref().project() {
         StateProjection::Waiting(marker, generation) => {
             let _: Pin<&PhantomPinned> = marker;

@@ -62,11 +62,13 @@ impl ProjectItem {
         } = derive_input;
 
         Self::reject_packed(&attribute_list)?;
+
         let project_attribute_list = Self::type_attributes(&attribute_list)?;
 
         match data {
             Data::Struct(struct_data) => {
                 let DataStruct { fields, .. } = struct_data;
+
                 let struct_data = ProjectStructData {
                     field_list: ProjectFields::new(fields)?,
                 };
@@ -81,6 +83,7 @@ impl ProjectItem {
             },
             Data::Enum(enum_data) => {
                 let DataEnum { variants, .. } = enum_data;
+
                 let variant_list = variants
                     .into_iter()
                     .map(ProjectEnumVariant::new)
@@ -207,6 +210,7 @@ impl ProjectStruct {
             struct_generics,
             struct_data,
         } = self;
+
         let ProjectStructData { field_list } = struct_data;
 
         Expansion::new(
@@ -224,6 +228,7 @@ impl ProjectStruct {
 ///
 /// The contained [`ProjectFields`] distinguishes named, unnamed, empty, and
 /// unit structures.
+// NOTE(invariant): `field_list` retains the validated source structure shape and field order.
 pub struct ProjectStructData {
     /// Source structure fields.
     field_list: ProjectFields,
@@ -268,6 +273,7 @@ impl ProjectEnum {
             enum_generics,
             enum_data,
         } = self;
+
         let ProjectEnumData { variant_list } = enum_data;
 
         Expansion::new(
@@ -284,6 +290,7 @@ impl ProjectEnum {
 /// Validated enumeration data relevant to projection expansion.
 ///
 /// Variant order matches source declaration order.
+// NOTE(invariant): `variant_list` preserves validated source variant declaration order.
 pub struct ProjectEnumData {
     /// Source variants in declaration order.
     variant_list: Vec<ProjectEnumVariant>,
@@ -293,6 +300,8 @@ pub struct ProjectEnumData {
 ///
 /// The source discriminant is retained only so generated documentation can
 /// explain that projection enums do not copy it.
+// NOTE(invariant): The identifier, fields, and optional discriminant all belong to the same
+// validated source variant.
 pub struct ProjectEnumVariant {
     /// Source variant identifier.
     variant_ident: Ident,
@@ -363,6 +372,8 @@ impl ExpansionData {
 }
 
 /// Complete context for one derive expansion.
+// NOTE(invariant): Identity, generics, visibility, attributes, and source shape all belong to the
+// same validated derive input.
 struct Expansion {
     /// Type-level project helper attributes.
     attribute_list: Vec<ProjectAttribute>,
@@ -405,6 +416,7 @@ impl Expansion {
             ref item_generics,
             ..
         } = self;
+
         let projection_ident = format_ident!("{}Projection", item_ident);
         let projection_mut_ident = format_ident!("{}ProjectionMut", item_ident);
         let projection_lifetime = Self::projection_lifetime(item_generics);
@@ -438,6 +450,7 @@ impl Expansion {
             item_data,
             ..
         } = self;
+
         let has_fields = !item_data.field_list().is_empty();
         let projection_generics = Self::projection_generics(item_generics, item_ident, projection_lifetime, has_fields);
         let generic_declaration = Self::generic_declaration(&projection_generics);
@@ -512,7 +525,9 @@ impl Expansion {
             item_data,
             ..
         } = self;
+
         let (impl_generics, type_generics, where_clause) = item_generics.split_for_impl();
+
         let projection_type = self.projection_type_use(projection_ident, projection_lifetime);
         let projection_mut_type = self.projection_type_use(projection_mut_ident, projection_lifetime);
         let immutable_body = match item_data {
@@ -582,6 +597,7 @@ impl Expansion {
         let helper_ident = format_ident!("__NekorProjectUnpin{item_ident}");
         let mut helper_generics = item_generics.clone();
         let source_parameter_list = core::mem::take(&mut helper_generics.params);
+
         helper_generics
             .params
             .push(GenericParam::Lifetime(LifetimeParam::new(projection_lifetime.clone())));
@@ -590,7 +606,9 @@ impl Expansion {
         let helper_generic_declaration = Self::generic_declaration(&helper_generics);
         let helper_where_clause = &helper_generics.where_clause;
         let helper_type = self.projection_type_use(&helper_ident, projection_lifetime);
+
         let (_, source_type_generics, _) = item_generics.split_for_impl();
+
         let pinned_marker_list = pinned_field_list
             .iter()
             .enumerate()
@@ -605,10 +623,12 @@ impl Expansion {
             })
             .collect::<Vec<_>>();
         let mut unpin_generics = item_generics.clone();
+
         unpin_generics
             .make_where_clause()
             .predicates
             .push(parse_quote!(for<#projection_lifetime> #helper_type: ::core::marker::Unpin));
+
         let (impl_generics, type_generics, where_clause) = unpin_generics.split_for_impl();
 
         quote! {
@@ -636,6 +656,7 @@ impl Expansion {
             item_data,
             ..
         } = self;
+
         let has_pinned_fields = item_data.field_list().into_iter().any(ProjectField::pinned);
 
         if !has_pinned_fields {
@@ -660,7 +681,9 @@ impl Expansion {
             item_generics,
             ..
         } = self;
+
         let (impl_generics, type_generics, where_clause) = item_generics.split_for_impl();
+
         let blocker_ident = format_ident!("__NekorProjectMustNotImpl{trait_name}");
 
         quote! {
@@ -713,6 +736,7 @@ impl Expansion {
             field_list,
             variant_discriminant,
         } = variant;
+
         let variant_doc = if variant_discriminant.is_some() {
             format!("Projection of `{variant_ident}` without its source discriminant.")
         } else {
@@ -777,9 +801,9 @@ impl Expansion {
         projection_ident: &Ident,
         mutable: bool,
     ) -> syn::Result<TokenStream> {
-        // NOTE(invariant): A mutable projection consumes the unique pinned
-        // borrow and immediately splits it into disjoint field borrows. The
-        // generated code never moves the source structure or any field.
+        // SAFETY: A mutable projection consumes the unique pinned borrow and
+        // immediately splits it into disjoint field borrows. The generated
+        // code never moves the source structure or any field.
         let target_value = if mutable {
             quote! {
                 unsafe { ::core::pin::Pin::get_unchecked_mut(self) }
@@ -835,9 +859,9 @@ impl Expansion {
         projection_ident: &Ident,
         mutable: bool,
     ) -> syn::Result<TokenStream> {
-        // NOTE(invariant): A mutable projection consumes the unique pinned
-        // borrow and matches without replacing the discriminant. Every match
-        // arm creates disjoint borrows of the active variant fields.
+        // SAFETY: A mutable projection consumes the unique pinned borrow and
+        // matches without replacing the discriminant. Every match arm creates
+        // disjoint borrows of the active variant fields.
         let target_value = if mutable {
             quote! {
                 unsafe { ::core::pin::Pin::get_unchecked_mut(self) }
@@ -920,9 +944,9 @@ impl Expansion {
         }
     }
 
-    // NOTE(invariant): The binding borrows a field from a pinned source value.
-    // Generated `Unpin` and trait blockers preserve the location of every field
-    // marked as structurally pinned for the lifetime of the returned projection.
+    // SAFETY: The binding borrows a field from a pinned source value. Generated
+    // `Unpin` and trait blockers preserve the location of every field marked as
+    // structurally pinned for the lifetime of the returned projection.
     /// Return an expression that projects one field binding.
     fn field_projection(field: &ProjectField, binding: TokenStream) -> TokenStream {
         if field.pinned() {
@@ -988,12 +1012,14 @@ impl Expansion {
 
         if has_fields {
             let source_parameters = core::mem::take(&mut projection_generics.params);
+
             projection_generics
                 .params
                 .push(GenericParam::Lifetime(LifetimeParam::new(projection_lifetime.clone())));
             projection_generics.params.extend(source_parameters);
 
             let (_, source_type_generics, _) = source_generics.split_for_impl();
+
             projection_generics
                 .make_where_clause()
                 .predicates
@@ -1021,6 +1047,7 @@ impl Expansion {
             item_data,
             ..
         } = self;
+
         let argument_list = item_generics
             .params
             .iter()

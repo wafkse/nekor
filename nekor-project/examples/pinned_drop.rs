@@ -7,6 +7,8 @@ use nekor_project::{PinnedDrop, Project};
 /// A stack-pinned resource with a borrowed close indication.
 #[derive(Project)]
 #[project(unsafe = Drop)]
+// NOTE(invariant): `state` is structurally pinned for the lifetime of the resource and `closed`
+// remains the borrowed flag updated by its pinned destructor.
 struct Resource<'a> {
     /// Structurally pinned state that destruction must not move.
     #[project(pin)]
@@ -27,7 +29,9 @@ unsafe impl PinnedDrop for Resource<'_> {
     /// value before normal field destruction.
     unsafe fn drop(self: Pin<&mut Self>) {
         let ResourceProjectionMut { state, closed } = self.project_mut();
+
         let _: Pin<&mut PhantomPinned> = state;
+
         **closed = true;
     }
 }

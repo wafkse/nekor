@@ -12,6 +12,8 @@ mod tests {
     use super::*;
 
     #[derive(Project)]
+    // NOTE(invariant): `pinned` is structurally pinned while `value` remains an ordinary projected
+    // field.
     struct Named<T> {
         #[project(pin)]
         pinned: T,
@@ -19,6 +21,7 @@ mod tests {
     }
 
     #[derive(Project)]
+    // NOTE(invariant): The first field is structurally pinned and the second field remains movable.
     struct Tuple<T>(#[project(pin)] T, usize);
 
     #[derive(Project)]
@@ -31,6 +34,8 @@ mod tests {
     struct Unit<const N: usize>;
 
     #[derive(Project)]
+    // NOTE(invariant): The stored borrow and byte array retain the declared lifetime and const
+    // generic while `pinned` is structurally pinned.
     struct Generic<'project, T, const N: usize>
     where
         T: 'project,
@@ -57,6 +62,8 @@ mod tests {
     #[project(unsafe = Drop)]
     #[project(unsafe = Deref)]
     #[project(unsafe = DerefMut)]
+    // NOTE(invariant): `pinned` is structurally pinned and `dropped` remains the external flag used
+    // by the explicit unsafe opt-out implementations.
     struct UnsafeOptOut<'a> {
         #[project(pin)]
         pinned: PhantomPinned,
@@ -94,6 +101,8 @@ mod tests {
 
     #[derive(Project)]
     #[project(unsafe = Drop)]
+    // NOTE(invariant): `pinned` remains structurally pinned while `dropped` identifies the flag
+    // updated by the pinned drop implementation.
     struct DropTarget<'a> {
         #[project(pin)]
         pinned: PhantomPinned,
@@ -105,7 +114,9 @@ mod tests {
     unsafe impl PinnedDrop for DropTarget<'_> {
         unsafe fn drop(self: Pin<&mut Self>) {
             let DropTargetProjectionMut { pinned, dropped } = self.project_mut();
+
             let _: Pin<&mut PhantomPinned> = pinned;
+
             dropped.store(true, Ordering::Relaxed);
         }
     }
@@ -134,6 +145,7 @@ mod tests {
         assert_eq!(*projection.value, 7);
 
         let projection_mut = target_value.as_mut().project_mut();
+
         *projection_mut.value = 11;
 
         assert_eq!(target_value.as_ref().project().value, &11);
@@ -142,17 +154,22 @@ mod tests {
     #[test]
     fn projects_tuple_empty_and_unit_structures() {
         let tuple = Box::pin(Tuple(PhantomPinned, 13));
+
         let TupleProjection(pinned, value) = tuple.as_ref().project();
+
         let _: Pin<&PhantomPinned> = pinned;
         assert_eq!(*value, 13);
 
         let empty = Box::pin(Empty);
+
         let EmptyProjection = empty.as_ref().project();
 
         let empty_tuple = Box::pin(EmptyTuple);
+
         let EmptyTupleProjection = empty_tuple.as_ref().project();
 
         let unit = Box::pin(Unit::<4>);
+
         let UnitProjection = unit.as_ref().project();
     }
 
