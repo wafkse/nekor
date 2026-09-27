@@ -46,6 +46,9 @@ jobs:
                   toolchain: stable
                   components: rustfmt, clippy
 
+            - name: Render userspace platform
+              run: cargo run --package nekor-build -- platform --name x86_64/usermode template build
+
             - uses: Swatinem/rust-cache@v2
 
             - name: Check formatting
@@ -96,7 +99,11 @@ jobs:
 
             - uses: Swatinem/rust-cache@v2
 
+            - name: Render userspace platform
+              run: cargo run --package nekor-build -- platform --name x86_64/usermode template build
+
             - name: Run Miri
               run: cargo miri test --workspace
               env:
                   MIRIFLAGS: -Zmiri-ignore-leaks
+                  RUSTFLAGS: --cfg usermode
