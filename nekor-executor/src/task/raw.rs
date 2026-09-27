@@ -50,6 +50,7 @@ impl<F> Schedulable for F where F: Future<Output = Finalize> + Store + ?Sized {}
 /// trait object.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
+// NOTE(invariant): The borrowed trait object remains valid for the handle lifetime.
 pub struct Erased<'a>(&'a dyn Schedulable);
 
 impl Deref for Erased<'_> {
@@ -57,12 +58,15 @@ impl Deref for Erased<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.0
+        let Self(target_task) = self;
+
+        *target_task
     }
 }
 
 /// An access handle provided by [`RawTask`].
 #[repr(transparent)]
+// NOTE(invariant): The exclusive trait-object borrow remains valid for the handle lifetime.
 pub struct ErasedMut<'a>(&'a mut dyn Schedulable);
 
 impl Deref for ErasedMut<'_> {
@@ -70,19 +74,25 @@ impl Deref for ErasedMut<'_> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        let Self(target_task) = self;
+
+        &**target_task
     }
 }
 
 impl DerefMut for ErasedMut<'_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
+        let &mut Self(ref mut target_task) = self;
+
+        &mut **target_task
     }
 }
 
 /// A handle to a raw task.
 #[repr(transparent)]
+// NOTE(invariant): The stored schedulable task has static storage and is accessed under task
+// ownership.
 pub struct RawTask(&'static mut dyn Schedulable);
 
 impl RawTask {
@@ -98,7 +108,9 @@ impl RawTask {
     #[inline]
     #[must_use]
     pub const unsafe fn access(&self) -> Erased<'_> {
-        Erased(&*self.0)
+        let Self(target_task) = self;
+
+        Erased(&**target_task)
     }
 
     /// Access the underlying [`Schedulable`] trait object in an mutable manner.
@@ -109,7 +121,9 @@ impl RawTask {
     /// [`RawTask::access`].
     #[inline]
     pub const unsafe fn access_mut(&mut self) -> ErasedMut<'_> {
-        ErasedMut(&mut *self.0)
+        let &mut Self(ref mut target_task) = self;
+
+        ErasedMut(&mut **target_task)
     }
 }
 

@@ -1,7 +1,7 @@
 #![cfg_attr(not(any(test, miri)), no_std)]
 //! The asynchronous executor for Nekor.
 //!
-//! See the [`Executor`] struct for more information.
+//! See [`task::Task`] and [`run_queue`] for the task and scheduling interfaces.
 
 #[cfg(test)]
 extern crate alloc;

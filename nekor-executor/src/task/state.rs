@@ -43,8 +43,9 @@ pub enum TaskState {
 /// [`documentation`]: TaskState::Dormant
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): This snapshot follows an acquire load of the task's dormant state.
 pub struct StateDormant<'a>(
-    // NOTE(invariant): This assumes an `Acquire` load previous to any state
+    // NOTE: This assumes an `Acquire` load previous to any state
     // transition.
     &'a AtomicUsize,
 );
@@ -65,7 +66,7 @@ impl<'a> StateDormant<'a> {
             .compare_exchange(
                 TaskState::Dormant as usize,
                 TaskState::Pending as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -89,7 +90,7 @@ impl<'a> StateDormant<'a> {
             .compare_exchange(
                 TaskState::Dormant as usize,
                 TaskState::Executing as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -109,8 +110,9 @@ impl<'a> StateDormant<'a> {
 /// [`documentation`]: TaskState::Pending
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): This snapshot follows an acquire load or successful transition to pending.
 pub struct StatePending<'a>(
-    // NOTE(invariant): This assumes an `Acquire` load previous to any state
+    // NOTE: This assumes an `Acquire` load previous to any state
     // transition.
     &'a AtomicUsize,
 );
@@ -131,7 +133,7 @@ impl<'a> StatePending<'a> {
             .compare_exchange(
                 TaskState::Pending as usize,
                 TaskState::Executing as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -149,7 +151,7 @@ impl<'a> StatePending<'a> {
     ///
     /// # Safety
     ///
-    /// The [`Task`] associated to this state must not be accessed under any
+    /// The [`crate::task::Task`] associated to this state must not be accessed under any
     /// circumstance after a successful call has been effectuated.
     #[inline]
     #[must_use]
@@ -160,7 +162,7 @@ impl<'a> StatePending<'a> {
             .compare_exchange(
                 TaskState::Pending as usize,
                 TaskState::Dormant as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -180,8 +182,9 @@ impl<'a> StatePending<'a> {
 /// [`documentation`]: TaskState::Executing
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): This snapshot follows an acquire load or successful transition to executing.
 pub struct StateExecuting<'a>(
-    // NOTE(invariant): This assumes an `Acquire` load previous to any state
+    // NOTE: This assumes an `Acquire` load previous to any state
     // transition.
     &'a AtomicUsize,
 );
@@ -202,7 +205,7 @@ impl<'a> StateExecuting<'a> {
             .compare_exchange(
                 TaskState::Executing as usize,
                 TaskState::Pending as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -220,7 +223,7 @@ impl<'a> StateExecuting<'a> {
     ///
     /// # Safety
     ///
-    /// The [`Task`] associated to this state must not be accessed under any
+    /// The [`crate::task::Task`] associated to this state must not be accessed under any
     /// circumstance after a successful call has been effectuated.
     #[inline]
     #[must_use]
@@ -231,7 +234,7 @@ impl<'a> StateExecuting<'a> {
             .compare_exchange(
                 TaskState::Executing as usize,
                 TaskState::Dormant as usize,
-                // NOTE(invariant): This depends on the aforementioned
+                // NOTE: This depends on the aforementioned
                 // invariant to publish the new task state.
                 Ordering::AcqRel,
                 Ordering::Relaxed,
@@ -263,11 +266,12 @@ pub enum StateDescriptor<'a> {
     Executing(StateExecuting<'a>),
 }
 
-/// The status of a particular [`Task`] in the executor.
+/// The status of a particular [`crate::task::Task`] in the executor.
 ///
 /// This is a thread-safe wrapper over [`TaskState`].
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): The atomic value is always a recognized task-state discriminant.
 pub struct TaskStatus(AtomicUsize);
 
 impl TaskStatus {
@@ -278,9 +282,10 @@ impl TaskStatus {
         const PENDING_STATE: usize = TaskState::Pending as usize;
         const EXECUTING_STATE: usize = TaskState::Executing as usize;
 
-        // NOTE(invariant): This satisfies the `Acquire` invariant inside the
+        // NOTE: This satisfies the `Acquire` invariant inside the
         // distinct `State{Dormant,Pending,Executing}` types.
-        let target_state = &target_state.0;
+        let Self(target_state) = target_state;
+
         let target_value = target_state.load(Ordering::Acquire);
 
         match target_value {

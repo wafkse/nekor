@@ -35,36 +35,11 @@ pub mod state;
 
 pub mod raw;
 
-// TODO: Okay, got Wakers thought out, we can have as many of them as we want,
-// but since they have a single data pointer, they need to sit in an atomic
-// single linked list in a waitqueue write a waitqueue tomorrow for that
-// also abstract the Future into a representation easier to type erase
-// maybe just make an header + union of the future and the output, and make a
-// poll fn to it that takes an extra pointer to the output value slot
-// we could ensure that the size of the future is at least the same size by
-// wrapping it in a wrapper that forces the Future::Output to live across an
-// await boundary. or..
-//
-// union Task<F> where F: Future {
-//  future: F,
-//  output: F::Output
-// }
-
-// for getting the output back, we can have a JoinHandle type which setups a
-// pointer to the task and the task has a single pointer
-// (Option<NonNull<MaybeUninit<F::Output>>>) to JoinHandle's storage.
-// if JoinHandle is dropped, the ptr to the task is used to clear the
-// joinhandler pending state, however, the task here is not cancelled, just
-// detached from a joinhandle is also a future which is waked when the final
-// task is done, which would have written the value, i.e, it acts as an explicit
-// join
-
 /// A single task for an executor to drive to completion.
-// NOTE(invariant): Task addresses reserve their three least-significant bits for
-// wake-class tagging. Construction and storage preserve the explicit eight-byte
-// alignment while every task remains statically allocated and pinned.
 #[derive(Debug)]
 #[repr(align(8))]
+// NOTE(invariant): Task addresses reserve three low tag bits through eight-byte alignment and
+// remain statically allocated and pinned after construction.
 pub struct Task {
     /// The status of the task.
     ///
@@ -72,7 +47,7 @@ pub struct Task {
     /// [`TaskStatus`] for further information.
     ///
     /// Not largely contested, hence why not cacheline-isolated.
-    status: TaskStatus,
+    task_state: TaskStatus,
 
     /// The runqueue native to this task.
     ///
@@ -85,7 +60,7 @@ pub struct Task {
     schedule_queue: Erased<TaskQueue>,
 
     /// The raw task handle to the underlying [`Future`].
-    raw: UnsafeCell<RawTask>,
+    task_handle: UnsafeCell<RawTask>,
 }
 
 impl Task {
@@ -93,7 +68,9 @@ impl Task {
     #[inline]
     #[must_use]
     pub const fn queue(&self) -> &Erased<TaskQueue> {
-        &self.schedule_queue
+        let Self { schedule_queue, .. } = self;
+
+        schedule_queue
     }
 }
 
@@ -110,23 +87,24 @@ impl Task {
     /// information.
     #[inline]
     pub fn acquire(target_task: &'static Self) -> Option<Acquired> {
-        let status = &target_task.status;
-        let raw = &target_task.raw;
+        let Self {
+            task_state,
+            task_handle,
+            ..
+        } = target_task;
 
-        match TaskStatus::determine(status) {
+        match TaskStatus::determine(task_state) {
             StateDescriptor::Dormant(target_state) => {
                 target_state.pending().is_some().then(|| {
-                    let raw_ptr = raw.get();
-
                     // SAFETY: Cannot be null, as the pointer has been sourced
                     // from an `UnsafeCell`.
-                    let mut raw_ptr = unsafe { NonNull::new_unchecked(raw_ptr) };
+                    let mut task_handle = unsafe { NonNull::new_unchecked(UnsafeCell::get(task_handle)) };
 
                     // SAFETY: The pointer is valid and can be used in a mutable
                     // context, as the task has been acquired exclusively.
-                    let reference = unsafe { raw_ptr.as_mut() };
+                    let task_handle = unsafe { task_handle.as_mut() };
 
-                    Acquired(reference)
+                    Acquired(task_handle)
                 })
             },
             StateDescriptor::Pending(..) | StateDescriptor::Executing(..) => None,
@@ -145,6 +123,7 @@ impl Task {
 
 /// A handle to an exclusively-acquired [`RawTask`].
 #[repr(transparent)]
+// NOTE(invariant): The static raw task is exclusively borrowed while this handle is held.
 pub struct Acquired(&'static mut RawTask);
 
 impl Deref for Acquired {
@@ -152,7 +131,9 @@ impl Deref for Acquired {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.0
+        let Self(target_task) = self;
+
+        target_task
     }
 }
 
@@ -176,6 +157,7 @@ unsafe impl Sync for Task {}
 ///
 /// For a sole task, it is equivalent to a 1-sized [`Arena`].
 #[repr(transparent)]
+// NOTE(invariant): The arena retains at most `N` future slots with their reservation state.
 pub struct TaskPool<F, const N: usize>(Arena<F, N>)
 where
     F: Future,

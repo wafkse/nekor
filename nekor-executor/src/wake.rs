@@ -69,6 +69,7 @@ pub static VTABLE: RawWakerVTable = const {
     /// # Safety
     ///
     /// `data` must have been sourced from a valid `&'static Task`.
+    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
     unsafe fn clone(data: *const ()) -> RawWaker {
         RawWaker::new(data, &self::VTABLE)
     }
@@ -90,6 +91,7 @@ pub static VTABLE: RawWakerVTable = const {
     /// Disposes of a task waker.
     ///
     /// Task wakers carry no reference count or other owned resource.
+    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
     const fn drop(_: *const ()) {}
 
     RawWakerVTable::new(clone, wake, wake, drop)
@@ -97,12 +99,14 @@ pub static VTABLE: RawWakerVTable = const {
 
 /// A test-only table for aligned atomic wake counters.
 #[cfg(test)]
+// NOTE(rationale): Wake-list tests in a sibling module need this static callback table.
 pub(super) static TEST_VTABLE: RawWakerVTable = const {
     /// Clones a test waker.
     ///
     /// # Safety
     ///
     /// `data` must address a static aligned `AtomicUsize`.
+    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
     unsafe fn clone(data: *const ()) -> RawWaker {
         RawWaker::new(data, &self::TEST_VTABLE)
     }
@@ -122,6 +126,7 @@ pub(super) static TEST_VTABLE: RawWakerVTable = const {
     }
 
     /// Disposes of a test waker.
+    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
     const fn drop(_: *const ()) {}
 
     RawWakerVTable::new(clone, wake, wake, drop)
@@ -197,7 +202,7 @@ unsafe impl Field for WakeClass {
     }
 }
 
-// NOTE(invariant): The task wake class uses a `Task` data pointer. The explicit
+// NOTE: The task wake class uses a `Task` data pointer. The explicit
 // task alignment guarantees support for every bit required by `WakeClass`.
 const _: () = assert!(
     TaggedPointer::<Task, WakeClass>::pointee_supports_tag(),
@@ -209,11 +214,10 @@ const _: () = assert!(
 /// The target is copyable because every supported class has static data and
 /// trivial ownership behavior. Copying this value does not clone an owned
 /// resource.
-// NOTE(invariant): The contained generic tagged pointer has a valid
-// `WakeClass`. Its untagged address is valid static data for that class's
-// raw-waker table.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): The tagged target has a valid wake class and static data for that class's
+// vtable.
 pub struct WakeTarget(TaggedPointer<(), WakeClass>);
 
 impl WakeTarget {
@@ -235,9 +239,11 @@ impl WakeTarget {
     #[inline]
     fn wake_by_ref(self) -> bool {
         let Self(tagged_target) = self;
+
         let Some((target_data, target_class)) = tagged_target.split() else {
             return false;
         };
+
         let raw_waker = RawWaker::new(target_data.as_ptr().cast_const(), target_class.vtable());
 
         // SAFETY: The `WakeTarget` invariant proves that the decoded data and
@@ -271,10 +277,9 @@ unsafe impl Sync for WakeTarget {}
 /// Null represents an inactive registration. A non-null value is a validated
 /// [`WakeTarget`]. Arm, cancellation, and wake claiming use atomic exchanges so
 /// an interrupt never waits for a registration owner.
-// NOTE(invariant): The generic atomic value is either null or contains the
-// tagged pointer from a valid `WakeTarget`. Only `arm` writes a non-null value.
 #[repr(transparent)]
 #[derive(Debug)]
+// NOTE(invariant): The atomic value is null or holds a tagged pointer from a valid `WakeTarget`.
 pub struct AtomicWaker(AtomicTaggedPointer<(), WakeClass>);
 
 impl AtomicWaker {
@@ -295,8 +300,11 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn arm(&self, target_waker: WakeTarget) -> bool {
+        let Self(target_slot) = self;
+
         let WakeTarget(tagged_target) = target_waker;
-        self.0.swap(Some(tagged_target), Ordering::SeqCst).is_some()
+
+        target_slot.swap(Some(tagged_target), Ordering::SeqCst).is_some()
     }
 
     /// Cancels the currently active target.
@@ -308,14 +316,18 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn cancel(&self) -> bool {
-        self.0.swap(None, Ordering::SeqCst).is_some()
+        let Self(target_slot) = self;
+
+        target_slot.swap(None, Ordering::SeqCst).is_some()
     }
 
     /// Determines whether this slot currently contains an active target.
     #[inline]
     #[must_use]
     pub fn is_armed(&self) -> bool {
-        !self.0.is_null(Ordering::SeqCst)
+        let Self(target_slot) = self;
+
+        !target_slot.is_null(Ordering::SeqCst)
     }
 
     /// Claims and invokes the currently active target.
@@ -327,7 +339,9 @@ impl AtomicWaker {
     #[inline]
     #[must_use]
     pub fn wake(&self) -> bool {
-        let Some(claimed_target) = self.0.swap(None, Ordering::SeqCst) else {
+        let Self(target_slot) = self;
+
+        let Some(claimed_target) = target_slot.swap(None, Ordering::SeqCst) else {
             return false;
         };
 

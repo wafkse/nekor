@@ -72,13 +72,13 @@ impl WakeList {
     /// and requires independent event-state synchronization.
     #[inline]
     pub fn link(&'static self, target_node: Pin<&'static mut WakeNode>, target_waker: WakeTarget) -> LinkedNode {
-        let head = &self.0;
+        let Self(head) = self;
 
         // SAFETY: The node has static storage and remains pinned. Converting the
         // exclusive reference to raw pointers lets its unique borrow end before
         // the address is published to concurrent readers.
         let target_node = unsafe { Pin::into_inner_unchecked(target_node) };
-        let next_address = target_node.next.get();
+        let next_address = target_node.next_node.get();
         let node_address = ptr::from_mut(target_node);
         let mut current_head = head.load(Ordering::Acquire);
 
@@ -100,7 +100,11 @@ impl WakeList {
         // storage. Its next pointer will never be written again.
         let target_node = unsafe { node_address.as_ref().unwrap_unchecked() };
 
-        LinkedNode::new(self, target_node, target_waker)
+        LinkedNode {
+            list: self,
+            node: target_node,
+            target: target_waker,
+        }
     }
 
     /// Runs one wake pass over the currently published list.
@@ -119,7 +123,7 @@ impl WakeList {
     /// Returns the number of active targets claimed and invoked.
     #[inline]
     pub fn wake_all(&'static self) -> usize {
-        let head = &self.0;
+        let Self(head) = self;
 
         let mut current_node = head.load(Ordering::Acquire);
         let mut wake_count = usize::MIN;
@@ -129,8 +133,8 @@ impl WakeList {
             // address points to an initialized static node whose fields remain
             // valid permanently.
             let target_node = unsafe { node_address.as_ref() };
-            let next = &target_node.next;
-            let waker = &target_node.waker;
+            let next = &target_node.next_node;
+            let waker = &target_node.node_wake;
 
             // SAFETY: Publication made this pointer immutable before any reader
             // could reach the node. The acquire head load observes that release
@@ -160,13 +164,13 @@ impl Default for WakeList {
 // transitions between inactive and one valid tagged wake target.
 pub struct WakeNode {
     /// The next older node in the append-only list.
-    next: UnsafeCell<*mut Self>,
+    next_node: UnsafeCell<*mut Self>,
 
     /// The node's active tagged wake slot.
-    waker: AtomicWaker,
+    node_wake: AtomicWaker,
 
     /// The marker that prevents movement after pinning.
-    _pinned: marker::PhantomPinned,
+    _marker: marker::PhantomPinned,
 }
 
 impl WakeNode {
@@ -174,14 +178,14 @@ impl WakeNode {
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
-        let next = UnsafeCell::new(ptr::null_mut());
-        let waker = AtomicWaker::null();
+        let next_node = UnsafeCell::new(ptr::null_mut());
+        let node_wake = AtomicWaker::null();
         let pinned = marker::PhantomPinned;
 
         Self {
-            next,
-            waker,
-            _pinned: pinned,
+            next_node,
+            node_wake,
+            _marker: pinned,
         }
     }
 }
@@ -216,6 +220,8 @@ unsafe impl Sync for WakeNode {}
 /// permanently retires the node from future registration.
 ///
 /// A callback claimed before cancellation or drop may still run afterward.
+// NOTE(invariant): The node was published in the stored list and this handle uniquely controls
+// that node's registration until drop.
 pub struct LinkedNode {
     /// The list that permanently contains the node.
     list: &'static WakeList,
@@ -228,17 +234,13 @@ pub struct LinkedNode {
 }
 
 impl LinkedNode {
-    /// Constructs the unique capability for a newly published node.
-    #[inline]
-    const fn new(list: &'static WakeList, node: &'static WakeNode, target: WakeTarget) -> Self {
-        Self { list, node, target }
-    }
-
     /// Returns the list that permanently contains this node.
     #[inline]
     #[must_use]
     pub const fn list(&self) -> &'static WakeList {
-        self.list
+        let &Self { list, .. } = self;
+
+        list
     }
 
     /// Arms this node and checks whether its event is already ready.
@@ -258,21 +260,23 @@ impl LinkedNode {
     /// or [`WaitState::Notified`]. The notified state means a concurrent
     /// wake has already requested another poll.
     #[inline]
-    pub fn register<F>(&mut self, is_ready: F) -> WaitState
+    pub fn register<F>(&mut self, target_closure: F) -> WaitState
     where
         F: FnOnce() -> bool,
     {
-        let node = self.node;
-        let target = self.target;
-        let waker = &node.waker;
+        let &mut Self {
+            node: WakeNode { node_wake, .. },
+            target,
+            ..
+        } = self;
 
-        let _replaced_target = AtomicWaker::arm(waker, target);
+        _ = AtomicWaker::arm(node_wake, target);
 
-        if is_ready() {
-            let _was_armed = AtomicWaker::cancel(waker);
+        if target_closure() {
+            _ = AtomicWaker::cancel(node_wake);
 
             WaitState::Ready
-        } else if AtomicWaker::is_armed(waker) {
+        } else if AtomicWaker::is_armed(node_wake) {
             WaitState::Armed
         } else {
             WaitState::Notified
@@ -288,8 +292,9 @@ impl LinkedNode {
     #[inline]
     #[must_use]
     pub fn cancel(&mut self) -> bool {
-        let node = self.node;
-        let waker = &node.waker;
+        let &mut Self { node, .. } = self;
+
+        let waker = &node.node_wake;
 
         AtomicWaker::cancel(waker)
     }
@@ -298,8 +303,9 @@ impl LinkedNode {
     #[inline]
     #[must_use]
     pub fn is_armed(&self) -> bool {
-        let node = self.node;
-        let waker = &node.waker;
+        let &Self { node, .. } = self;
+
+        let waker = &node.node_wake;
 
         AtomicWaker::is_armed(waker)
     }
@@ -308,8 +314,9 @@ impl LinkedNode {
 impl Drop for LinkedNode {
     #[inline]
     fn drop(&mut self) {
-        let node = self.node;
-        let waker = &node.waker;
+        let &mut Self { node, .. } = self;
+
+        let waker = &node.node_wake;
 
         let _was_armed = AtomicWaker::cancel(waker);
     }
@@ -347,25 +354,25 @@ mod tests {
     use crate::wake::{TEST_VTABLE, WakeTarget};
 
     #[repr(C, align(8))]
-    struct CountingWake(AtomicUsize);
+    struct CountingWake(pub AtomicUsize);
 
     impl CountingWake {
-        const fn new() -> Self {
-            Self(AtomicUsize::new(usize::MIN))
-        }
-
         fn count(&self) -> usize {
-            self.0.load(Ordering::SeqCst)
+            let Self(target_counter) = self;
+
+            target_counter.load(Ordering::SeqCst)
         }
     }
 
     static FOREIGN_VTABLE: RawWakerVTable = const {
+        #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
         unsafe fn clone(data: *const ()) -> RawWaker {
             RawWaker::new(data, &FOREIGN_VTABLE)
         }
 
         unsafe fn wake(_: *const ()) {}
 
+        #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
         const fn drop(_: *const ()) {}
 
         RawWakerVTable::new(clone, wake, wake, drop)
@@ -384,11 +391,13 @@ mod tests {
     }
 
     fn counter() -> &'static CountingWake {
-        Box::leak(Box::new(CountingWake::new()))
+        Box::leak(Box::new(CountingWake(AtomicUsize::new(usize::MIN))))
     }
 
     fn target(target_counter: &'static CountingWake) -> WakeTarget {
-        let counter_address = ptr::from_ref(&target_counter.0).cast::<()>();
+        let CountingWake(counter_value) = target_counter;
+
+        let counter_address = ptr::from_ref(counter_value).cast::<()>();
 
         // SAFETY: `counter_address` points to a static aligned `AtomicUsize`, as
         // required by the test vtable.
@@ -414,7 +423,10 @@ mod tests {
     #[test]
     fn foreign_waker_is_rejected() {
         let target_counter = counter();
-        let counter_address = ptr::from_ref(&target_counter.0).cast::<()>();
+
+        let CountingWake(counter_value) = target_counter;
+
+        let counter_address = ptr::from_ref(counter_value).cast::<()>();
 
         // SAFETY: The foreign table does not dereference its data pointer.
         let target_waker = unsafe { Waker::new(counter_address, &FOREIGN_VTABLE) };
@@ -430,6 +442,7 @@ mod tests {
     #[test]
     fn linked_node_is_woken_once_per_registration() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| false), WaitState::Armed);
@@ -444,6 +457,7 @@ mod tests {
     #[test]
     fn ready_condition_does_not_leave_target_armed() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| true), WaitState::Ready);
@@ -455,6 +469,7 @@ mod tests {
     #[test]
     fn cancellation_consumes_registration() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| false), WaitState::Armed);
@@ -467,6 +482,7 @@ mod tests {
     #[test]
     fn dropping_capability_cancels_registration() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| false), WaitState::Armed);
@@ -480,6 +496,7 @@ mod tests {
     #[test]
     fn node_can_be_rearmed_after_wake() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| false), WaitState::Armed);
@@ -492,6 +509,7 @@ mod tests {
     #[test]
     fn wake_during_predicate_reports_notification() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         let wait_state = target_link.register(|| {
@@ -508,8 +526,11 @@ mod tests {
     #[test]
     fn wake_all_visits_every_published_node() {
         let target_list = list();
+
         let (mut first_link, first_counter) = linked(target_list);
+
         let (mut second_link, second_counter) = linked(target_list);
+
         let (mut third_link, third_counter) = linked(target_list);
 
         assert_eq!(first_link.register(|| false), WaitState::Armed);
@@ -524,6 +545,7 @@ mod tests {
     #[test]
     fn nested_wake_passes_coalesce() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
 
         assert_eq!(target_link.register(|| false), WaitState::Armed);
@@ -535,7 +557,9 @@ mod tests {
     #[test]
     fn concurrent_registration_and_wake_do_not_lose_event() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
+
         let rendezvous = Arc::new(Barrier::new(2));
         let register_rendezvous = Arc::clone(&rendezvous);
 
@@ -568,7 +592,9 @@ mod tests {
     #[test]
     fn concurrent_wake_passes_claim_target_once() {
         let target_list = list();
+
         let (mut target_link, target_counter) = linked(target_list);
+
         let rendezvous = Arc::new(Barrier::new(3));
         let first_rendezvous = Arc::clone(&rendezvous);
         let second_rendezvous = Arc::clone(&rendezvous);
@@ -632,6 +658,7 @@ mod tests {
         let Some(mut first_link) = first_link else {
             return;
         };
+
         let Some(mut second_link) = second_link else {
             return;
         };

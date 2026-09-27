@@ -96,6 +96,7 @@ enum Priority<const P: u16> {}
 
 /// The [`Adapter`] for the [`Priority`] domain.
 #[repr(transparent)]
+// NOTE(invariant): The wrapped value remains associated with priority `P` at the domain boundary.
 struct Prioritized<T, const P: u16>(T);
 
 // SAFETY: `Prioritized` is `repr(transparent)` over a single `T`.
@@ -142,6 +143,7 @@ impl Size {
 
 /// A new-type to encompass the global runqueue list.
 #[repr(transparent)]
+// NOTE(invariant): The stored slice has static storage for every runqueue handle it contains.
 pub struct RunList(&'static [Run]);
 
 impl RunList {
@@ -197,6 +199,8 @@ pub type TaskQueue = Queue<&'static Task, { Size::QUEUE }>;
 ///
 /// This is a no-cost wrapper over a [`Erased`] smart pointer.
 #[repr(transparent)]
+// NOTE(invariant): The padded erased pointer refers to a statically allocated queue for its
+// priority.
 pub struct Run(
     // NOTE(cache): This is cache-padded to avoid the interference from
     // multiple cores accessing the global runqueue slice.
@@ -356,13 +360,17 @@ impl Deref for Run {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        Erased::value(&self.0)
+        let Self(target_queue) = self;
+
+        Erased::value(target_queue)
     }
 }
 
 impl fmt::Debug for Run {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<runqueue governed by @{:?}", Erased::constructor(&self.0))
+        let Self(target_queue) = self;
+
+        write!(f, "<runqueue governed by @{:?}", Erased::constructor(target_queue))
     }
 }

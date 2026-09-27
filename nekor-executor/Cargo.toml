@@ -10,8 +10,9 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["task-queue-size-8"]
+default = ["task-queue-size-32"]
 
+# NOTE: These are for the distinct power-of-two a pointer width can be (u16).
 task-queue-size-65536 = []
 task-queue-size-32768 = []
 task-queue-size-16384 = []
