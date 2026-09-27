@@ -12,3 +12,6 @@ categories.workspace = true
 [dependencies]
 nekor-bitwise-extract-macro = { workspace = true }
 nekor-primitive = { workspace = true }
+
+[lints]
+workspace = true

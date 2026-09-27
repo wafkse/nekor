@@ -13,3 +13,6 @@ categories.workspace = true
 nekor-bitwise-extract-8-8 = { workspace = true }
 
 nekor-bitwise-extract-core = { workspace = true }
+
+[lints]
+workspace = true

@@ -14,5 +14,8 @@ proc-macro = true
 
 [dependencies]
 nekor-bitwise-extract-macro-impl = { workspace = true }
-proc-macro2 = "1.0.103"
-syn = "2.0.108"
+proc-macro2.workspace = true
+syn.workspace = true
+
+[lints]
+workspace = true

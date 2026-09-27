@@ -17,3 +17,6 @@ nekor-bitwise-extract-128-64 = { workspace = true }
 nekor-bitwise-extract-128-128 = { workspace = true }
 
 nekor-bitwise-extract-core = { workspace = true }
+
+[lints]
+workspace = true
