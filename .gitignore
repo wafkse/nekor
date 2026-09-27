@@ -6,6 +6,9 @@
 !**/.gitignore
 !/.cargo/
 !/.cargo/**
+!/.github/
+!/.github/workflows/
+!/.github/workflows/usermode.yml
 
 # Ignore: build artifacts
 */build/linker

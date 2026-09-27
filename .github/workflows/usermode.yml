@@ -1,0 +1,54 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    lint-rust:
+        name: Automated Linting (Rust)
+        runs-on: ubuntu-26.04
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: stable
+                  components: rustfmt, clippy
+
+            - uses: Swatinem/rust-cache@v2
+
+            - name: Check formatting
+              run: cargo fmt --all -- --check
+
+            - name: Run Clippy
+              run: cargo clippy --workspace --all-targets -- -D warnings
+
+    userspace-tests:
+        name: Userspace Tests
+        runs-on: ubuntu-26.04
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: stable
+
+            - uses: Swatinem/rust-cache@v2
+
+            - name: Render userspace platform
+              run: cargo run --package nekor-build -- platform --name x86_64/usermode template build
+
+            - name: Run userspace tests
+              run: cargo test --workspace
+              env:
+                  RUSTFLAGS: --cfg usermode
