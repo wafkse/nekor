@@ -527,7 +527,7 @@ where
     pub const fn fit(base: La, byte_length: NonZero<u32>) -> Option<Self> {
         const MAX_LIMIT: u32 = u16::MAX as u32;
 
-        // NOTE(invariant): NonZero<u32> guarantees a byte length of at least one,
+        // NOTE: NonZero<u32> guarantees a byte length of at least one,
         // so converting the architectural one-biased length into a limit cannot underflow.
         let target_value = byte_length.get() - 1;
 

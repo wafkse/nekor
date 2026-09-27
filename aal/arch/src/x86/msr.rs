@@ -369,19 +369,19 @@ mod tests {
 
     #[derive(Clone, Copy)]
     #[repr(transparent)]
-    struct TestRo(u64);
+    struct TestRo(pub u64);
 
     #[derive(Clone, Copy)]
     #[repr(transparent)]
-    struct TestRw(u64);
+    struct TestRw(pub u64);
 
     #[derive(Clone, Copy)]
     #[repr(transparent)]
-    struct TestWo(u64);
+    struct TestWo(pub u64);
 
     #[derive(Clone, Copy)]
     #[repr(transparent)]
-    struct TestNone(u64);
+    struct TestNone(pub u64);
 
     macro_rules! test_msr {
         ($target:ty, $address:expr, $access:ty) => {

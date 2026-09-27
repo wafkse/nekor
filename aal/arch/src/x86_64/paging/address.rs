@@ -96,11 +96,9 @@ pub type La57Upper<'value> = Field<'value, 57, 63, u64>;
 /// This type does not describe ownership, host memory, guest memory, or the
 /// implemented MAXPHYADDR of a concrete processor. It only guarantees that the
 /// value fits the 52-bit address envelope used by these architectural layouts.
-// NOTE(invariant): The stored value always fits the architectural 52-bit
-// paging-entry physical-address envelope. `Pa::new` rejects any value with
-// bits 52 through 63 set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The stored value fits the 52-bit paging-entry physical-address envelope.
 pub struct Pa(u64);
 
 impl Pa {
@@ -220,11 +218,9 @@ mod private {
 /// translation mode. LA48 requires bits 63 through 48 to sign-extend bit 47.
 /// LA57 instead consumes bits 48 through 56 as the PML5 selector and requires
 /// bits 63 through 57 to sign-extend bit 56.
-// NOTE(invariant): The stored value is canonical for at least one supported
-// x86-64 paging mode. `La::new` checks the selected mode before construction
-// and no mutation API can replace the representation afterward.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): Construction checks canonicality for the selected LA48 or LA57 mode.
 pub struct La(u64);
 
 impl La {

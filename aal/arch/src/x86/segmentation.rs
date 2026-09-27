@@ -81,6 +81,8 @@ pub type SegmentSelectorRplMut<'value> = <SegmentSelectorRpl<'value> as Counterp
 /// This is compiled from the [`SegmentSelector`] structure.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): Every u16 image is preserved, including selectors without an installed
+// descriptor.
 pub struct RawSegmentSelector(u16);
 
 impl RawSegmentSelector {
@@ -169,6 +171,7 @@ impl RawSegmentSelector {
 
 /// A high-level representation of a segment selector into a *Descriptor Table*.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
+// NOTE(invariant): The index, table choice, and privilege level remain distinct typed components.
 pub struct SegmentSelector {
     /// The thirteen-bit segment index into the respective *Descriptor Table*.
     descriptor_index: DescriptorIndex,
@@ -345,13 +348,16 @@ pub type CodeSegmentSelectorTableIndicatorMut<'value> = SegmentSelectorTableIndi
 /// This determines the current [`PrivilegeLevel`] to use this selector.
 pub type CodeSegmentSelectorCplMut<'value> = <CodeSegmentSelectorCpl<'value> as Counterpart>::Mut;
 
-/// A new-type with the sole invariant that the underlying
-/// [`RawSegmentSelector`] is for a valid *Code Segment Descriptor*.
+/// A raw selector image intended for a *Code Segment Descriptor*.
+///
+/// The image can be null or name a descriptor with different semantics;
+/// this type does not validate the installed descriptor.
 ///
 /// For the higher-level [`SegmentSelector`] interface, defer to the
 /// [`CodeSegment`] new-type instead.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The wrapped selector preserves the raw code-selector image, including null.
 pub struct RawCodeSegment(RawSegmentSelector);
 
 impl RawCodeSegment {
@@ -428,13 +434,15 @@ impl RawCodeSegment {
     }
 }
 
-/// A new-type with the sole invariant that the underlying
-/// [`RawSegmentSelector`] is for a valid *Data Segment Descriptor*.
+/// A raw selector image intended for a *Data Segment Descriptor*.
+///
+/// This type does not validate the installed descriptor.
 ///
 /// For the higher-level [`SegmentSelector`] interface, defer to the
 /// [`DataSegment`] new-type instead.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The wrapped selector preserves the raw data-selector image.
 pub struct RawDataSegment(RawSegmentSelector);
 
 impl RawDataSegment {
@@ -466,6 +474,7 @@ impl Deref for RawDataSegment {
 /// [`RawCodeSegment`] new-type instead.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction checks the selected descriptor for present 64-bit code semantics.
 pub struct CodeSegment(SegmentSelector);
 
 impl CodeSegment {
@@ -581,6 +590,7 @@ impl CodeSegment {
 /// [`RawDataSegment`] new-type instead.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction checks the selected descriptor for present writable data semantics.
 pub struct DataSegment(SegmentSelector);
 
 impl DataSegment {

@@ -29,10 +29,8 @@ const LAST_ENTRY_INDEX: u16 = 511;
 /// A nine-bit PML5 index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct Pml5Index(
-    // NOTE(invariant): The value is in the inclusive range 0 through 511.
-    u16,
-);
+// NOTE(invariant): The stored PML5 index is in the inclusive range 0 through 511.
+pub struct Pml5Index(u16);
 
 impl Pml5Index {
     /// Create a PML5 selector for an entry in the five-level table.
@@ -66,10 +64,8 @@ impl Pml5Index {
 /// A nine-bit PML4 index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct Pml4Index(
-    // NOTE(invariant): The value is in the inclusive range 0 through 511.
-    u16,
-);
+// NOTE(invariant): The stored PML4 index is in the inclusive range 0 through 511.
+pub struct Pml4Index(u16);
 
 impl Pml4Index {
     /// Create a PML4 selector for an entry in a paging table.
@@ -103,10 +99,8 @@ impl Pml4Index {
 /// A nine-bit PDPT index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct PdptIndex(
-    // NOTE(invariant): The value is in the inclusive range 0 through 511.
-    u16,
-);
+// NOTE(invariant): The stored PDPT index is in the inclusive range 0 through 511.
+pub struct PdptIndex(u16);
 
 impl PdptIndex {
     /// Create a PDPT selector for an entry in a paging table.
@@ -140,10 +134,8 @@ impl PdptIndex {
 /// A nine-bit page-directory index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct PdIndex(
-    // NOTE(invariant): The value is in the inclusive range 0 through 511.
-    u16,
-);
+// NOTE(invariant): The stored page-directory index is in the inclusive range 0 through 511.
+pub struct PdIndex(u16);
 
 impl PdIndex {
     /// Create a page-directory selector for an entry in a paging table.
@@ -177,10 +169,8 @@ impl PdIndex {
 /// A nine-bit page-table index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct PtIndex(
-    // NOTE(invariant): The value is in the inclusive range 0 through 511.
-    u16,
-);
+// NOTE(invariant): The stored page-table index is in the inclusive range 0 through 511.
+pub struct PtIndex(u16);
 
 impl PtIndex {
     /// Create a page-table selector for an entry in a paging table.
@@ -218,6 +208,7 @@ impl PtIndex {
 /// hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
+// NOTE(invariant): The array is the exact 4096-byte PML5 page with 512 consecutive raw entries.
 pub struct Pml5([Pml5e; ENTRY_COUNT]);
 
 impl Pml5 {
@@ -280,6 +271,7 @@ impl IndexMut<Pml5Index> for Pml5 {
 /// representation occupies a 4096-byte page containing 512 contiguous [`Pml4e`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
+// NOTE(invariant): The array is the exact 4096-byte PML4 page with 512 consecutive raw entries.
 pub struct Pml4([Pml4e; ENTRY_COUNT]);
 
 impl Pml4 {
@@ -342,6 +334,7 @@ impl IndexMut<Pml4Index> for Pml4 {
 /// a 4096-byte page containing 512 contiguous [`Pdpte`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
+// NOTE(invariant): The array is the exact 4096-byte PDPT page with 512 consecutive raw entries.
 pub struct Pdpt([Pdpte; ENTRY_COUNT]);
 
 impl Pdpt {
@@ -404,6 +397,8 @@ impl IndexMut<PdptIndex> for Pdpt {
 /// page containing 512 contiguous [`Pde`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
+// NOTE(invariant): The array is the exact 4096-byte directory page with 512 consecutive raw
+// entries.
 pub struct PageDirectory([Pde; ENTRY_COUNT]);
 
 impl PageDirectory {
@@ -466,6 +461,7 @@ impl IndexMut<PdIndex> for PageDirectory {
 /// containing 512 contiguous [`Pte`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
+// NOTE(invariant): The array is the exact 4096-byte table page with 512 consecutive raw entries.
 pub struct PageTable([Pte; ENTRY_COUNT]);
 
 impl PageTable {

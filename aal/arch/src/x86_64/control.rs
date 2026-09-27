@@ -121,6 +121,7 @@ impl RawCr0 {
     #[must_use]
     pub const fn take(value: Cr0) -> Self {
         let Cr0(value) = value;
+
         Self(value)
     }
 
@@ -455,6 +456,7 @@ impl RawCr3 {
     #[must_use]
     pub const fn take(value: Cr3) -> Self {
         let Cr3(value) = value;
+
         Self(value)
     }
 
@@ -1031,6 +1033,7 @@ impl RawCr4 {
     #[must_use]
     pub const fn take(value: Cr4) -> Self {
         let Cr4(value) = value;
+
         Self(value)
     }
 

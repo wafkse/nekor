@@ -175,7 +175,8 @@ pub type EntryNoExecuteMut<'value> = <EntryNoExecute<'value> as Counterpart>::Mu
 /// See Intel SDM Vol. 3A, Table 5-14.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always one complete architectural PML5 entry image.
+// NOTE(invariant): Every u64 image remains representable; present-entry validity is checked
+// separately.
 pub struct Pml5e(u64);
 
 /// An exact PML4 entry.
@@ -203,7 +204,8 @@ pub struct Pml5e(u64);
 /// See Intel SDM Vol. 3A, Table 5-15.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always one complete architectural PML4 entry image.
+// NOTE(invariant): Every u64 image remains representable; present-entry validity is checked
+// separately.
 pub struct Pml4e(u64);
 
 /// An exact page-directory-pointer-table entry.
@@ -228,7 +230,7 @@ pub struct Pml4e(u64);
 /// See Intel SDM Vol. 3A, Tables 5-16 and 5-17.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always one complete architectural PDPT entry image.
+// NOTE(invariant): Every u64 image remains representable, including both PS interpretations.
 pub struct Pdpte(u64);
 
 /// An exact page-directory entry.
@@ -253,8 +255,7 @@ pub struct Pdpte(u64);
 /// See Intel SDM Vol. 3A, Tables 5-18 and 5-19.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always one complete architectural page-directory entry
-// image.
+// NOTE(invariant): Every u64 image remains representable, including both PS interpretations.
 pub struct Pde(u64);
 
 /// An exact page-table entry.
@@ -284,7 +285,7 @@ pub struct Pde(u64);
 /// See Intel SDM Vol. 3A, Table 5-20.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always one complete architectural page-table entry image.
+// NOTE(invariant): Every u64 image remains representable; leaf validity is checked separately.
 pub struct Pte(u64);
 
 impl Pml5e {

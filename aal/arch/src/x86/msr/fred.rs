@@ -282,6 +282,7 @@ impl FredConfig {
     #[must_use]
     pub const fn raw(self) -> RawFredConfig {
         let Self { handler, interrupt } = self;
+
         let address = handler.bits();
         let page = FredConfigHandler::wrap(&address).const_value();
         let mut target_value = RawFredConfig::new(u64::MIN);
@@ -455,6 +456,7 @@ impl FredLevels {
     #[must_use]
     pub const fn raw(self) -> RawFredLevels {
         let Self { nmi, df, mc } = self;
+
         let mut target_value = RawFredLevels::new(u64::MIN);
 
         target_value.nmi_mut().const_merge(nmi.raw());
@@ -474,7 +476,7 @@ macro_rules! fred_rsp {
         #[doc = concat!("Exact IA32_FRED_RSP", stringify!($level), " register image.")]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[repr(transparent)]
-        // NOTE(invariant): Every u64 value is a representable raw FRED regular-stack image.
+        // NOTE: Every u64 value is a representable raw FRED regular-stack image.
         pub struct $raw(u64);
 
         impl $raw {
@@ -512,7 +514,7 @@ macro_rules! fred_rsp {
         #[cfg(target_arch = "x86_64")]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[repr(transparent)]
-        // NOTE(invariant): The stored address is canonical and 64-byte aligned.
+        // NOTE: The stored address is canonical and 64-byte aligned.
         pub struct $checked(La);
 
         #[cfg(target_arch = "x86_64")]
@@ -581,7 +583,7 @@ macro_rules! raw_fred_ssp {
         #[doc = concat!("Exact IA32_FRED_SSP", stringify!($level), " register image.")]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[repr(transparent)]
-        // NOTE(invariant): Every u64 value is a representable raw FRED shadow-stack image.
+        // NOTE: Every u64 value is a representable raw FRED shadow-stack image.
         pub struct $name(u64);
 
         impl $name {

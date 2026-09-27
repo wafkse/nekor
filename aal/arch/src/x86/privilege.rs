@@ -73,6 +73,8 @@ impl AssertPrivilegeLevelIsValid<3> for AssertPrivilegeLevel {}
 /// Level* is `N`.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): `N` is a valid CPL and the private marker prevents construction outside this
+// API.
 pub struct Cpl<const N: u8, T>(
     pub T,
     // NOTE(variance): Guarantee that `Cpl` is covariant over `T`.

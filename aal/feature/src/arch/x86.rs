@@ -84,6 +84,7 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cached for Cpuid<LEAF, SUBLEAF> {
 /// The const-generic pair (`LEAF`, `SUBLEAF`) correspond to the leaf and the
 /// sub-leaf, respectively.
 #[derive(Debug, Clone, Copy)]
+// NOTE(invariant): The value comes from output register `R` for the selected leaf and subleaf.
 pub struct CpuidReg<R, const LEAF: u32, const SUBLEAF: u32 = 0>(pub u32, marker::PhantomData<R>)
 where
     R: Output;
@@ -146,6 +147,8 @@ register!(pub Eax, pub Ebx, pub Ecx, pub Edx);
 
 /// A bit-level field inside a `cpuid` output register.
 #[repr(transparent)]
+// NOTE(invariant): The trait bounds select a valid bit range for register `R` at this leaf and
+// subleaf.
 pub struct CpuidField<const N: usize, const M: usize, R, const LEAF: u32, const SUBLEAF: u32 = 0>(
     marker::PhantomData<R>,
 )

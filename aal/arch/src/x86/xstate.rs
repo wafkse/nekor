@@ -8,6 +8,7 @@ use bitflags::bitflags;
 
 /// Proof that the current processor exposes the XFD architectural MSRs and semantics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction requires the caller to establish XFD support on the current CPU.
 pub struct Xfd(());
 
 impl Xfd {
@@ -25,6 +26,7 @@ impl Xfd {
 
 /// Proof that the current processor exposes IA32_XSS and supervisor XSAVE state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction requires the caller to establish supervisor XSAVE support.
 pub struct XsaveSupervisor(());
 
 impl XsaveSupervisor {
@@ -163,6 +165,7 @@ impl Xcr0 {
     #[must_use]
     pub const fn contains(self, required: Self) -> bool {
         let Self(components) = self;
+
         let Self(required) = required;
 
         components.contains(required)
@@ -173,6 +176,7 @@ impl Xcr0 {
     #[must_use]
     pub const fn union(self, other: Self) -> Self {
         let Self(components) = self;
+
         let Self(other) = other;
 
         Self(components.union(other))
@@ -183,6 +187,7 @@ impl Xcr0 {
     #[must_use]
     pub const fn intersection(self, other: Self) -> Self {
         let Self(components) = self;
+
         let Self(other) = other;
 
         Self(components.intersection(other))

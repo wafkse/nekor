@@ -3,6 +3,7 @@
 /// Proof that the current processor exposes FRED transitions and their
 /// architectural MSRs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): Construction requires the caller to establish FRED support on the current CPU.
 pub struct Fred(());
 
 impl Fred {

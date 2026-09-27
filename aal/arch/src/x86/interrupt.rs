@@ -245,7 +245,7 @@ impl StartupVector {
 
 #[cfg(test)]
 mod tests {
-    use super::{ExceptionVector, InterruptVector, StartupVector};
+    use super::{ExceptionVector, InterruptVector};
 
     #[test]
     fn exception_domain_ends_before_user_defined_vectors() {

@@ -12,12 +12,11 @@ use crate::x86::mode::{Mode, Native};
 /// meant to be a general-purpose pointer type
 #[repr(transparent)]
 #[derive(Debug)]
+// NOTE(invariant): The address uses `B`'s representation and the marker prevents `Send` and `Sync`.
 pub struct Address<T, B = Native>(
     // NOTE(cheri): This uses exposed provenance when a native pointer is
     // converted to an `Address`.
     B::Address,
-    // NOTE(invariant): Treat an `Address` just like a raw pointer: no `Send`
-    // or `Sync`.
     marker::PhantomData<fn() -> *mut T>,
 )
 where
