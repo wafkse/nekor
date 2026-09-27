@@ -243,7 +243,7 @@ impl Extract {
                         let trait_name = source_trait
                             .segments
                             .last()
-                            .map_or_else(|| "trait".to_string(), |seg| seg.ident.to_string());
+                            .map_or_else(|| "trait".to_owned(), |seg| seg.ident.to_string());
                         let module_name_str = format!("__extract_{type_name}_{trait_name}");
 
                         Ident::new(&module_name_str, Span::call_site())

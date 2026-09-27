@@ -105,7 +105,6 @@ macro_rules! extractor {
             {
                 /// A const-fn version of the [`Extract::extract`] associated function.
                 #[inline]
-                #[allow(clippy::cast_possible_truncation)]
                 pub const fn extract(target_value: &$target_type) -> $target_output {
                     let target_value = *target_value & <$target_type as Extract<N, M>>::EXTRACT_MASK;
 
