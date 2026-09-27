@@ -8,6 +8,7 @@ use crate::arch;
 /// times, and at reasonable efficiency.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+// NOTE(invariant): The value is an opaque machine-sized per-CPU area identifier.
 pub struct Area(usize);
 
 impl Area {

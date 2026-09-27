@@ -1,7 +1,7 @@
 //! Module for structured representation of architectural registers
 //! and ease of interface with saved contexts.
 
-use nekor_bitwise::prelude::{Bit, BitMut, Field, FieldMut};
+use nekor_bitwise::prelude::{Bit, Counterpart, Field, FieldMut};
 
 /// The lower 8 bits of a general-purpose architectural register.
 pub type GprLow8<'a> = Field<'a, 0, 7, u64>;
@@ -36,6 +36,7 @@ pub type GprVal64Mut<'a> = FieldMut<'a, 0, 63, u64>;
 /// A general-purpose architectural register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): All u64 bit patterns remain representable as a saved general-purpose register.
 pub struct Gpr(u64);
 
 impl Gpr {
@@ -163,6 +164,7 @@ pub type BaseVal64Mut<'a> = FieldMut<'a, 0, 63, u64>;
 /// An extended segment register base.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): All u64 bit patterns remain representable as a saved segment base.
 pub struct Base(u64);
 
 impl Base {
@@ -309,59 +311,60 @@ pub type FlagVip<'a> = Bit<'a, u64, 20>;
 pub type FlagId<'a> = Bit<'a, u64, 21>;
 
 /// A mutable counterpart to [`FlagCf`].
-pub type FlagCfMut<'a> = BitMut<'a, u64, 0>;
+pub type FlagCfMut<'a> = <FlagCf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagPf`].
-pub type FlagPfMut<'a> = BitMut<'a, u64, 2>;
+pub type FlagPfMut<'a> = <FlagPf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagAf`].
-pub type FlagAfMut<'a> = BitMut<'a, u64, 4>;
+pub type FlagAfMut<'a> = <FlagAf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagZf`].
-pub type FlagZfMut<'a> = BitMut<'a, u64, 6>;
+pub type FlagZfMut<'a> = <FlagZf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagSf`].
-pub type FlagSfMut<'a> = BitMut<'a, u64, 7>;
+pub type FlagSfMut<'a> = <FlagSf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagTf`].
-pub type FlagTfMut<'a> = BitMut<'a, u64, 8>;
+pub type FlagTfMut<'a> = <FlagTf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagIf`].
-pub type FlagIfMut<'a> = BitMut<'a, u64, 9>;
+pub type FlagIfMut<'a> = <FlagIf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagDf`].
-pub type FlagDfMut<'a> = BitMut<'a, u64, 10>;
+pub type FlagDfMut<'a> = <FlagDf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagOf`].
-pub type FlagOfMut<'a> = BitMut<'a, u64, 11>;
+pub type FlagOfMut<'a> = <FlagOf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FieldIopl`].
-pub type FieldIoplMut<'a> = FieldMut<'a, 12, 13, u64>;
+pub type FieldIoplMut<'a> = <FieldIopl<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagNt`].
-pub type FlagNtMut<'a> = BitMut<'a, u64, 14>;
+pub type FlagNtMut<'a> = <FlagNt<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagRf`].
-pub type FlagRfMut<'a> = BitMut<'a, u64, 16>;
+pub type FlagRfMut<'a> = <FlagRf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVm`].
-pub type FlagVmMut<'a> = BitMut<'a, u64, 17>;
+pub type FlagVmMut<'a> = <FlagVm<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagAc`].
-pub type FlagAcMut<'a> = BitMut<'a, u64, 18>;
+pub type FlagAcMut<'a> = <FlagAc<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVif`].
-pub type FlagVifMut<'a> = BitMut<'a, u64, 19>;
+pub type FlagVifMut<'a> = <FlagVif<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVip`].
-pub type FlagVipMut<'a> = BitMut<'a, u64, 20>;
+pub type FlagVipMut<'a> = <FlagVip<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagId`].
-pub type FlagIdMut<'a> = BitMut<'a, u64, 21>;
+pub type FlagIdMut<'a> = <FlagId<'a> as Counterpart>::Mut;
 
 /// The 64-bit extended "FLAGS" register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): All u64 bit patterns remain representable as a saved RFLAGS image.
 pub struct Rflags(u64);
 
 impl Rflags {

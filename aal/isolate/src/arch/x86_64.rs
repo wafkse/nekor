@@ -97,6 +97,7 @@ area!(
 /// `x86-64` mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C)]
+// NOTE(invariant): Field order matches the processor's interrupt return frame layout.
 pub struct IRetFrame {
     // NOTE: These are put here to have the CPU build our trap context directly through the ISR
     // entry layout.
@@ -208,6 +209,7 @@ impl IRetFrame {
 /// This contains all the captured state from an individual thread of execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C, align(8))]
+// NOTE(invariant): Stored registers and the interrupt frame retain the saved context layout.
 pub struct Context {
     // NOTE: The extended segment register base addresses can either be sourced through a `rdmsr`
     // or `rd{gs,fs}base` from the `FSGSBASE` extension, which both require either a scratch
@@ -690,6 +692,7 @@ impl Context {
 
 /// An error-code pushed to the Interrupt Service Routine by the processor.
 #[repr(transparent)]
+// NOTE(invariant): Every u32 bit pattern remains representable as the processor error code.
 pub struct ErrorCode(u32);
 
 /// A trait that describes an enter point to a *Context Switch*.

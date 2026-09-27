@@ -17,6 +17,7 @@ use crate::arch::x86_64::context::CsEntry;
 /// A 2-tuple struct composed of the "%fs" and "%gs" base register values.
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[repr(C)]
+// NOTE(invariant): The two raw words preserve FS base then GS base in fixed field order.
 pub struct FsGsBase(u64, u64);
 
 /// An enumeration that determines usage the regular `rdmsr` instruction or
@@ -115,7 +116,7 @@ pub enum RdFsgsbaseDelegate {}
 /// # Safety
 ///
 /// * The `CR4.FSGSBASE` enablement bit must be set (*1*).
-/// * The [`Fsgsbase`] architectural feature must available.
+/// * The `FSGSBASE` architectural feature must be available.
 // SAFETY: The trampoline is only used after the FSGSBASE architectural
 // feature has been enabled, which satisfies the delegate's instruction
 // availability requirement.
@@ -239,7 +240,7 @@ pub enum WrFsgsbaseDelegate {}
 /// # Safety
 ///
 /// * The `CR4.FSGSBASE` enablement bit must be set (*1*).
-/// * The [`Fsgsbase`] architectural feature must available.
+/// * The `FSGSBASE` architectural feature must be available.
 // SAFETY: The trampoline is only used after the FSGSBASE architectural
 // feature has been enabled, which satisfies the delegate's instruction
 // availability requirement.

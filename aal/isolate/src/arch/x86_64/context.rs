@@ -8,6 +8,7 @@ use nekor_aal_agnostic::prelude::{Contextual, LowLevel};
 /// describes low-level context-save logic. `CsEntry` stands for `Context-save
 /// Entry`.
 #[repr(transparent)]
+// NOTE(invariant): The private marker prevents constructing a context-save entry from a bare value.
 pub struct CsEntry<T>(
     pub LowLevel<T>,
     // NOTE: This does not have an effect on variance, and is only required as a ZST.

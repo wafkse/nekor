@@ -62,6 +62,7 @@ use crate::arch;
 /// [`module-level documentation`]: self
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): Monitoring and guarded access refer to the same wrapped value.
 pub struct Monitor<T>(
     // NOTE: Architectures relying on side-channel monitoring benefit from the
     // underlying value being cacheline-isolated.
@@ -165,6 +166,7 @@ impl<T> DerefMut for Monitor<T> {
 ///
 /// Always check the underlying condition after a [`Monitored::wait`].
 #[repr(transparent)]
+// NOTE(invariant): The non-null pointer refers to a monitor valid for the borrowed lifetime.
 pub struct Monitored<'a, T>(NonNull<Monitor<T>>, marker::PhantomData<&'a T>);
 
 impl<T> Monitored<'_, T> {
@@ -208,6 +210,7 @@ impl<T> Monitored<'_, T> {
 /// any waiting side.
 #[derive(Debug, Clone)]
 #[repr(transparent)]
+// NOTE(invariant): The borrowed value remains valid for the lifetime of the load guard.
 pub struct MonitorGuard<'a, T>(&'a T);
 
 impl<T> MonitorGuard<'_, T> {
@@ -234,6 +237,7 @@ impl<T> Deref for MonitorGuard<'_, T> {
 
 /// The store side of a monitored value.
 #[repr(transparent)]
+// NOTE(invariant): The exclusive borrow remains valid for the lifetime of the store guard.
 pub struct MonitorGuardMut<'a, T>(&'a mut T);
 
 impl<T> Deref for MonitorGuardMut<'_, T> {

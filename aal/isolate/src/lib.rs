@@ -2,17 +2,17 @@
 
 //! # Execution Context Isolates
 //!
-//! An [`Isolate`] provides a reentrant, hardware-backed execution environment.
+//! An isolate provides a reentrant, hardware-backed execution environment.
 //! It serves as the primitive for context-switching and preemption across the
 //! kernel.
 //!
-//! In this model, an [`Isolate`] physically decouples the execution state from
+//! In this model, an isolate physically decouples the execution state from
 //! the core scheduler, enforcing strict boundaries between the execution stack
 //! and hardware context.
 //!
 //! ## Memory Separation
 //!
-//! The [`Isolate`] architecture mandates the separation of memory into distinct
+//! The isolate architecture mandates the separation of memory into distinct
 //! regions to ensure zero-margin bounds and immunity to stack overflow:
 //!
 //! - **Stack Area**: A contiguous memory region exclusively dedicated to synchronous call frames
@@ -24,7 +24,7 @@
 //!
 //! ## Execution Lifecycle
 //!
-//! Entering an [`Isolate`] transfers processor control to the target context.
+//! Entering an isolate transfers processor control to the target context.
 //! The execution yields back to the caller through two distinct pathways:
 //!
 //! - **Finished**: The isolate voluntarily suspended execution.
@@ -37,9 +37,6 @@
 //! bidirectional channel. A typed payload (`&mut MaybeUninit<T>`) is passed
 //! directly through processor registers, maintaining type safety and avoiding
 //! dynamic allocation.
-//!
-//! [`Isolate`]: crate::isolate::Isolate
-
 pub mod arch;
 
 pub mod isolate;

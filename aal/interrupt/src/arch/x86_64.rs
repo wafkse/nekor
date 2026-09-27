@@ -1,5 +1,10 @@
 //! Tightly-packed raw versions of interrupt structures.
 
+#![expect(
+    clippy::allow_attributes,
+    reason = "naked entrypoints reject lint expectation attributes"
+)]
+
 use core::{arch, marker, mem, num::NonZeroU32};
 
 use nekor_aal_agnostic::partitioned::Partitioned;
@@ -523,8 +528,9 @@ vector!(
 
 /// A token to serve as proof for an *Interrupt Service Routine*.
 #[derive(Debug, Hash, PartialEq, PartialOrd, Ord, Eq)]
+// NOTE(invariant): Only a genuine or explicitly forged interrupt service may create this token.
 pub struct Service(
-    // NOTE(invariant): Do not make this `Sync`.
+    // The raw-pointer marker keeps service authority local to its execution context.
     marker::PhantomData<*mut Self>,
 );
 
@@ -555,6 +561,7 @@ impl Service {
 /// its existence.
 #[derive(Debug, Hash, PartialEq, PartialOrd, Ord, Eq)]
 #[repr(transparent)]
+// NOTE(invariant): The architectural error code is nonzero and remains a 32-bit value.
 pub struct ErrorCode(NonZeroU32);
 
 /// The *environmental constraint* imposed to a *Interrupt Service Routine*.
@@ -583,6 +590,10 @@ impl Environmental for Interrupted {}
 /// supertrait is [`Routine`].
 pub trait Forward: private::Sealed {
     #[doc(hidden/* reason = "this function must be a last resort" */)]
+    #[allow(
+        clippy::missing_inline_in_public_items,
+        reason = "naked entrypoint must remain a standalone symbol"
+    )]
     #[unsafe(naked)]
     unsafe extern "C" fn raw(target_service: &Service) -> ! {
         arch::naked_asm!("ud2", options(att_syntax))
@@ -590,6 +601,7 @@ pub trait Forward: private::Sealed {
 }
 
 #[repr(transparent)]
+// NOTE(invariant): The private marker binds this forwarding capability to interrupt routine `I`.
 pub struct Become<I>(marker::PhantomData<fn() -> I>);
 
 // TODO: Need to forward supertrait raw control flow to downstream trait impl
@@ -644,6 +656,10 @@ where
     /// possible yet discouraged.
     // TODO: We need to write our entry functions manually in global_asm
     #[doc(hidden/* reason = "this function must be a last resort" */)]
+    #[allow(
+        clippy::missing_inline_in_public_items,
+        reason = "naked entrypoint must remain a standalone symbol"
+    )]
     #[unsafe(naked)]
     unsafe extern "C" fn raw(target_service: &Service) -> ! {
         arch::naked_asm!(
@@ -697,6 +713,10 @@ where
 /// vector in case where the routine is shared across many distinct
 /// [`Routine`]s.
 #[doc(hidden/* reason = "this function must be a last resort" */)]
+#[allow(
+    clippy::missing_inline_in_public_items,
+    reason = "naked entrypoint must remain a standalone symbol"
+)]
 #[unsafe(naked)]
 pub unsafe extern "C" fn trampoline<const N: u8, R>() -> !
 where

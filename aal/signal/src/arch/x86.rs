@@ -5,7 +5,7 @@
 
 use core::{arch, ptr::NonNull};
 
-use nekor_bitwise::prelude::{BitMut, Counterpart, Field, FieldMut, State};
+use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
 
 /// Monitor a select memory address through the `monitor` instruction.
 ///
@@ -131,23 +131,25 @@ pub type TscDeadlineEdxMut<'a> = <TscDeadlineEdx<'a> as Counterpart>::Mut;
 /// [`Waitpkg`]: nekor_aal_feature::arch::x86::qualified::Waitpkg
 #[inline]
 pub unsafe fn tpause(wait_state: Cstate, target_deadline: u64) {
-    type TpauseCState<'a> = BitMut<'a, u32, 0>;
+    type TpauseCState<'a> = Bit<'a, u32, 0>;
+    type TpauseCStateMut<'a> = <TpauseCState<'a> as Counterpart>::Mut;
 
-    type TpauseCStateReserved<'a> = FieldMut<'a, 1, 31, u32>;
+    type TpauseCStateReserved<'a> = Field<'a, 1, 31, u32>;
+    type TpauseCStateReservedMut<'a> = <TpauseCStateReserved<'a> as Counterpart>::Mut;
 
     let edx = TscDeadlineEdx::wrap(&target_deadline).value();
     let eax = TscDeadlineEax::wrap(&target_deadline).value();
 
     let mut ecx = u32::MIN;
 
-    TpauseCState::wrap(&mut ecx).set(if wait_state == Cstate::C0_1 {
+    TpauseCStateMut::wrap(&mut ecx).set(if wait_state == Cstate::C0_1 {
         State::Set
     } else {
         State::Cleared
     });
 
     // NOTE: We always zero out any bits marked as reserved.
-    TpauseCStateReserved::wrap(&mut ecx).merge(u32::MIN);
+    TpauseCStateReservedMut::wrap(&mut ecx).merge(u32::MIN);
 
     // SAFETY: The `tpause` instruction is available and introduces
     // non-safety-altering behavior.

@@ -13,6 +13,7 @@ pub struct CpuContext;
 
 /// An allocated processor stack.
 #[cfg_attr(any(target_arch = "x86", target_arch = "x86_64"), repr(C, align(16)))]
+// NOTE(invariant): The non-Freeze byte array remains exclusively owned by its active stack user.
 pub struct Stack<const N: usize>(
     // NOTE: Need to make the actual stack area non-`Freeze`.
     UnsafeCell<[u8; N]>, /* Add page-sized guard to protect against stack overflow.
@@ -32,6 +33,8 @@ unsafe impl<const N: usize> Sync for Stack<N> {}
 /// A shadow stack.
 #[cfg_attr(target_arch = "x86", repr(C, align(4)), /* alignment to return address */)]
 #[cfg_attr(target_arch = "x86_64", repr(C, align(8)), /* alignment to return address */)]
+// NOTE(invariant): The non-Freeze byte array remains exclusively owned by its active shadow-stack
+// user.
 pub struct ShadowStack<const N: usize>(
     // NOTE: Need to make the actual shadow stack area non-`Freeze`.
     UnsafeCell<[u8; N]>,
@@ -47,6 +50,7 @@ unsafe impl<const N: usize> Sync for ShadowStack<N> {}
 
 /// A processor stack-area.
 #[repr(C)]
+// NOTE(invariant): The byte count is nonzero and pairs with the referenced stack storage.
 pub struct StackArea(NonZero<usize>, &'static UnsafeCell<[u8]>);
 
 impl StackArea {

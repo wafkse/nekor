@@ -4,7 +4,7 @@
 //!
 //! This is largely implemented outside of this module. However, this requires
 //! that the *Architecture Abstraction Layer* expose an interface to access a
-//! pointer-sized value. Particularly, this corresponds to the [`CoreId`] type.
+//! pointer-sized value. Particularly, this corresponds to the `CoreId` type.
 //!
 //! For instance, on `x86`, either `fs` or `gs` is used, but they are accessed
 //! through an indirection: e.g.:
