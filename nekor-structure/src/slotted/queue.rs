@@ -19,15 +19,17 @@ use nekor_sync::atomic::bitmap::{
     typeutil::{BitMapUsize, InBound},
 };
 
-use crate::slotted::state::{InitializationState, ReserveState, SlotState};
+use crate::slotted::state::{InitializationState, ReserveState, SlotIndex, SlotState};
 
 /// A reserved slot in the queue.
+// NOTE(invariant): The stored index is reserved in `queue_state` and has not yet been published as
+// initialized.
 struct Reserved<'a, const N: usize, T>
 where
     BitMapUsize<N>: InBound,
 {
     /// The bit index allocated for this reserve.
-    reserve_index: u32,
+    reserve_index: SlotIndex,
 
     /// The state of the queue.
     queue_state: &'a SlotState<N>,
@@ -57,6 +59,7 @@ where
             SlotState::reserve(target_state),
             SlotState::initialization(target_state),
         );
+
         let initial_index = u32::try_from(N - 1).unwrap_or_else(|_| {
             // `InBound` is only implemented for bitmap widths representable
             // by the platform index type.
@@ -67,12 +70,14 @@ where
             let reserve_at = AtomicBitmap::at_rightmost(reserve_state)
                 .map_or_else(|| AtomicBitmap::try_at(reserve_state, initial_index), At::right);
 
-            match reserve_at.filter(SlotState::<N>::filter) {
-                Some(ref reserve_at) => match reserve_at.one_with::<Exclusive>(backoff_state) {
-                    Outcome::Success(..) => {
-                        let reserve_index = At::index(reserve_at);
+            let reserve_at = reserve_at
+                .and_then(|reserve_at| SlotState::<N>::index(&reserve_at).map(|slot_index| (reserve_at, slot_index)));
 
-                        while AtomicBitmap::condition(initialization_state, Unset(1 << reserve_index)) == Status::Unmet
+            match reserve_at {
+                Some((reserve_at, reserve_index)) => match reserve_at.one_with::<Exclusive>(backoff_state) {
+                    Outcome::Success(..) => {
+                        while AtomicBitmap::condition(initialization_state, Unset(1 << reserve_index.array()))
+                            == Status::Unmet
                         {
                             Monitored::wait(AtomicBitmap::monitor(initialization_state));
                         }
@@ -93,12 +98,7 @@ where
     }
 }
 
-/// An initialized slot in the queue.
-struct Initialized<'a, const N: usize, T>(marker::PhantomData<&'a T>)
-where
-    BitMapUsize<N>: InBound;
-
-impl<'a, const N: usize, T> Initialized<'a, N, T>
+impl<'a, const N: usize, T> Reserved<'a, N, T>
 where
     BitMapUsize<N>: InBound,
 {
@@ -109,16 +109,16 @@ where
     /// The target storage must be for the specific [`SlotState`] in which the
     /// [`Reserve`] was created.
     unsafe fn slot(
-        Reserved {
+        Self {
             reserve_index,
             queue_state,
             ..
-        }: Reserved<'a, N, T>,
+        }: Self,
         target_value: T,
         target_storage: &'a [UnsafeCell<MaybeUninit<T>>; N],
     ) {
         let Some(mut target_storage) = target_storage
-            .get(reserve_index as usize)
+            .get(reserve_index.array())
             .map(UnsafeCell::get)
             .and_then(NonNull::new)
         else {
@@ -132,18 +132,20 @@ where
         MaybeUninit::write(uninit_ref, target_value);
 
         let _: Snapshot = InitializationState::bitmap(queue_state.initialization())
-            .at(reserve_index)
+            .at(reserve_index.bit())
             .one::<Cooperative>();
     }
 }
 
 /// A queue slot acquired for dequeue.
+// NOTE(invariant): The stored index names a slot whose initialization bit was exclusively claimed
+// while its reservation bit remains set.
 struct Acquired<'a, const N: usize, T>
 where
     BitMapUsize<N>: InBound,
 {
     /// The bit index that was acquired.
-    acquired_index: u32,
+    acquired_index: SlotIndex,
 
     /// Marker type to indicate ownership of a `T` for an `'a` lifetime.
     marker: marker::PhantomData<&'a T>,
@@ -174,8 +176,12 @@ where
             match AtomicBitmap::at_leftmost(initialization_state) {
                 Some(ref init_at) => match init_at.zero_with::<Exclusive>(backoff_state) {
                     Outcome::Success(..) => {
+                        let Some(acquired_index) = SlotState::<N>::index(init_at) else {
+                            unreachable!("an initialized queue index must be in bounds")
+                        };
+
                         break Some(Self {
-                            acquired_index: init_at.index(),
+                            acquired_index,
                             marker: marker::PhantomData,
                         });
                     },
@@ -223,6 +229,8 @@ where
 /// - Enqueue finds slots using rightmost-one + right (or MSB if empty), growing leftward.
 /// - Dequeue finds slots using leftmost-one, consuming from the oldest end.
 #[derive(Debug)]
+// NOTE(invariant): Reservation and initialization bits correspond positionally to storage, and
+// initialized bits identify live `T` values whose reservation bits remain set.
 pub struct Queue<T, const N: usize = { usize::BITS as usize }>
 where
     BitMapUsize<N>: InBound,
@@ -298,14 +306,16 @@ where
     /// operations complete.
     #[inline]
     pub fn enqueue(&self, target_value: T) -> Result<(), BusyOrFull<T>> {
-        let slot_state = &self.slot_state;
-        let target_storage = &self.target_storage;
+        let Self {
+            slot_state,
+            target_storage,
+        } = self;
 
         match Reserved::<N, T>::reserve(slot_state) {
             Some(reserved) => {
                 // SAFETY: The provided storage array is backed by the same `SlotState` that was
                 // acquired.
-                unsafe { Initialized::slot(reserved, target_value, target_storage) };
+                unsafe { Reserved::slot(reserved, target_value, target_storage) };
 
                 Ok(())
             },
@@ -329,12 +339,15 @@ where
     /// yet been dequeued, maintaining strict FIFO semantics.
     #[inline]
     pub fn dequeue(&self) -> Option<T> {
-        let slot_state = &self.slot_state;
-        let target_storage = &self.target_storage;
+        let Self {
+            slot_state,
+            target_storage,
+        } = self;
 
         let Acquired { acquired_index, .. } = Acquired::<N, T>::acquire(slot_state)?;
+
         let Some(mut target_storage) = target_storage
-            .get(acquired_index as usize)
+            .get(acquired_index.array())
             .map(UnsafeCell::get)
             .and_then(NonNull::new)
         else {
@@ -351,7 +364,7 @@ where
         // The reservation bit is exclusively owned after consuming its
         // initialization bit, so the clear cannot be contended away.
         let _: Snapshot = ReserveState::bitmap(slot_state.reserve())
-            .at(acquired_index)
+            .at(acquired_index.bit())
             .zero::<Cooperative>();
 
         Some(target_value)

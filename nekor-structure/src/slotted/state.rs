@@ -8,9 +8,50 @@ use nekor_sync::atomic::bitmap::{
     typeutil::{BitMapUsize, InBound},
 };
 
+/// A runtime slot index validated against a slotted structure width.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// NOTE(invariant): The stored bit index is less than the width of the slot state that produced it.
+pub(in crate::slotted) struct SlotIndex(u32);
+
+impl SlotIndex {
+    /// Validates the engaged bit index against an `N`-slot state.
+    #[inline]
+    pub(in crate::slotted) fn from_at<const N: usize>(at: &At<'_>) -> Option<Self>
+    where
+        BitMapUsize<N>: InBound,
+    {
+        let target_index = At::index(at);
+
+        usize::try_from(target_index)
+            .ok()
+            .filter(|&target_index| target_index < N)
+            .map(|_| Self(target_index))
+    }
+
+    /// Returns the bitmap bit index.
+    #[inline]
+    pub(in crate::slotted) const fn bit(self) -> u32 {
+        let Self(target_index) = self;
+
+        target_index
+    }
+
+    /// Returns the storage array index.
+    #[inline]
+    pub(in crate::slotted) fn array(self) -> usize {
+        let Self(target_index) = self;
+
+        match usize::try_from(target_index) {
+            Ok(target_index) => target_index,
+            Err(..) => unreachable!(),
+        }
+    }
+}
+
 /// A type to represent a the *reserve state* in a [`SlotState`].
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): The referenced bitmap is the reservation bitmap of its owning slot state.
 pub struct ReserveState<'a>(&'a AtomicBitmap);
 
 impl<'a> ReserveState<'a> {
@@ -38,6 +79,7 @@ impl Deref for ReserveState<'_> {
 /// A type to represent a the *initialization state* in a [`SlotState`].
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
+// NOTE(invariant): The referenced bitmap is the initialization bitmap of its owning slot state.
 pub struct InitializationState<'a>(&'a AtomicBitmap);
 
 impl<'a> InitializationState<'a> {
@@ -85,6 +127,7 @@ impl Deref for InitializationState<'_> {
 ///
 /// The downstream *storage array* must be exactly `N`-elements long.
 #[derive(Debug)]
+// NOTE(invariant): Every initialized slot is also reserved in the paired reservation bitmap.
 pub struct SlotState<const N: usize>
 where
     BitMapUsize<N>: InBound,
@@ -128,14 +171,20 @@ where
     #[inline]
     #[must_use]
     pub const fn reserve(&self) -> ReserveState<'_> {
-        ReserveState(&self.reserve_state)
+        let Self { reserve_state, .. } = self;
+
+        ReserveState(reserve_state)
     }
 
     /// Determine the *initialization state* of this [`SlotState`].
     #[inline]
     #[must_use]
     pub const fn initialization(&self) -> InitializationState<'_> {
-        InitializationState(&self.initialization_state)
+        let Self {
+            initialization_state, ..
+        } = self;
+
+        InitializationState(initialization_state)
     }
 }
 
@@ -143,11 +192,9 @@ impl<const N: usize> SlotState<N>
 where
     BitMapUsize<N>: InBound,
 {
-    /// Filter an [`At`] engagement acquisition for the `N`-element
-    /// [`SlotState`].
+    /// Validates an engaged bitmap bit as an index in this slot state.
     #[inline]
-    #[must_use]
-    pub fn filter(at: &At<'_>) -> bool {
-        usize::try_from(At::index(at)).is_ok_and(|index| index < N)
+    pub(in crate::slotted) fn index(at: &At<'_>) -> Option<SlotIndex> {
+        SlotIndex::from_at::<N>(at)
     }
 }

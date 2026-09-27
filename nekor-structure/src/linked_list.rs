@@ -170,6 +170,7 @@ pub unsafe trait Linked {
 /// This type is pinned to ensure that the list pointers are not invalidated by
 /// accident.
 #[derive(Debug)]
+// NOTE(invariant): Once pinned, neighboring pointers remain valid while the node belongs to a list.
 pub struct Link<T>
 where
     T: ?Sized,
@@ -302,14 +303,18 @@ impl<T> Link<T> {
     #[inline]
     #[must_use]
     pub const fn next_slot(&self) -> &Option<NonNull<T>> {
-        &self.next_node
+        let Self { next_node, .. } = self;
+
+        next_node
     }
 
     /// Retrieve the `prior` slot of this link.
     #[inline]
     #[must_use]
     pub const fn prior_slot(&self) -> &Option<NonNull<T>> {
-        &self.prior_node
+        let Self { prior_node, .. } = self;
+
+        prior_node
     }
 
     /// Mutate the `next` slot of this link.
@@ -332,6 +337,7 @@ impl<T> Link<T> {
 /// A handle to a value of type `T` that has been inserted into an
 /// [`IntrusiveList`].
 #[derive(Debug)]
+// NOTE(invariant): The node is linked into the pointed-to list for the lifetime of this handle.
 pub struct Inserted<'a, T>
 where
     T: Bidirectional + ?Sized,
@@ -372,16 +378,16 @@ where
 /// An intrusive, doubly-linked list where the lifetime of the incorporated
 /// elements is not managed by the list.
 #[derive(Debug)]
+// NOTE(invariant): The head has no predecessor, the tail has no successor, and the count matches
+// the linked nodes retained by their external owners.
 pub struct IntrusiveList<T>
 where
     T: Bidirectional + ?Sized,
 {
     /// The head node in the linked list.
-    // NOTE(invariant): `head_node->prior` must be unpopulated.
     head_node: Option<NonNull<T>>,
 
     /// The tail node in the linked list.
-    // NOTE(invariant): `tail_node->next` must be unpopulated.
     tail_node: Option<NonNull<T>>,
 
     /// The amount of nodes incorporated in this linked list.
@@ -441,43 +447,44 @@ where
         } = self;
 
         match (target_value.as_ref().prior(), target_value.as_ref().next()) {
-            (Some(..), ..) | (.., Some(..)) => return None,
-            (None, None) => (),
+            (None, None) => {
+                // SAFETY: The contained `&mut T` is never unpinned, it is only coerced
+                // to a pointer.
+                let target_value = unsafe { Pin::into_inner_unchecked(target_value) };
+
+                // SAFETY: Reference to non-null pointer coercion is always safe.
+                let node_address = unsafe { NonNull::new_unchecked(target_value) };
+
+                if let &mut Some(mut tail_address) = list_tail {
+                    // SAFETY: Was originally pinned.
+                    let tail_node = unsafe { Pin::new_unchecked(tail_address.as_mut()) };
+
+                    // SAFETY: Not part of any other list. Respective backlink
+                    // underway.
+                    let _: Option<NonNull<T>> = unsafe { tail_node.replace_next(node_address) };
+
+                    // SAFETY: `target_value` was originally pinned. Link invariants
+                    // are satisfied at this point too.
+                    let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_prior(tail_address) };
+                } else {
+                    let _: Option<NonNull<T>> = list_head.replace(node_address);
+                }
+
+                let _: Option<NonNull<T>> = list_tail.replace(node_address);
+
+                *node_count += 1;
+
+                // SAFETY: Reference to non-null pointer coercion is always safe.
+                let list_address = unsafe { NonNull::new_unchecked(self) };
+
+                Some(Inserted::<'a, T> {
+                    node_address,
+                    list_address,
+                    marker: marker::PhantomData,
+                })
+            },
+            (Some(..), ..) | (.., Some(..)) => None,
         }
-
-        // SAFETY: The contained `&mut T` is never unpinned, it is only coerced
-        // to a pointer.
-        let target_value = unsafe { Pin::into_inner_unchecked(target_value) };
-
-        // SAFETY: Reference to non-null pointer coercion is always safe.
-        let node_address = unsafe { NonNull::new_unchecked(target_value) };
-
-        if let &mut Some(mut tail_address) = list_tail {
-            // SAFETY: Was originally pinned.
-            let tail_node = unsafe { Pin::new_unchecked(tail_address.as_mut()) };
-
-            // SAFETY: Not part of any other list. Respective backlink
-            // underway.
-            let _: Option<NonNull<T>> = unsafe { tail_node.replace_next(node_address) };
-
-            // SAFETY: `target_value` was originally pinned. Link invariants
-            // are satisfied at this point too.
-            let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_prior(tail_address) };
-        } else {
-            let _: Option<NonNull<T>> = list_head.replace(node_address);
-        }
-        let _: Option<NonNull<T>> = list_tail.replace(node_address);
-
-        *node_count += 1;
-
-        // SAFETY: Reference to non-null pointer coercion is always safe.
-        let list_address = unsafe { NonNull::new_unchecked(self) };
-
-        Some(Inserted::<'a, T> {
-            node_address,
-            list_address,
-            marker: marker::PhantomData,
-        })
     }
 
     /// Attempt to insert the target value `T` at the front of the list.
@@ -499,46 +506,46 @@ where
         } = self;
 
         match (target_value.as_ref().prior(), target_value.as_ref().next()) {
-            (Some(..), ..) | (.., Some(..)) => return None,
-            (None, None) => (),
+            (None, None) => {
+                // SAFETY: The contained `&mut T` is never unpinned, it is only coerced
+                // to a pointer.
+                let target_value = unsafe { Pin::into_inner_unchecked(target_value) };
+
+                // SAFETY: Reference to non-null pointer coercion is always safe.
+                let node_address = unsafe { NonNull::new_unchecked(target_value) };
+
+                if let &mut Some(mut head_address) = list_head {
+                    // SAFETY: Was originally pinned.
+                    let head_node = unsafe { Pin::new_unchecked(head_address.as_mut()) };
+
+                    // SAFETY: Not part of any other list. Respective backlink
+                    // underway.
+                    let _: Option<NonNull<T>> = unsafe { head_node.replace_prior(node_address) };
+
+                    // SAFETY: `target_value` was originally pinned. Link invariants
+                    // are satisfied at this point too.
+                    let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_next(head_address) };
+
+                    let _: Option<NonNull<T>> = list_head.replace(node_address);
+                } else {
+                    let _: Option<NonNull<T>> = list_head.replace(node_address);
+
+                    let _: Option<NonNull<T>> = list_tail.replace(node_address);
+                }
+
+                *node_count += 1;
+
+                // SAFETY: Reference to non-null pointer coercion is always safe.
+                let list_address = unsafe { NonNull::new_unchecked(self) };
+
+                Some(Inserted::<'a, T> {
+                    node_address,
+                    list_address,
+                    marker: marker::PhantomData,
+                })
+            },
+            (Some(..), ..) | (.., Some(..)) => None,
         }
-
-        // SAFETY: The contained `&mut T` is never unpinned, it is only coerced
-        // to a pointer.
-        let target_value = unsafe { Pin::into_inner_unchecked(target_value) };
-
-        // SAFETY: Reference to non-null pointer coercion is always safe.
-        let node_address = unsafe { NonNull::new_unchecked(target_value) };
-
-        if let &mut Some(mut head_address) = list_head {
-            // SAFETY: Was originally pinned.
-            let head_node = unsafe { Pin::new_unchecked(head_address.as_mut()) };
-
-            // SAFETY: Not part of any other list. Respective backlink
-            // underway.
-            let _: Option<NonNull<T>> = unsafe { head_node.replace_prior(node_address) };
-
-            // SAFETY: `target_value` was originally pinned. Link invariants
-            // are satisfied at this point too.
-            let _: Option<NonNull<T>> = unsafe { Pin::new_unchecked(target_value).replace_next(head_address) };
-
-            let _: Option<NonNull<T>> = list_head.replace(node_address);
-        } else {
-            let _: Option<NonNull<T>> = list_head.replace(node_address);
-
-            let _: Option<NonNull<T>> = list_tail.replace(node_address);
-        }
-
-        *node_count += 1;
-
-        // SAFETY: Reference to non-null pointer coercion is always safe.
-        let list_address = unsafe { NonNull::new_unchecked(self) };
-
-        Some(Inserted::<'a, T> {
-            node_address,
-            list_address,
-            marker: marker::PhantomData,
-        })
     }
 
     /// Try to unlock an [`Inserted`] value from being accessed immutably.
@@ -618,80 +625,86 @@ where
     /// Returns the original handle when it belongs to another list.
     #[inline]
     pub fn try_remove<'a>(&mut self, target_handle: Inserted<'a, T>) -> Result<Pin<&'a mut T>, Inserted<'a, T>> {
-        // SAFETY: Reference to non-null pointer coercion is always safe.
-        let self_address = unsafe { NonNull::new_unchecked(self) };
-
-        if !ptr::eq(
-            self_address.as_ptr().cast_const(),
-            target_handle.list_address.as_ptr().cast_const(),
-        ) {
-            return Err(target_handle);
-        }
-
         let &mut Self {
             ref mut head_node,
             ref mut tail_node,
             ref mut node_count,
         } = self;
 
-        let Inserted { mut node_address, .. } = target_handle;
+        // NOTE: Comparing the first field's address preserves list identity after destructuring.
+        let target_list = target_handle.list_address.as_ptr();
+        // SAFETY: The handle retains a valid list pointer throughout its lifetime. Forming a
+        // field address does not read or write the pointee.
+        let native = ptr::eq(ptr::from_mut(head_node), unsafe {
+            ptr::addr_of_mut!((*target_list).head_node)
+        });
 
-        // SAFETY: This was originally acquired through a `Pin<&mut _>`, and
-        // we have borrowed the whole list mutably.
-        let mut target_node = unsafe { Pin::new_unchecked(node_address.as_mut()) };
+        if native {
+            let Inserted { mut node_address, .. } = target_handle;
 
-        let (prior_node, next_node) = (target_node.as_ref().prior(), target_node.as_ref().next());
+            // SAFETY: This was originally acquired through a `Pin<&mut _>`, and
+            // we have borrowed the whole list mutably.
+            let mut target_node = unsafe { Pin::new_unchecked(node_address.as_mut()) };
 
-        match (prior_node, next_node) {
-            (Some(mut prior_node), Some(mut next_node)) => {
-                // SAFETY: [see previous safety comment]
-                let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
+            let (prior_node, next_node) = (target_node.as_ref().prior(), target_node.as_ref().next());
 
-                // SAFETY: [see previous safety comment]
-                let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
+            match (prior_node, next_node) {
+                (Some(mut prior_node), Some(mut next_node)) => {
+                    // SAFETY: [see previous safety comment]
+                    let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
 
-                // SAFETY: Node is untouched during removal.
-                unsafe {
-                    let _: Option<NonNull<T>> = target_prior.replace_next(next_node);
+                    // SAFETY: [see previous safety comment]
+                    let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
 
-                    let _: Option<NonNull<T>> = target_next.replace_prior(prior_node);
-                };
-            },
-            (None, Some(mut next_node)) => {
-                // SAFETY: [see previous safety comment]
-                let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
+                    // SAFETY: Node is untouched during removal.
+                    unsafe {
+                        let _: Option<NonNull<T>> = target_prior.replace_next(next_node);
 
-                // NOTE: The new head must not back-reference the removed
-                // node, as that link dangles once the node's lifetime is
-                // due.
-                *target_next.prior_slot_mut() = None;
+                        let _: Option<NonNull<T>> = target_next.replace_prior(prior_node);
+                    };
+                },
+                (None, Some(mut next_node)) => {
+                    // SAFETY: [see previous safety comment]
+                    let target_next = unsafe { Pin::new_unchecked(next_node.as_mut()) };
 
-                *head_node = Some(next_node);
-            },
-            (Some(mut prior_node), None) => {
-                // SAFETY: [see previous safety comment]
-                let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
+                    // NOTE: The new head must not back-reference the removed
+                    // node, as that link dangles once the node's lifetime is
+                    // due.
+                    *target_next.prior_slot_mut() = None;
 
-                // NOTE: The new tail must not forward-reference the removed
-                // node, as that link dangles once the node's lifetime is
-                // due.
-                *target_prior.next_slot_mut() = None;
+                    *head_node = Some(next_node);
+                },
+                (Some(mut prior_node), None) => {
+                    // SAFETY: [see previous safety comment]
+                    let target_prior = unsafe { Pin::new_unchecked(prior_node.as_mut()) };
 
-                *tail_node = Some(prior_node);
-            },
-            (None, None) => (*head_node, *tail_node) = (None, None),
+                    // NOTE: The new tail must not forward-reference the removed
+                    // node, as that link dangles once the node's lifetime is
+                    // due.
+                    *target_prior.next_slot_mut() = None;
+
+                    *tail_node = Some(prior_node);
+                },
+                (None, None) => {
+                    *head_node = None;
+                    *tail_node = None;
+                },
+            }
+
+            *target_node.as_mut().next_slot_mut() = None;
+            *target_node.as_mut().prior_slot_mut() = None;
+
+            *node_count -= 1;
+
+            Ok(target_node)
+        } else {
+            Err(target_handle)
         }
-
-        *target_node.as_mut().next_slot_mut() = None;
-        *target_node.as_mut().prior_slot_mut() = None;
-
-        *node_count -= 1;
-
-        Ok(target_node)
     }
 }
 
 #[derive(Debug)]
+// NOTE(invariant): The embedded link belongs to this exact externally managed value.
 pub struct External<T>(Link<Self>, T);
 
 impl<T> External<T> {
@@ -716,14 +729,18 @@ impl<T> Deref for External<T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.1
+        let Self(.., target_value) = self;
+
+        target_value
     }
 }
 
 impl<T> DerefMut for External<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.1
+        let &mut Self(.., ref mut target_value) = self;
+
+        target_value
     }
 }
 
@@ -731,7 +748,7 @@ impl<T> DerefMut for External<T> {
 unsafe impl<T> Linked for External<T> {
     #[inline]
     unsafe fn link(self: Pin<&Self>) -> Pin<&Link<Self>> {
-        let target_link = &self.get_ref().0;
+        let Self(target_link, ..) = self.get_ref();
 
         // SAFETY: The `Link` is pinned.
         unsafe { Pin::new_unchecked(target_link) }
@@ -740,7 +757,7 @@ unsafe impl<T> Linked for External<T> {
     #[inline]
     unsafe fn link_mut(self: Pin<&mut Self>) -> Pin<&mut Link<Self>> {
         // SAFETY: The `Link` is never moved.
-        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
+        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
 
         // SAFETY: The `Link` is pinned.
         unsafe { Pin::new_unchecked(target_link) }
@@ -750,14 +767,14 @@ unsafe impl<T> Linked for External<T> {
 // SAFETY: Abides by list logical invariants.
 unsafe impl<T> Backward for External<T> {
     fn prior_slot(self: Pin<&Self>) -> &Option<NonNull<Self>> {
-        let target_link = &self.get_ref().0;
+        let Self(target_link, ..) = self.get_ref();
 
         target_link.prior_slot()
     }
 
     fn prior_slot_mut(self: Pin<&mut Self>) -> &mut Option<NonNull<Self>> {
         // SAFETY: The `Link` is never moved.
-        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
+        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
 
         target_link.prior_slot_mut()
     }
@@ -766,14 +783,14 @@ unsafe impl<T> Backward for External<T> {
 // SAFETY: Abides by list logical invariants.
 unsafe impl<T> Forward for External<T> {
     fn next_slot(self: Pin<&Self>) -> &Option<NonNull<Self>> {
-        let target_link = &self.get_ref().0;
+        let Self(target_link, ..) = self.get_ref();
 
         target_link.next_slot()
     }
 
     fn next_slot_mut(self: Pin<&mut Self>) -> &mut Option<NonNull<Self>> {
         // SAFETY: The `Link` is never moved.
-        let target_link = &mut unsafe { self.get_unchecked_mut() }.0;
+        let &mut Self(ref mut target_link, ..) = unsafe { self.get_unchecked_mut() };
 
         target_link.next_slot_mut()
     }

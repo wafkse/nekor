@@ -6,7 +6,6 @@ use core::{cell::UnsafeCell, mem::MaybeUninit, ptr};
 use nekor_backoff::{prelude::Backoff, retry::Retry};
 use nekor_sync::atomic::bitmap::{
     AtomicBitmap,
-    at::At,
     mode::{
         cooperative::{Cooperative, Snapshot},
         exclusive::{Exclusive, Outcome, Reason},
@@ -14,9 +13,24 @@ use nekor_sync::atomic::bitmap::{
     typeutil::{BitMapUsize, InBound},
 };
 
-use crate::slotted::state::{InitializationState, ReserveState, SlotState};
+use crate::slotted::state::{InitializationState, ReserveState, SlotIndex, SlotState};
+
+/// Find the lowest zero bit in a bitmap word.
+#[inline]
+const fn lowest_zero(target_value: usize) -> Option<u32> {
+    const USIZE_BITS: u32 = usize::BITS;
+
+    match usize::trailing_ones(target_value) {
+        // NOTE: A value with `K` trailing ones has its lowest zero at index `K`.
+        lowest_index @ 0..USIZE_BITS => Some(lowest_index),
+        // NOTE: Every bit is set.
+        USIZE_BITS.. => None,
+    }
+}
 
 /// A thread-safe arena for allocation and deallocation of values of type `T`.
+// NOTE(invariant): Reservation and initialization bits correspond positionally to the storage
+// array, and an initialized bit means that slot contains a live `T`.
 pub struct Arena<T, const N: usize>
 where
     BitMapUsize<N>: InBound,
@@ -73,33 +87,20 @@ where
     /// actually needed.
     #[inline]
     pub fn reserve(&self) -> Option<Reserve<'_>> {
-        /// Find the lowest zeroed bit in the target [`usize`].
-        #[inline]
-        const fn lowest_zero(target_value: usize) -> Option<u32> {
-            const USIZE_BITS: u32 = usize::BITS;
-
-            match usize::trailing_ones(target_value) {
-                // NOTE: A value with `K` trailing ones has its lowest zeroed
-                // bit exactly at index `K`.
-                lowest_index @ 0..USIZE_BITS => Some(lowest_index),
-                // NOTE: Every bit is set.
-                USIZE_BITS.. => None,
-            }
-        }
-
-        let arena_state = &self.arena_state;
+        let Self { arena_state, .. } = self;
 
         let reserve_state = SlotState::reserve(arena_state);
 
         let mut target_state = Retry::unlimited(Backoff::minimal());
 
         loop {
-            match AtomicBitmap::at_predicate(ReserveState::bitmap(reserve_state), lowest_zero)
-                .filter(SlotState::<N>::filter)
-            {
-                Some(ref at_bit) => match at_bit.one_with::<Exclusive>(&mut target_state) {
+            let target_slot = AtomicBitmap::at_predicate(ReserveState::bitmap(reserve_state), lowest_zero)
+                .and_then(|at_bit| SlotState::<N>::index(&at_bit).map(|slot_index| (at_bit, slot_index)));
+
+            match target_slot {
+                Some((at_bit, slot_index)) => match at_bit.one_with::<Exclusive>(&mut target_state) {
                     Outcome::Success(..) => {
-                        break Some(Reserve(reserve_state, At::index(at_bit)));
+                        break Some(Reserve(reserve_state, slot_index));
                     },
                     Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => {
@@ -116,8 +117,10 @@ where
     /// This will return `None` if the reservation is not for this arena.
     #[inline]
     pub fn slot(&self, reserve: &Reserve) -> Option<&UnsafeCell<MaybeUninit<T>>> {
-        let arena_state = &self.arena_state;
-        let arena_storage = &self.arena_storage;
+        let Self {
+            arena_state,
+            arena_storage,
+        } = self;
 
         let &Reserve(reserve_bitmap, reserve_index) = reserve;
 
@@ -125,7 +128,7 @@ where
             ReserveState::bitmap(SlotState::reserve(arena_state)),
             ReserveState::bitmap(reserve_bitmap),
         )
-        .then(|| arena_storage.get(reserve_index as usize))
+        .then(|| arena_storage.get(reserve_index.array()))
         .flatten()
     }
 
@@ -136,12 +139,16 @@ where
     /// Returns the original value when every arena slot is reserved.
     #[inline]
     pub fn allocate(&self, value: T) -> Result<InArena<'_, T>, T> {
-        let arena_storage = &self.arena_storage;
-        let arena_state = &self.arena_state;
+        let Self {
+            arena_state,
+            arena_storage,
+        } = self;
 
         match Self::reserve(self) {
             Some(target_reserve) => {
-                let storage_index = target_reserve.index() as usize;
+                let &Reserve(_, reserve_index) = &target_reserve;
+
+                let storage_index = reserve_index.array();
 
                 // SAFETY:
                 //
@@ -169,7 +176,7 @@ where
                 };
 
                 let _: Snapshot = InitializationState::bitmap(SlotState::initialization(arena_state))
-                    .at(target_reserve.index())
+                    .at(reserve_index.bit())
                     .one::<Cooperative>();
 
                 Ok(InArena(
@@ -234,7 +241,9 @@ where
 /// A reservation in the [`Arena`].
 ///
 /// This can be used to to nonpreemptively reserve a [`MaybeUninit`]-based slot.
-pub struct Reserve<'a>(ReserveState<'a>, u32);
+// NOTE(invariant): The stored index is reserved in the referenced reservation bitmap while this
+// capability is alive.
+pub struct Reserve<'a>(ReserveState<'a>, SlotIndex);
 
 impl Reserve<'_> {
     /// Determine the array index this allocation is for.
@@ -243,7 +252,7 @@ impl Reserve<'_> {
     pub const fn index(&self) -> u32 {
         let &Self(.., target_index) = self;
 
-        target_index
+        target_index.bit()
     }
 }
 
@@ -252,22 +261,19 @@ impl Drop for Reserve<'_> {
         let &mut Self(reserve_state, alloc_index, ..) = self;
 
         let _: Snapshot = ReserveState::bitmap(reserve_state)
-            .at(alloc_index)
+            .at(alloc_index.bit())
             .zero::<Cooperative>();
     }
 }
 
 /// A handle to an active allocation in a [`Arena`].
+// NOTE(invariant): The stored reference points into the reserved slot, and the initialization state
+// belongs to the same slot state with that slot marked initialized.
 pub struct InArena<'a, T>(
-    // NOTE(invariant):
-    //  This is `Some` and valid as long as allocation lives and the handle
-    // hasn't been dropped.
-    //
     // FIXME: Make this a MaybeUninit and just take up the unsafe access cost. We can have 2 niches
     // to exploit.
     MaybeUninit<&'a mut T>,
     Reserve<'a>,
-    // NOTE(invariant): This belongs to the same `SlotState` as the `Reserve`.
     InitializationState<'a>,
 );
 
@@ -276,7 +282,7 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn data(&self) -> &T {
-        let target_data = &self.0;
+        let Self(target_data, ..) = self;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
         // `InArena` type.
@@ -287,7 +293,7 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn data_mut(&mut self) -> &mut T {
-        let target_data = &mut self.0;
+        let &mut Self(ref mut target_data, ..) = self;
 
         // SAFETY: The `MaybeUninit` is always initialized for the lifetime of the
         // `InArena` type.
@@ -298,7 +304,9 @@ impl<T> InArena<'_, T> {
     #[inline]
     #[must_use]
     pub const fn allocation(&self) -> &Reserve<'_> {
-        &self.1
+        let Self(_, target_reserve, ..) = self;
+
+        target_reserve
     }
 }
 
@@ -370,6 +378,7 @@ mod tests {
         let Ok(held) = arena.allocate(Counted) else {
             unreachable!("arena has free slots")
         };
+
         let Ok(leaked) = arena.allocate(Counted) else {
             unreachable!("arena has free slots")
         };
