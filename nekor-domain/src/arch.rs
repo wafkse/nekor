@@ -22,11 +22,8 @@ use crate::{domain::Domain, prelude::Preset, store::Store};
 /// A header inside a static storage slot.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Header(
-    // NOTE(invariant): This `u8` should never be accessed non-atomically, and it must be valid to
-    // transmute to a `InitializeStage`.
-    AtomicU8,
-);
+// NOTE(invariant): The atomic byte always contains a valid `InitializationStage` discriminant.
+pub struct Header(AtomicU8);
 
 impl Header {
     /// Determine the stored [`InitializationStage`] in the header.
@@ -91,7 +88,7 @@ impl Header {
 pub enum InitializationStage {
     /// The static storage remains uninitialized.
     #[default]
-    // NOTE(invariant): Must be zero to match with hardcoded inline assembly.
+    // NOTE: The zero discriminant matches the hardcoded storage assembly.
     Uninitialized = 0,
 
     /// Another thread is initializing the static storage.
@@ -157,12 +154,9 @@ impl InitializationStage {
 /// turn makes it ideal for dealing with statics in const-eval.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[repr(transparent)]
-pub struct Allocation<T>(
-    // NOTE(invariant): This type has the same layout and bit validity as
-    // `usize`.
-    usize,
-    marker::PhantomData<fn() -> T>,
-)
+// NOTE(invariant): The stored offset reaches the aligned `Container<T>` emitted for this storage
+// allocation.
+pub struct Allocation<T>(usize, marker::PhantomData<fn() -> T>)
 where
     T: Store;
 
@@ -253,14 +247,18 @@ where
 
 /// A container for generic static storage.
 #[repr(C, packed)]
+// NOTE(invariant): The header tracks initialization of the adjacent `value_storage` for the same
+// static allocation.
 pub struct Container<T>
 where
     T: Store,
 {
     /// The heads-first inline storage for `T`.
+    // NOTE(rationale): Static and zeroed storage paths require crate-wide access to this field.
     pub(crate) value_storage: UnsafeCell<MaybeUninit<T>>,
 
     /// The initialization header of the storage.
+    // NOTE(rationale): Static and zeroed storage paths require crate-wide access to this field.
     pub(crate) value_header: Header,
 }
 
@@ -349,6 +347,7 @@ where
 /// [`TypeId::of<T>`]: any::TypeId::of
 #[unsafe(link_section = concat!(env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".offset"))]
 #[unsafe(naked)]
+// NOTE(rationale): The architecture storage symbol is shared with its parent module.
 pub(super) unsafe extern "C" fn storage<T>() -> !
 where
     T: Store,

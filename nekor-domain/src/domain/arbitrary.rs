@@ -18,6 +18,7 @@ impl<T> Tiable for T where T: ?Sized + 'static {}
 
 /// A [`Domain`] that ties static storage to the `T` type.
 #[repr(transparent)]
+// NOTE(invariant): The marker preserves `T` as domain identity without storing or owning a `T`.
 pub struct Arbitrary<T>(marker::PhantomData<fn() -> T>)
 where
     T: Tiable;
@@ -34,11 +35,8 @@ where
 
 /// The [`Adapter`] pertinent to the [`Arbitrary`] [`Domain`].
 #[repr(transparent)]
-pub struct Arbitrarily<T, S>(
-    // NOTE(invariant): Must be `repr(transparent)` over `S`.
-    S,
-    marker::PhantomData<fn() -> T>,
-)
+// NOTE(invariant): The adapter is transparent over `S` while `T` contributes only domain identity.
+pub struct Arbitrarily<T, S>(S, marker::PhantomData<fn() -> T>)
 where
     T: Tiable,
     S: Store;

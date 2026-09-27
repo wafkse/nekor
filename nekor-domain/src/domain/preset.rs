@@ -19,6 +19,7 @@ impl Domain for Preset {
 /// The adaptor type for the [`Preset`] domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The adapter has exactly the representation and validity of its stored `T`.
 pub struct Included<T>(T)
 where
     T: Store;

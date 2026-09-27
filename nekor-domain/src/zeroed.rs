@@ -172,11 +172,8 @@ where
 
 /// The [`Adapter`] transparent type for the [`AlwaysZeroed`] domain.
 #[repr(transparent)]
-struct ForZeroed<T, D>(
-    // NOTE(invariant): Must be `transparent` over the `T` field.
-    T,
-    marker::PhantomData<fn() -> D>,
-)
+// NOTE(invariant): The adapter is transparent over `T` while `D` contributes only domain identity.
+struct ForZeroed<T, D>(T, marker::PhantomData<fn() -> D>)
 where
     T: Store,
     D: Domain;

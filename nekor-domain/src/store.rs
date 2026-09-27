@@ -191,7 +191,7 @@ impl Static {
         value_header
     }
 
-    /// Determine the initialization [`Stage`] of `T` pertaining to the default
+    /// Determine the initialization [`InitializationStage`] of `T` pertaining to the default
     /// ([`Preset`]) [`Domain`].
     #[inline]
     #[must_use]
@@ -202,7 +202,7 @@ impl Static {
         Self::raw_stage_in::<T, Preset>()
     }
 
-    /// Determine the initialization [`Stage`] of `T` pertaining to the
+    /// Determine the initialization [`InitializationStage`] of `T` pertaining to the
     /// [`Domain`] `D`.
     #[inline]
     #[must_use]
@@ -317,14 +317,9 @@ impl Static {
         /// superceded.
         ///
         /// [`forget`]: core::mem::forget
+        // NOTE(invariant): A false disarm flag means dropping the guard must restore the header to
+        // the uninitialized stage.
         struct Guard<'a>(&'a Header, bool);
-
-        impl Guard<'_> {
-            #[inline]
-            const fn disarm(&mut self) {
-                self.1 = true;
-            }
-        }
 
         impl Drop for Guard<'_> {
             #[inline]
@@ -358,7 +353,9 @@ impl Static {
 
                 // NOTE(drop): No failure point remains, so explicitly disarm
                 // the `Guard` before it is dropped.
-                target_guard.disarm();
+                let &mut Guard(_, ref mut disarmed) = &mut target_guard;
+
+                *disarmed = true;
 
                 // SAFETY: The value associated has been initialized.
                 unsafe { value_header.store(InitializationStage::Initialized) };

@@ -26,9 +26,8 @@ use crate::{
 ///
 /// This has the same exact layout as [`AtomicPtr`].
 #[repr(transparent)]
+// NOTE(invariant): The cached pointer is null or addresses the static `T` storage selected by `D`.
 pub struct Lazy<T, D = Preset>(
-    // NOTE(invariant): The `AtomicPtr` must be a valid pointer with a lifetime
-    // of `'static`.
     AtomicPtr<T>,
     // NOTE(variance): This is explicitly invariant for `D`.
     marker::PhantomData<fn() -> D>,
@@ -162,12 +161,9 @@ where
 
 /// A lazy smart pointer for a type `T` whose [`Domain`] has been type-erased.
 #[derive(Debug)]
-pub struct Erased<T>(
-    // NOTE(invariant): `fn pointer` is a monomorphization of
-    // `Static::value_default_in` for pair `(T, D)`
-    fn() -> &'static T,
-    AtomicPtr<T>,
-)
+// NOTE(invariant): The constructor selects static `T` storage for the erased domain, and the cached
+// pointer is null or addresses that same storage.
+pub struct Erased<T>(fn() -> &'static T, AtomicPtr<T>)
 where
     T: Store + Default;
 
