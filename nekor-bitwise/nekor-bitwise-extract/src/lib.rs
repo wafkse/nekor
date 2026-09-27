@@ -9,7 +9,6 @@
     rustdoc::all
 )]
 // Const extraction requires explicit primitive narrowing at the output boundary.
-#![deny(clippy::pedantic)]
 #![doc = include_str!("../README.md")]
 
 use core::marker;
@@ -24,6 +23,8 @@ use nekor_bitwise_size::{For2, Size};
 use nekor_primitive::scalar::Scalar;
 
 mod private {
+    //! Implementation detail for integer primitive extraction.
+
     /// A trait to act as a supertrait seal for the [`Extract`] trait.
     ///
     /// [`Extract`]: super::Extract

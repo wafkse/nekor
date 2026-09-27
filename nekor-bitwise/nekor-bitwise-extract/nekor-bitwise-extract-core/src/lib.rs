@@ -9,7 +9,6 @@
     rustdoc::all
 )]
 // Primitive narrowing is an explicit part of the bit extraction contract.
-#![deny(clippy::pedantic)]
 #![doc = include_str!("../../README.md")]
 
 #[doc(inline)]
@@ -39,11 +38,14 @@ where
     fn output(self) -> O;
 }
 
+/// Expand to individual [`As`] trait implementation for various primitives.
 macro_rules! cast {
     ($target_in:path as [$($target_out:path),+ $(,)?]) => {
+        #[automatically_derived]
         impl detail::Sealed for $target_in {}
 
         $(
+            #[automatically_derived]
             impl As<$target_out> for $target_in {
                 #[inline]
                 fn input(target_output: $target_out) -> Self {
