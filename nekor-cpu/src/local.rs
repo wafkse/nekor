@@ -13,6 +13,7 @@ use crate::{limit::Cores, prelude::CoreId};
 /// A transparent wrapper over a value that is known to be cpu-local.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The private marker keeps the wrapped value tied to its CPU-local context.
 pub struct Local<T>(T, marker::PhantomData<fn() -> *mut T>);
 
 impl<T> Deref for Local<T> {
@@ -20,14 +21,18 @@ impl<T> Deref for Local<T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        let Self(target_value, ..) = self;
+
+        target_value
     }
 }
 
 impl<T> DerefMut for Local<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        let &mut Self(ref mut target_value, ..) = self;
+
+        target_value
     }
 }
 
@@ -37,6 +42,7 @@ impl<T> DerefMut for Local<T> {
 /// [`Local`] type.
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): Each array position is distinct per-CPU storage and may remain uninitialized.
 pub struct PerCpu<T>([CachePadded<MaybeUninit<T>>; NonZero::get(Cores::maximum())])
 where
     T: Zeroable;
@@ -62,9 +68,11 @@ where
     /// [`CoreId`].
     #[inline]
     pub fn core(&self, target_core: CoreId) -> &CachePadded<MaybeUninit<T>> {
+        let Self(target_storage) = self;
+
         // SAFETY: `core_id` is always in the range `0..Cores::maximum()`, and
         // therefore always in range.
-        unsafe { self.0.get_unchecked(*target_core) }
+        unsafe { target_storage.get_unchecked(*target_core) }
     }
 }
 

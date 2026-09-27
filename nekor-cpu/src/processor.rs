@@ -25,14 +25,15 @@ pub enum Reutilization {
 /// This also serves as a central authority over [`CoreId`] initialization.
 #[derive(Debug)]
 #[repr(transparent)]
+// NOTE(invariant): The atomic counter allocates core identifiers below the configured maximum.
 pub struct Handout(AtomicUsize);
 
-// SAFETY: `HandoutId` is `repr(transparent)` over `AtomicUsize`, which is
+// SAFETY: `Handout` is `repr(transparent)` over `AtomicUsize`, which is
 // intrinsically `Zeroable`.
 unsafe impl Zeroable for Handout {}
 
 impl Handout {
-    /// Determine the global instance of this [`HandoutId`].
+    /// Determine the global instance of this [`Handout`].
     #[inline]
     #[must_use]
     pub fn global() -> &'static Self {
@@ -50,7 +51,7 @@ impl Handout {
     /// - The [`CoreId`] is written to the per-CPU [`Area`] structure.
     #[inline]
     pub unsafe fn acquire(&self) -> Option<CoreId> {
-        let target_counter = &self.0;
+        let Self(target_counter) = self;
 
         let mut target_value = target_counter.load(Ordering::Acquire);
 
@@ -76,7 +77,8 @@ impl Handout {
     /// Revoke the target [`CoreId`] from the system.
     ///
     /// This will attempt to reutilize the revoked identifier as possible,
-    /// signaling it in its return value.
+    /// signaling it in its return value. Reutilization succeeds only when the
+    /// identifier is the last one issued at the atomic update.
     ///
     /// # Safety
     ///
@@ -85,26 +87,21 @@ impl Handout {
     /// is assigned to it.
     #[inline]
     pub unsafe fn revoke(&self, target_id: CoreId) -> Reutilization {
-        let target_counter = &self.0;
+        let Self(handout_variable) = self;
 
-        let CoreId(revoked_id) = target_id;
+        let CoreId(target_id) = target_id;
 
-        if revoked_id == 0 {
-            Reutilization::Impossible
-        } else {
-            let snapshot_value = target_counter.load(Ordering::Acquire);
+        let Some(expected_state) = target_id.checked_add(1) else {
+            return Reutilization::Impossible;
+        };
 
-            // NOTE(underflow): Will never underflow due to previous
-            // preliminary check.
-            if (snapshot_value - 1) == revoked_id {
-                target_counter.fetch_sub(1, Ordering::AcqRel);
+        if target_id == 0 {
+            return Reutilization::Impossible;
+        }
 
-                Reutilization::Yes
-            } else {
-                // NOTE: Missed the slim chance to decrement the counter
-                // back.
-                Reutilization::Impossible
-            }
+        match handout_variable.compare_exchange(expected_state, target_id, Ordering::AcqRel, Ordering::Relaxed) {
+            Ok(..) => Reutilization::Yes,
+            Err(..) => Reutilization::Impossible,
         }
     }
 }
@@ -112,6 +109,7 @@ impl Handout {
 /// The unique numeric identifier of a single processor core.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The stored identity comes from the handout counter or the current per-CPU area.
 pub struct CoreId(usize);
 
 impl CoreId {
@@ -128,9 +126,37 @@ impl Deref for CoreId {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        let Self(target_id) = self;
+
+        target_id
     }
 }
 
 // SAFETY: `CoreId` is transparent over `usize`, which is `Zeroable`.
 unsafe impl Zeroable for CoreId {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn revoke_only_reuses_the_last_issued_nonzero_id() {
+        let handout = Handout(AtomicUsize::new(4));
+
+        let Handout(target_counter) = &handout;
+
+        // SAFETY: The synthetic IDs in this test have no online processor owners.
+        assert_eq!(unsafe { handout.revoke(CoreId(2)) }, Reutilization::Impossible);
+        assert_eq!(target_counter.load(Ordering::Relaxed), 4);
+
+        // SAFETY: The synthetic ID has no online processor owner.
+        assert_eq!(unsafe { handout.revoke(CoreId(3)) }, Reutilization::Yes);
+        assert_eq!(target_counter.load(Ordering::Relaxed), 3);
+
+        // SAFETY: The synthetic IDs have no online processor owners.
+        assert_eq!(unsafe { handout.revoke(CoreId(0)) }, Reutilization::Impossible);
+        // SAFETY: The synthetic ID has no online processor owner.
+        assert_eq!(unsafe { handout.revoke(CoreId(usize::MAX)) }, Reutilization::Impossible);
+        assert_eq!(target_counter.load(Ordering::Relaxed), 3);
+    }
+}

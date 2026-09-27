@@ -20,6 +20,7 @@ impl Domain for Cpu {
 /// An [`Adapter`] for the [`Cpu`]-local domain.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
+// NOTE(invariant): The wrapped storage remains associated with the CPU domain adapter.
 pub struct InCpu<T>(T)
 where
     T: Store;
