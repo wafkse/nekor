@@ -51,7 +51,6 @@ macro_rules! cast {
                 }
 
                 #[inline]
-                #[allow(clippy::cast_possible_truncation)]
                 fn output(self) -> $target_out {
                     self as $target_out
                 }
