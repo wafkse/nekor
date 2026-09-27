@@ -2,10 +2,11 @@ use core::marker;
 
 use crate::bit::Bitwise;
 
-/// A newtype that validates that a bit indice [`Selected::0`] is indeed valid
+/// A newtype that validates that a stored bit index is indeed valid
 /// for an integer of type `B`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 #[repr(transparent)]
+// NOTE(invariant): The stored bit index is strictly less than `B::BITS`.
 pub struct Selected<B>(u32, marker::PhantomData<B>)
 where
     B: Bitwise;
@@ -75,10 +76,11 @@ where
     }
 }
 
-/// A newtype that validates that a bit interval [`Interval::0`] is indeed valid
+/// A newtype that validates that a stored bit interval is indeed valid
 /// for an integer of type `B`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
+// NOTE(invariant): The stored interval has `start < end`, and both endpoints are within `B::BITS`.
 pub struct Interval<B>((u32, u32), marker::PhantomData<B>)
 where
     B: Bitwise;

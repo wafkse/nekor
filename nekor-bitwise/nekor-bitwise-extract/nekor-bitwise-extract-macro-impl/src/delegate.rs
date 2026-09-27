@@ -15,6 +15,8 @@ use syn::{
 use crate::primitive::Primitive;
 
 /// The input macro structure expected by the `metadata` proc-macro.
+// NOTE(invariant): The primitive, generated trait name, and delegated implementations all come
+// from the same parsed delegation directive.
 pub struct Delegate {
     /// A marker token (`become`) to indicate whether to include the
     /// implementation `detail` module.
@@ -138,6 +140,7 @@ impl Parse for Delegate {
 }
 
 /// A single delegated trait implementation.
+// NOTE(invariant): The primitive and delegate trait name form the same parsed delegation entry.
 pub struct DelegateTraitImpl {
     /// The primitive type that this trait implementation is for.
     primitive_type: Primitive,
@@ -201,6 +204,7 @@ impl Parse for DelegateTraitImpl {
 
 /// A list of delegated traits.
 #[repr(transparent)]
+// NOTE(invariant): The punctuated list preserves the source order of delegation entries.
 pub struct DelegatedList(Punctuated<DelegateTraitImpl, Token![,]>);
 
 impl Parse for DelegatedList {

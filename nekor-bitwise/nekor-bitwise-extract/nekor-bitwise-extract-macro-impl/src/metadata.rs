@@ -11,6 +11,8 @@ use crate::primitive::Primitive;
 
 /// The input macro structure expected by the `metadata` proc-macro.
 #[derive(Clone)]
+// NOTE(invariant): The stored primitive pair and trait name belong to the same parsed metadata
+// invocation, and `become_token` records whether that invocation requested sealing support.
 pub struct Metadata {
     /// A marker token to indicate whether to include a `detail::Sealed` trait
     /// in the output.

@@ -79,6 +79,8 @@ pub trait Extract<const N: usize, const M: usize>: Scalar + private::Sealed {
 /// A helper type to make use of the [`Extract`] trait const-fn compatible.
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): The marker carries the extractor input type while `N` and `M` select the
+// compile-time extraction range without runtime state.
 pub struct Extractor<const N: usize, const M: usize, E, O = <Size as For2<N, M>>::Target>(
     marker::PhantomData<fn() -> E>,
 )

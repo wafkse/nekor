@@ -28,6 +28,8 @@ use crate::{implement::BitRanges, primitive::Primitive};
 /// ```text
 /// u16 use MetadataU16 become [u8, u16]
 /// ```
+// NOTE(invariant): The target type, source trait, and output types belong to the same parsed
+// forwarding directive.
 pub struct Forwarded {
     /// The target type for which to generate the forwarded implementation.
     target_type: Primitive,
@@ -243,6 +245,7 @@ impl Extract {
                             .last()
                             .map_or_else(|| "trait".to_string(), |seg| seg.ident.to_string());
                         let module_name_str = format!("__extract_{type_name}_{trait_name}");
+
                         Ident::new(&module_name_str, Span::call_site())
                     };
 

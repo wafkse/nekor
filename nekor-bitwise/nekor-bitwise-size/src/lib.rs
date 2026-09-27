@@ -21,7 +21,7 @@ use nekor_primitive::scalar::Scalar;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum Size {
-    /// The sole variant is impossible to construct because [`Infallible`] is
+    /// The sole variant is impossible to construct because [`core::convert::Infallible`] is
     /// uninhabited.
     #[doc(hidden)]
     __Variant(core::convert::Infallible),

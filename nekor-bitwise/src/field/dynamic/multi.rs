@@ -12,10 +12,9 @@ use crate::{
 };
 
 /// A managed immutable handle to a runtime-selected bit field in `B`.
-// NOTE(invariant): The stored interval proves every selected index is valid for
-// `B`. Its width cannot exceed `B::BITS`, so biasing those bits to indices
-// starting at zero also remains within the bitwise bounds of `B`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+// NOTE(invariant): The stored interval proves every selected index is valid for `B`; its width is
+// also bounded by `B::BITS`, so rebasing the field at zero remains in bounds.
 pub struct FieldDyn<'a, B>(&'a B, Interval<B>)
 where
     B: BitOp;
@@ -61,6 +60,7 @@ where
     fn extract(target_value: &B, target_interval: Interval<B>) -> B {
         let output_zero = Selected::<B>::new(0);
         let mut target_output = <B as BitOp>::single(output_zero);
+
         _ = <B as BitOp>::set(&mut target_output, output_zero, State::Cleared);
 
         let mut source_index = target_interval.start();
@@ -91,10 +91,9 @@ where
 }
 
 /// A managed mutable handle to a runtime-selected bit field in `B`.
-// NOTE(invariant): The stored interval proves every selected index is valid for
-// `B`. Its width cannot exceed `B::BITS`, so biasing those bits to indices
-// starting at zero also remains within the bitwise bounds of `B`.
 #[derive(Debug, Eq, PartialEq)]
+// NOTE(invariant): The stored interval proves every selected index is valid for `B`; its width is
+// also bounded by `B::BITS`, so rebasing the field at zero remains in bounds.
 pub struct FieldDynMut<'a, B>(&'a mut B, Interval<B>)
 where
     B: BitOp;
@@ -143,6 +142,7 @@ where
     #[must_use]
     pub fn merge(&mut self, target_input: B) -> B {
         let &mut Self(ref mut target_value, target_interval) = self;
+
         let previous_value = FieldDyn::<B>::extract(target_value, target_interval);
         let mut target_index = target_interval.start();
         let mut input_index = 0;

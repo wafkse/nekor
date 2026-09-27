@@ -1,11 +1,12 @@
 //! Single-bit bitwise fields for an already-existing integer.
 //!
-//! See [`BitDyn`] and [`BitMutDyn`] for additional information.
+//! See [`BitDyn`] and [`BitDynMut`] for additional information.
 
 use crate::{bit::BitOp, field::dynamic::select::Selected, prelude::State};
 
 /// A managed immutable handle to a bit in the integer `B`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
+// NOTE(invariant): The stored `Selected<B>` proves the selected bit is within the borrowed value.
 pub struct BitDyn<'a, B>(&'a B, Selected<B>)
 where
     B: BitOp;
@@ -82,6 +83,7 @@ where
 
 /// A managed mutable handle to a bit in the integer `B`.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+// NOTE(invariant): The stored `Selected<B>` proves the selected bit is within the borrowed value.
 pub struct BitDynMut<'a, B>(&'a mut B, Selected<B>)
 where
     B: BitOp;

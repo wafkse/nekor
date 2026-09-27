@@ -78,6 +78,8 @@ pub type U128High64Mut<'value> = <U128High64<'value> as Counterpart>::Mut;
 ///
 /// These are identical in function prototype, modulo *constness* coloring.
 #[repr(transparent)]
+// NOTE(invariant): The `Extract<N, M>` bound fixes a valid field and its output representation for
+// the borrowed value.
 pub struct Field<'a, const N: usize, const M: usize, E, O = <Size as For2<N, M>>::Target>(
     &'a E,
     marker::PhantomData<fn() -> O>,
@@ -262,6 +264,8 @@ field!(u128 for [u8, u16, u32, u64, u128]);
 ///
 /// These are identical in function prototype, modulo *constness* coloring.
 #[repr(transparent)]
+// NOTE(invariant): The `Extract<N, M>` bound fixes a valid field and its output representation for
+// the mutably borrowed value.
 pub struct FieldMut<'a, const N: usize, const M: usize, E, O = <Size as For2<N, M>>::Target>(
     &'a mut E,
     marker::PhantomData<fn() -> O>,
@@ -475,42 +479,52 @@ mod tests {
     #[test]
     fn mutable_half_aliases_merge_without_touching_the_other_half() {
         let mut value = 0xa5_u8;
+
         U8Low4Mut::wrap(&mut value).const_merge(0x3);
         assert_eq!(value, 0xa3);
 
         let mut value = 0x1234_u16;
+
         U16High8Mut::wrap(&mut value).const_merge(0xab);
         assert_eq!(value, 0xab34);
 
         let mut value = 0x1234_5678_u32;
+
         U32Low16Mut::wrap(&mut value).const_merge(0xabcd);
         assert_eq!(value, 0x1234_abcd);
 
         let mut value = 0x1234_5678_9abc_def0_u64;
+
         U64High32Mut::wrap(&mut value).const_merge(0xabcd_ef01);
         assert_eq!(value, 0xabcd_ef01_9abc_def0);
 
         let mut value = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210_u128;
+
         U128Low64Mut::wrap(&mut value).const_merge(0x1111_2222_3333_4444);
         assert_eq!(value, 0x0123_4567_89ab_cdef_1111_2222_3333_4444);
 
         let mut value = 0_u8;
+
         U8High4Mut::wrap(&mut value).const_merge(0x5);
         assert_eq!(value, 0x50);
 
         let mut value = 0_u16;
+
         U16Low8Mut::wrap(&mut value).const_merge(0x6);
         assert_eq!(value, 0x0006);
 
         let mut value = 0_u32;
+
         U32High16Mut::wrap(&mut value).const_merge(0x1234);
         assert_eq!(value, 0x1234_0000);
 
         let mut value = 0_u64;
+
         U64Low32Mut::wrap(&mut value).const_merge(0x5678_9abc);
         assert_eq!(value, 0x0000_0000_5678_9abc);
 
         let mut value = 0_u128;
+
         U128High64Mut::wrap(&mut value).const_merge(0x0123_4567_89ab_cdef);
         assert_eq!(value, 0x0123_4567_89ab_cdef_0000_0000_0000_0000);
     }

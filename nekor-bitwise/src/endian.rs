@@ -35,6 +35,7 @@ endian![i8, i16, i32, i64, i128];
 /// no-op.
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
+// NOTE(invariant): The stored primitive is interpreted as a little-endian encoded value.
 pub struct Le<T>(T)
 where
     T: Endian;
@@ -108,6 +109,7 @@ le![i8, i16, i32, i64, i128];
 /// On platforms where big-endian is the de-facto endianess, this is a no-op.
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
+// NOTE(invariant): The stored primitive is interpreted as a big-endian encoded value.
 pub struct Be<T>(T)
 where
     T: Endian;

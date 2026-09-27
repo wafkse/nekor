@@ -10,6 +10,7 @@ use crate::{
 /// A managed immutable handle to the `N`-th bit in the type `I`.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): The `BitAt<N>` bound proves that `N` names a valid bit in the borrowed value.
 pub struct Bit<'a, I, const N: usize>(&'a I)
 where
     I: BitAt<N>;
@@ -70,6 +71,7 @@ where
 /// A managed mutable handle to the `N`-th bit in the type `I`.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
+// NOTE(invariant): The `BitAt<N>` bound proves that `N` names a valid bit in the borrowed value.
 pub struct BitMut<'a, I, const N: usize>(&'a mut I)
 where
     I: BitAt<N>;

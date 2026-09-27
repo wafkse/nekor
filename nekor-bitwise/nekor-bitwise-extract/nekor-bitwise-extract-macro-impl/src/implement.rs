@@ -12,6 +12,8 @@ use syn::{
 use crate::primitive::Primitive;
 
 /// An iterator over the bit ranges of an input-output type 2-tuple.
+// NOTE(invariant): When present, `state_end_index` stores the current inclusive end plus one, and
+// the current range fits both the input width and output width.
 pub struct BitRanges {
     /// The input type to the range.
     range_input: Primitive,
@@ -111,6 +113,8 @@ impl Iterator for BitRanges {
 
 /// The input macro structure expected by the `implement`  proc-macro.
 #[derive(Clone)]
+// NOTE(invariant): The stored primitive pair and trait name belong to the same parsed implement
+// invocation, and `become_token` records whether that invocation requested sealing support.
 pub struct Implement {
     /// A marker token to indicate whether to include a `detail::Sealed` trait
     /// in the output.

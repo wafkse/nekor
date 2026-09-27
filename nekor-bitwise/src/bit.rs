@@ -136,6 +136,8 @@ pub trait BitAt<const N: usize>: Bitwise {
 }
 
 /// A helper type to make use of the [`BitAt`] trait const-fn compatible.
+// NOTE(invariant): The phantom type is constrained to implement `BitAt<N>` for this exact bit
+// index.
 pub struct BitAtExtractor<const N: usize, P>(marker::PhantomData<P>)
 where
     P: BitAt<N>;
@@ -194,13 +196,13 @@ macro_rules! bits {
         {
             const TARGET_MASK: $target_type = 1 << N;
 
-            /// A const-fn version of the [`Bits::single`] associated function.
+            /// A const-fn version of the [`BitAt::single`] associated function.
             #[inline]
             pub const fn single() -> $target_type {
                 Self::TARGET_MASK
             }
 
-            /// A const-fn version of the [`Bits::set`] associated function.
+            /// A const-fn version of the [`BitAt::set`] associated function.
             #[inline]
             pub const fn set(target_value: &mut $target_type, target_state: State) -> State {
                 let set_state = Self::get(target_value);
@@ -218,7 +220,7 @@ macro_rules! bits {
                 set_state
             }
 
-            /// A const-fn version of the [`Bits::get`] associated function.
+            /// A const-fn version of the [`BitAt::get`] associated function.
             #[inline]
             pub const fn get(target_value: &$target_type) -> State {
                 let target_bit = *target_value & Self::TARGET_MASK;
@@ -229,7 +231,7 @@ macro_rules! bits {
                 }
             }
 
-            /// A const-fn version of the [`Bits::toggle`] associated function.
+            /// A const-fn version of the [`BitAt::toggle`] associated function.
             #[inline]
             pub const fn toggle(target_value: &mut $target_type) -> State {
                 let target_state = Self::get(target_value);
