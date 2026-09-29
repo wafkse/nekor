@@ -702,6 +702,9 @@ dependencies = [
 [[package]]
 name = "nekor-domain"
 version = "0.1.0"
+dependencies = [
+ "nekor-miri",
+]
 
 [[package]]
 name = "nekor-executor"
@@ -709,12 +712,17 @@ version = "0.1.0"
 dependencies = [
  "nekor-aal",
  "nekor-domain",
+ "nekor-miri",
  "nekor-structure",
  "nekor-sync",
 ]
 
 [[package]]
 name = "nekor-hal"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-miri"
 version = "0.1.0"
 
 [[package]]

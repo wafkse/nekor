@@ -25,6 +25,7 @@ members = [
   "nekor-domain",
   "nekor-executor",
   "nekor-hal",
+  "nekor-miri",
   "nekor-platform",
   "nekor-primitive",
   "nekor-project",
@@ -107,6 +108,7 @@ nekor-boot = { path = "boot/nekor-boot" }
 nekor-cpu = { path = "nekor-cpu" }
 nekor-executor = { path = "nekor-executor" }
 nekor-hal = { path = "nekor-hal" }
+nekor-miri = { path = "nekor-miri" }
 nekor-platform = { path = "nekor-platform" }
 nekor-project = { path = "nekor-project" }
 nekor-register = { path = "nekor-register" }
