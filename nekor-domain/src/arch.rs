@@ -221,7 +221,7 @@ where
     where
         D: Domain,
     {
-        let slab = self::miri::Slab::find_or_create::<T>();
+        let slab = self::miri::Slab::find_or_create::<D::Adapter<T>>();
 
         let storage = slab.storage();
 
