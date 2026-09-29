@@ -37,6 +37,9 @@ nekor-sync = { workspace = true }
 nekor-domain = { workspace = true }
 nekor-aal = { workspace = true }
 
+[dev-dependencies]
+nekor-miri = { workspace = true }
+
 
 [lints]
 workspace = true

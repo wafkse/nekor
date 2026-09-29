@@ -378,12 +378,26 @@ mod tests {
         RawWakerVTable::new(clone, wake, wake, drop)
     };
 
+    fn leak<T>(value: Box<T>) -> &'static mut T
+    where
+        T: 'static,
+    {
+        #[cfg(miri)]
+        {
+            nekor_miri::memory::leak(value)
+        }
+        #[cfg(not(miri))]
+        {
+            Box::leak(value)
+        }
+    }
+
     fn list() -> &'static WakeList {
-        Box::leak(Box::new(WakeList::new()))
+        leak(Box::new(WakeList::new()))
     }
 
     fn node() -> Pin<&'static mut WakeNode> {
-        let target_node = Box::leak(Box::new(WakeNode::new()));
+        let target_node = leak(Box::new(WakeNode::new()));
 
         // SAFETY: The leaked node has static storage and cannot be moved through
         // any other safe reference after this unique reference is consumed.
@@ -391,7 +405,7 @@ mod tests {
     }
 
     fn counter() -> &'static CountingWake {
-        Box::leak(Box::new(CountingWake(AtomicUsize::new(usize::MIN))))
+        leak(Box::new(CountingWake(AtomicUsize::new(usize::MIN))))
     }
 
     fn target(target_counter: &'static CountingWake) -> WakeTarget {
