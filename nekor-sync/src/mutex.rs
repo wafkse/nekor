@@ -7,8 +7,6 @@ pub mod lock_state;
 use core::cell::UnsafeCell;
 
 use nekor_aal_cache::padded::CachePadded;
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-use nekor_aal_cache::padded::CachePadded;
 
 use crate::mutex::{
     guard::{Guard, RawMutexGuard},
