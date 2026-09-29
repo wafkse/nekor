@@ -392,6 +392,7 @@ pub(crate) mod miri {
     //! Miri is unable to interpret code uses inline assembly.
 
     use core::{
+        alloc::Layout,
         any::TypeId,
         cell::UnsafeCell,
         mem::{self, MaybeUninit},
@@ -399,25 +400,9 @@ pub(crate) mod miri {
         sync::atomic::{AtomicPtr, Ordering},
     };
 
+    use nekor_miri::memory::Allocation;
+
     use crate::{arch::Container, store::Store};
-
-    // NOTE: Copied verbatim off the `miri` repository.
-    unsafe extern "Rust" {
-        /// Miri-provided extern function to allocate memory from the
-        /// interpreter.
-        ///
-        /// This is useful when no fundamental way of allocating memory is
-        /// available, e.g. when using `no_std` + `alloc`.
-        pub fn miri_alloc(size: usize, align: usize) -> *mut u8;
-
-        /// Miri-provided extern function to mark the block `ptr` points to as a
-        /// "root" for some static memory. This memory and everything
-        /// reachable by it is not considered leaking even if it still
-        /// exists when the program terminates.
-        ///
-        /// `ptr` has to point to the beginning of an allocated block.
-        pub fn miri_static_root(ptr: *const u8);
-    }
 
     /// A slab allocator for specializing Miri support into the `nekor-domain`
     /// subsystem.
@@ -472,6 +457,7 @@ pub(crate) mod miri {
     }
 
     impl Slab {
+        /// Return the permanent list head.
         #[inline]
         const fn global() -> &'static Self {
             static GLOBAL_SLAB: Slab = Slab::restricted();
@@ -502,47 +488,46 @@ pub(crate) mod miri {
             }
         }
 
-        fn instance<T>() -> &'static Self
+        /// Allocate an unpublished candidate for one storage key.
+        fn instance<T>() -> Candidate
         where
             T: Store,
         {
             let type_id = TypeId::of::<T>();
 
-            // SAFETY: Safe, only requires unsafe due to being inside an
-            // `extern` block. Size and alignment are correctly specified.
-            let slab_alloc: &'static mut MaybeUninit<Slab> = unsafe {
-                let alloc_ptr =
-                    NonNull::new(miri_alloc(mem::size_of::<Slab>(), mem::align_of::<Slab>())).expect("allocate");
-
-                miri_static_root(alloc_ptr.as_ptr().cast_const());
-
-                alloc_ptr.cast::<MaybeUninit<Slab>>().as_mut()
-            };
+            let layout = Layout::new::<Slab>();
+            let slab = Allocation::new(layout).expect("allocate slab");
 
             let next_slab = AtomicPtr::new(ptr::null_mut());
 
-            let storage = Storage::allocate::<T>();
+            let (storage, storage_allocation) = Storage::allocate::<T>();
 
-            slab_alloc.write(Self {
-                next_slab,
-                type_id,
-                storage,
-            })
+            // SAFETY: The allocation has the Slab layout and remains owned by the candidate.
+            unsafe {
+                slab.pointer()
+                    .cast::<MaybeUninit<Slab>>()
+                    .as_ptr()
+                    .write(MaybeUninit::new(Self {
+                        next_slab,
+                        type_id,
+                        storage,
+                    }))
+            };
+
+            Candidate {
+                slab,
+                storage: storage_allocation,
+            }
         }
 
         /// Attempt to chain a new [`Slab`] to the list.
         ///
         /// - [`None`] if the chaining operation was successful.
         /// - [`Some`] if the chaining operation failed, with the new [`Slab`].
-        fn chain(&self, slab: &'static Slab) -> Option<&'static Self> {
+        fn chain(&self, slab: *mut Slab) -> Option<&'static Self> {
             let &Self { ref next_slab, .. } = self;
 
-            match next_slab.compare_exchange(
-                ptr::null_mut(),
-                slab as *const _ as *mut _,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
+            match next_slab.compare_exchange(ptr::null_mut(), slab, Ordering::AcqRel, Ordering::Acquire) {
                 Ok(..) => None,
                 Err(actual_next) => {
                     // SAFETY: Pointer has been checked to be non-null.
@@ -567,6 +552,7 @@ pub(crate) mod miri {
             type_id == TypeId::of::<T>()
         }
 
+        /// Traverse the next published slab using acquire ordering.
         fn next_in_line(&self) -> Option<&'static Self> {
             let &Self { ref next_slab, .. } = self;
 
@@ -587,8 +573,9 @@ pub(crate) mod miri {
     }
 
     impl Slab {
+        /// Return the type-erased storage for this slab.
         #[inline]
-        pub const fn storage<'a>(&'a self) -> &'a Storage {
+        pub const fn storage(&self) -> &Storage {
             let &Self { ref storage, .. } = self;
 
             storage
@@ -630,19 +617,15 @@ pub(crate) mod miri {
                     let new_slab = Slab::instance::<T>();
 
                     loop {
-                        match last_slab.chain(new_slab) {
+                        match last_slab.chain(new_slab.pointer()) {
                             Some(new_last) => {
                                 if new_last.is::<T>() {
-                                    // NOTE(leak): Leaked. Not a concern, as it
-                                    // is not accessible anymore.
-                                    let _ = new_last;
-
                                     break new_last;
                                 }
 
                                 last_slab = new_last
                             },
-                            None => break new_slab,
+                            None => break new_slab.publish(),
                         }
                     }
                 },
@@ -653,6 +636,34 @@ pub(crate) mod miri {
     // SAFETY: Synchronization is externally managed.
     unsafe impl Sync for Slab {}
 
+    /// Unpublished slab and storage, both owned until insertion succeeds.
+    struct Candidate {
+        /// Slab allocation containing initialized metadata.
+        slab: Allocation,
+
+        /// Backing allocation for the slab's storage.
+        storage: Allocation,
+    }
+
+    impl Candidate {
+        /// Return the unpublished slab's address without creating a static reference.
+        fn pointer(&self) -> *mut Slab {
+            let Self { slab, .. } = self;
+
+            slab.pointer().cast::<Slab>().as_ptr()
+        }
+
+        /// Root both allocations after the slab has been published by the CAS.
+        fn publish(self) -> &'static Slab {
+            let Self { slab, storage } = self;
+            storage.leak();
+            let pointer = slab.leak().cast::<Slab>();
+
+            // SAFETY: Both allocations are rooted and the slab has been initialized.
+            unsafe { pointer.as_ref() }
+        }
+    }
+
     /// A type-erased analog to [`Allocation`] that encodes a position-dependent
     /// offset to an [`Storage`] instance.
     ///
@@ -660,10 +671,12 @@ pub(crate) mod miri {
     #[repr(transparent)]
     pub struct TypelessAllocation(usize);
 
+    /// Address of the type-erased storage allocation.
     pub struct Storage(NonNull<TypelessAllocation>);
 
     impl Storage {
-        fn allocate<T>() -> Self
+        /// Allocate a storage image and keep its owner unpublished.
+        fn allocate<T>() -> (Self, Allocation)
         where
             T: Store,
         {
@@ -685,20 +698,11 @@ pub(crate) mod miri {
 
             let align_padding = mem::align_of::<Whole<T>>().saturating_sub(mem::size_of::<TypelessAllocation>());
 
-            // SAFETY: Safe, only requires unsafe due to being inside an `extern` block.
-            //
-            // Note that this follows the same alignment as `T`. The `Header` alignment is not
-            // required as it is a single byte and thus universally aligned.
-            let alloc_ptr = NonNull::new(unsafe { miri_alloc(alloc_size + align_padding, alloc_align) })
-                .expect("failed to alloc using built-in miri allocator");
+            let layout = Layout::from_size_align(alloc_size + align_padding, alloc_align).expect("storage layout");
+            let allocation = Allocation::new(layout).expect("allocate storage");
+            let alloc_ptr = allocation.pointer();
 
-            // SAFETY: The allocation behaves exactly like a regular `static`
-            // value. Also required to prevent memory leak errors at the end of
-            // the interpretation.
-            unsafe {
-                miri_static_root(alloc_ptr.as_ptr().cast_const());
-            };
-
+            // SAFETY: The allocation has enough size and alignment for Whole<T>.
             let uninit_whole = unsafe { alloc_ptr.cast::<MaybeUninit<UnsafeCell<Whole<T>>>>().as_mut() };
 
             let scratch = Whole {
@@ -709,19 +713,70 @@ pub(crate) mod miri {
 
             let target_whole = uninit_whole.write(UnsafeCell::new(scratch));
 
-            let allocation_handle =
-                unsafe { NonNull::new_unchecked(target_whole as *mut _ as *mut TypelessAllocation) };
+            let allocation_handle = NonNull::from(target_whole).cast::<TypelessAllocation>();
 
-            Self(allocation_handle)
+            (Self(allocation_handle), allocation)
         }
     }
 
     impl Storage {
+        /// Return the start of the type-erased storage image.
         #[inline]
         pub const fn allocation(&self) -> NonNull<TypelessAllocation> {
             let &Self(allocation_handle) = self;
 
             allocation_handle
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use core::ptr;
+        use std::{sync::Barrier, thread};
+
+        use super::Slab;
+        use crate::{arch::Container, domain::arbitrary::Arbitrary};
+
+        #[test]
+        fn domains_have_distinct_storage() {
+            struct First;
+            struct Second;
+
+            let first = Container::<u64>::address_in::<Arbitrary<First>>();
+            let second = Container::<u64>::address_in::<Arbitrary<Second>>();
+            assert!(!ptr::eq(first.as_ptr(), second.as_ptr()));
+            assert_eq!(first, Container::<u64>::address_in::<Arbitrary<First>>());
+        }
+
+        #[test]
+        fn competing_candidates_release_the_loser() {
+            struct Race;
+            let barrier = Barrier::new(2);
+
+            thread::scope(|scope| {
+                for _ in 0..2 {
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        let last = match Slab::find::<Race>() {
+                            Err(last) => last,
+                            Ok(_) => unreachable!(),
+                        };
+                        let candidate = Slab::instance::<Race>();
+                        barrier.wait();
+                        match last.chain(candidate.pointer()) {
+                            None => {
+                                let _published = candidate.publish();
+                            },
+                            Some(winner) => {
+                                assert!(winner.is::<Race>());
+                                drop(candidate);
+                            },
+                        }
+                    });
+                }
+            });
+
+            assert!(Slab::find::<Race>().is_ok());
         }
     }
 }

@@ -12,6 +12,7 @@ categories.workspace = true
 [features]
 
 [dependencies]
+nekor-miri = { workspace = true }
 
 [lints]
 workspace = true
