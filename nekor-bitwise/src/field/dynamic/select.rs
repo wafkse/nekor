@@ -15,11 +15,11 @@ impl<B> Selected<B>
 where
     B: Bitwise,
 {
-    /// Construct a [`Selected`] newtype for a target bit indice.
+    /// Construct a [`Selected`] newtype for a target bit index.
     ///
     /// # Panics
     ///
-    /// This will panic if the provided indice is not within the bitwise bounds
+    /// This will panic if the provided index is not within the bitwise bounds
     /// of the integer of type `B`.
     #[inline]
     #[must_use]
@@ -27,7 +27,7 @@ where
         Self::try_new(target_indice).expect("not within integer bitwise bounds")
     }
 
-    /// Attempt to construct a [`Selected`] newtype for a target bit indice.
+    /// Attempt to construct a [`Selected`] newtype for a target bit index.
     #[inline]
     #[must_use]
     pub const fn try_new(target_indice: u32) -> Option<Self> {
@@ -66,7 +66,7 @@ where
         }
     }
 
-    /// Determine the bit indice of this [`Selected`].
+    /// Determine the bit index of this [`Selected`].
     #[inline]
     #[must_use]
     pub const fn index(&self) -> u32 {

@@ -7,12 +7,12 @@ use nekor_aal_feature::prelude::Feature;
 /// # Safety
 ///
 /// The provided [`Feature`] must correspond to the Xsave-managed state
-/// for the indice specified.
+/// for the index specified.
 pub unsafe trait XState {
     /// The feature associated to this extended state.
     type Feature: Feature;
 
-    /// The feature bitmap indice for this extended state.
+    /// The feature bitmap index for this extended state.
     const INDICE: u32;
 }
 

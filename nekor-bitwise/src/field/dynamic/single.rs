@@ -16,13 +16,13 @@ where
     B: BitOp,
 {
     /// Construct a new [`BitDyn`] wrapper over an existing integer at a target
-    /// bit indice.
+    /// bit index.
     #[inline]
     pub const fn wrap(target_value: &'a B, target_indice: Selected<B>) -> Self {
         Self(target_value, target_indice)
     }
 
-    /// Move the currently-selected bit indice inside this newtype wrapper to a
+    /// Move the currently-selected bit index inside this newtype wrapper to a
     /// brand-new one.
     #[inline]
     #[must_use]
@@ -32,7 +32,7 @@ where
         Self(target_value, target_indice)
     }
 
-    /// Determine the [`Selected`] bit indice.
+    /// Determine the [`Selected`] bit index.
     #[inline]
     #[must_use]
     pub const fn selected(&self) -> Selected<B> {
@@ -93,13 +93,13 @@ where
     B: BitOp,
 {
     /// Construct a new [`BitDynMut`] wrapper over an existing integer at a
-    /// target bit indice.
+    /// target bit index.
     #[inline]
     pub const fn wrap(target_value: &'a mut B, target_indice: Selected<B>) -> Self {
         Self(target_value, target_indice)
     }
 
-    /// Move the currently-selected bit indice inside this newtype wrapper to a
+    /// Move the currently-selected bit index inside this newtype wrapper to a
     /// brand-new one.
     #[inline]
     #[must_use]

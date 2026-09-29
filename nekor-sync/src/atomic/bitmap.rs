@@ -240,7 +240,7 @@ impl AtomicBitmap {
 
         let snapshot_value = target_value.load(Acquire);
 
-        // NOTE: The valid bit indice range is maintained by the
+        // NOTE: The valid bit index range is maintained by the
         // `BitIndex` generic bound.
         At(target_value, snapshot_value, N)
     }
@@ -261,7 +261,7 @@ impl AtomicBitmap {
     {
         let &Self(ref target_value) = self;
 
-        // NOTE: The valid bit indice range is maintained by the
+        // NOTE: The valid bit index range is maintained by the
         // `BitIndex` generic bound.
         At(target_value, snapshot_value, N)
     }
