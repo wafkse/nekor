@@ -105,5 +105,4 @@ jobs:
             - name: Run Miri
               run: cargo miri test --workspace
               env:
-                  MIRIFLAGS: -Zmiri-ignore-leaks
                   RUSTFLAGS: --cfg usermode
