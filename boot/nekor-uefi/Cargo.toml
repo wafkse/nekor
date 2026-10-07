@@ -10,3 +10,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+
+
+[lints]
+workspace = true
