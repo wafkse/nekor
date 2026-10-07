@@ -49,6 +49,8 @@ exclude = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+# NOTE: CI uses this as the minimum supported Rust version for the workspace.
+rust-version = "1.98"
 description = "An async-first no-std, no-alloc unikernel written in Rust."
 license = "AGPL-3.0-only"
 repository = "https://github.com/wafkse/nekor"

@@ -19,20 +19,41 @@ jobs:
         outputs:
             matrix: ${{ steps.toolchains.outputs.matrix }}
         steps:
+            - uses: actions/checkout@v7
+
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: stable
 
             - id: toolchains
-              name: Resolve latest stable releases
+              name: Resolve supported Rust releases
               shell: bash
               run: |
-                  stable="$(rustc +stable --version | awk '{ print $2 }')"
-                  IFS=. read -r major minor patch <<< "${stable}"
-                  previous_channel="${major}.$((minor - 1))"
-                  rustup toolchain install "${previous_channel}" --profile minimal --no-self-update
-                  previous="$(rustc +"${previous_channel}" --version | awk '{ print $2 }')"
-                  echo "matrix=[\"${stable}\",\"${previous}\"]" >> "${GITHUB_OUTPUT}"
+                  python3 - <<'PY'
+                  import json
+                  import os
+                  import subprocess
+                  import tomllib
+                  from pathlib import Path
+
+                  manifest = tomllib.loads(Path("Cargo.toml").read_text())
+                  msrv = manifest["workspace"]["package"]["rust-version"]
+                  stable = subprocess.check_output(["rustc", "+stable", "--version"], text=True).split()[1]
+                  stable_major, stable_minor, *_ = map(int, stable.split("."))
+                  msrv_major, msrv_minor, *_ = map(int, msrv.split("."))
+
+                  if stable_major != msrv_major or stable_minor < msrv_minor:
+                      raise SystemExit(f"MSRV {msrv} exceeds the latest stable Rust {stable}")
+
+                  oldest_minor = max(msrv_minor, stable_minor - 9)
+                  toolchains = [f"{stable_major}.{minor}" for minor in range(stable_minor, oldest_minor - 1, -1)]
+                  if oldest_minor == msrv_minor:
+                      toolchains[-1] = msrv
+                  toolchains.extend(("beta", "nightly"))
+
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                      print(f"matrix={json.dumps(toolchains)}", file=output)
+                  PY
 
     lint-rust:
         name: Automated Linting (Rust)
