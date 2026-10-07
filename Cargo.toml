@@ -67,6 +67,7 @@ camino = "1.2.2"
 fack = "0.4.0"
 miette = { version = "7.6.0", features = ["derive"] }
 tokel = "0.4.0"
+criterion = "0.8.2"
 walkdir = "2.5"
 zerocopy = { version = "0.8.48", features = ["derive"] }
 nekor-build-kdl-config = { path = "nekor-build/nekor-build-kdl-config", package = "nekor-build-kdl-config" }
@@ -131,11 +132,11 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(usermode)"] }
 unstable_features = "forbid"
 invalid_reference_casting = "forbid"
 named_asm_labels = "allow"
-# The architecture and synchronization layers necessarily contain audited
-# unsafe operations; the unsafe-code policy is enforced by their API safety
-# contracts and the dedicated unsafe-operation lints below.
 unsafe_code = "allow"
 unknown_lints = "allow"
+
+[workspace.lints.cargo]
+unused_workspace_package_fields = "allow"
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
