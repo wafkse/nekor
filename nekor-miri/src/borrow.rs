@@ -1,82 +1,65 @@
-//! Allocation identities and interpreter borrow diagnostics.
+//! Borrow diagnostics for live allocations.
 
 use core::{mem, ptr};
 
 use crate::ffi;
 
-/// Opaque allocation identity used only for diagnostics.
+/// An allocation identity for later borrow inspection.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct AllocationId(u64);
 
-/// Which pointer tags to display.
-#[derive(Clone, Copy)]
-pub enum Visibility {
-    /// Show every tag.
-    All,
-
-    /// Show only named tags where supported.
-    Named,
-}
-
 impl AllocationId {
-    /// Capture the identity of a nonzero-sized referenced value.
+    /// Capture the allocation that holds a nonzero-sized value.
     #[inline]
-    pub fn of<T>(value: &T) -> Option<Self>
+    pub fn of<T>(target_value: &T) -> Option<Self>
     where
         T: ?Sized,
     {
-        if mem::size_of_val(value) == 0 {
+        if mem::size_of_val(target_value) == usize::MIN {
             None
         } else {
             // SAFETY: A reference to a nonzero-sized value identifies a live allocation.
-            Some(unsafe { Self::raw(ptr::from_ref(value).cast::<()>()) })
+            let id = unsafe { ffi::miri_get_alloc_id(ptr::from_ref(target_value).cast::<()>()) };
+
+            Some(Self(id))
         }
     }
 
-    /// Capture an allocation identity from a raw pointer.
-    ///
-    /// # Safety
-    ///
-    /// `pointer` must carry provenance for a live allocation. Miri aborts on invalid input.
+    /// Print this allocation's current borrow state.
     #[inline]
-    pub unsafe fn raw(pointer: *const ()) -> Self {
-        // SAFETY: The caller supplies live allocation provenance.
-        Self(unsafe { ffi::miri_get_alloc_id(pointer) })
-    }
-
-    /// Print the current borrow state for this captured allocation.
-    #[inline]
-    pub fn print(&self, visibility: Visibility) {
+    pub fn print(&self) {
         let &Self(id) = self;
 
-        let show_unnamed = matches!(visibility, Visibility::All);
         // SAFETY: The ID was obtained from the interpreter.
-        unsafe { ffi::miri_print_borrow_state(id, show_unnamed) };
+        unsafe { ffi::miri_print_borrow_state(id, true) };
     }
 }
 
-/// Track allocation events for a referenced value.
+/// Report allocation events for the allocation holding a value.
 #[inline]
-pub fn track<T>(value: &T) -> Option<AllocationId>
+pub fn track<T>(target_value: &T) -> Option<AllocationId>
 where
     T: ?Sized,
 {
-    let id = AllocationId::of(value)?;
+    let id = AllocationId::of(target_value)?;
+
     // SAFETY: A nonzero-sized live reference identifies an allocation.
-    unsafe { ffi::miri_track_alloc(ptr::from_ref(value).cast::<()>()) };
+    unsafe { ffi::miri_track_alloc(ptr::from_ref(target_value).cast::<()>()) };
+
     Some(id)
 }
 
-/// Name a pointer tag or selected parent of a referenced value.
-#[inline]
-pub fn name<T>(value: &T, parent: u8, name: &str) -> bool
-where
-    T: ?Sized,
-{
-    if mem::size_of_val(value) == 0 {
-        return false;
+#[cfg(test)]
+mod tests {
+    use super::{AllocationId, track};
+
+    #[test]
+    fn borrow_diagnostics() {
+        let value = 7_u64;
+        let id = AllocationId::of(&value).expect("nonzero value");
+        id.print();
+
+        assert!(track(&value).is_some());
+        assert!(AllocationId::of(&()).is_none());
     }
-    // SAFETY: A live reference supplies a valid tag, and the name is borrowed for the call.
-    unsafe { ffi::miri_pointer_name(ptr::from_ref(value).cast::<()>(), parent, name.as_bytes()) };
-    true
 }

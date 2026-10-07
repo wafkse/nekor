@@ -1,15 +1,16 @@
-//! Owned Miri memory and intentional static roots.
+//! Owned allocations and intentional static roots.
 
 use alloc::boxed::Box;
 use core::{
     alloc::Layout,
     mem::{self, ManuallyDrop},
+    num::NonZero,
     ptr::NonNull,
 };
 
 use crate::ffi;
 
-/// A live Miri allocation with its original deallocation layout.
+/// A live allocation paired with its deallocation layout.
 // NOTE(invariant): `pointer` is the base of a live Miri allocation made with `layout`.
 pub struct Allocation {
     /// Base of the owned allocation.
@@ -20,19 +21,22 @@ pub struct Allocation {
 }
 
 impl Allocation {
-    /// Allocate uninitialized memory. Zero-sized layouts have no allocation.
+    /// Allocate uninitialized storage for a value of type `T`.
+    ///
+    /// Return `None` when `T` is zero-sized or allocation fails.
     #[inline]
-    pub fn new(layout: Layout) -> Option<Self> {
-        if layout.size() == 0 {
-            return None;
-        }
+    pub fn new<T>() -> Option<Self> {
+        match NonZero::new(mem::size_of::<T>()) {
+            Some(size) => {
+                let layout = Layout::new::<T>();
 
-        // SAFETY: Layout guarantees a valid alignment and nonzero size was checked.
-        let pointer = NonNull::new(unsafe { ffi::miri_alloc(layout.size(), layout.align()) }.cast::<u8>());
-        let Some(pointer) = pointer else {
-            unreachable!("Miri allocation returned null for a nonzero layout")
-        };
-        Some(Self { pointer, layout })
+                // SAFETY: Layout guarantees a valid alignment and nonzero size was checked.
+                let pointer = NonNull::new(unsafe { ffi::miri_alloc(size.get(), layout.align()) }.cast::<u8>())?;
+
+                Some(Self { pointer, layout })
+            },
+            None => None,
+        }
     }
 
     /// Return the allocation base without granting access to its contents.
@@ -51,18 +55,23 @@ impl Allocation {
         layout
     }
 
-    /// Register this allocation as a process lifetime root and consume its owner.
+    /// Register this allocation as a static root and consume its owner.
+    ///
+    /// The returned pointer remains live for the test process. Its contents
+    /// still require initialization before they can be read.
     #[inline]
     pub fn leak(self) -> NonNull<u8> {
         let &Self { pointer, .. } = &self;
 
         // SAFETY: The owner holds the allocation base until ownership is consumed.
         unsafe { ffi::miri_static_root(pointer.as_ptr().cast_const().cast::<()>()) };
+
         let _owner = ManuallyDrop::new(self);
+
         pointer
     }
 
-    /// Ask Miri to report allocation events for this block.
+    /// Report allocation events for this block.
     #[inline]
     pub fn track(&self) {
         let &Self { pointer, .. } = self;
@@ -84,14 +93,49 @@ impl Drop for Allocation {
 
 /// Register a boxed allocation as a static root and leak the box.
 #[inline]
-pub fn leak<T>(value: Box<T>) -> &'static mut T
+pub fn leak<T>(target_boxed: Box<T>) -> &'static mut T
 where
     T: ?Sized + 'static,
 {
-    let size = mem::size_of_val(&*value);
-    if size != 0 {
+    // T may be unsized, so check the size of the value.
+    let is_nonzero_size = mem::size_of_val(&*target_boxed) != usize::MIN;
+
+    if is_nonzero_size {
         // SAFETY: A nonzero boxed value starts at the allocation base.
-        unsafe { ffi::miri_static_root((&*value as *const T).cast::<()>()) };
+        unsafe { ffi::miri_static_root(Box::as_ptr(&target_boxed).cast::<()>()) };
     }
-    Box::leak(value)
+
+    Box::leak(target_boxed)
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::{boxed::Box, vec};
+    use core::{alloc::Layout, ptr::NonNull};
+
+    use super::{Allocation, leak};
+
+    #[test]
+    fn allocation_ownership_and_box_roots() {
+        assert!(Allocation::new::<()>().is_none());
+
+        let layout = Layout::new::<u64>();
+        let allocation = Allocation::new::<u64>().expect("nonzero allocation");
+        assert_eq!(allocation.layout(), layout);
+        assert_eq!(allocation.pointer().cast::<u64>().as_ptr().align_offset(8), 0);
+        allocation.track();
+        drop(allocation);
+
+        let rooted = Allocation::new::<u64>().expect("nonzero allocation");
+        let _rooted: NonNull<u8> = rooted.leak();
+
+        assert_eq!(*leak(Box::new(42_u64)), 42);
+        assert_eq!(*leak(Box::new(())), ());
+
+        let slice: Box<[u8]> = vec![1, 2, 3].into_boxed_slice();
+        assert_eq!(leak(slice), &[1, 2, 3]);
+
+        let empty: Box<[u8]> = vec![].into_boxed_slice();
+        assert!(leak(empty).is_empty());
+    }
 }
