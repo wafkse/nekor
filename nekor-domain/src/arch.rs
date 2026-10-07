@@ -392,7 +392,6 @@ pub(crate) mod miri {
     //! Miri is unable to interpret code uses inline assembly.
 
     use core::{
-        alloc::Layout,
         any::TypeId,
         cell::UnsafeCell,
         mem::{self, MaybeUninit},
@@ -495,8 +494,7 @@ pub(crate) mod miri {
         {
             let type_id = TypeId::of::<T>();
 
-            let layout = Layout::new::<Slab>();
-            let slab = Allocation::new(layout).expect("allocate slab");
+            let slab = Allocation::new::<Slab>().expect("allocate slab");
 
             let next_slab = AtomicPtr::new(ptr::null_mut());
 
@@ -692,21 +690,14 @@ pub(crate) mod miri {
                 container: MaybeUninit<Container<T>>,
             }
 
-            let alloc_size = mem::size_of::<Whole<T>>();
-
-            let alloc_align = mem::align_of::<Whole<T>>();
-
-            let align_padding = mem::align_of::<Whole<T>>().saturating_sub(mem::size_of::<TypelessAllocation>());
-
-            let layout = Layout::from_size_align(alloc_size + align_padding, alloc_align).expect("storage layout");
-            let allocation = Allocation::new(layout).expect("allocate storage");
+            let allocation = Allocation::new::<Whole<T>>().expect("allocate storage");
             let alloc_ptr = allocation.pointer();
 
             // SAFETY: The allocation has enough size and alignment for Whole<T>.
             let uninit_whole = unsafe { alloc_ptr.cast::<MaybeUninit<UnsafeCell<Whole<T>>>>().as_mut() };
 
             let scratch = Whole {
-                allocation: TypelessAllocation(align_padding.saturating_add(mem::size_of::<TypelessAllocation>())),
+                allocation: TypelessAllocation(mem::offset_of!(Whole<T>, container)),
                 // NOTE: This initializes the header in the container.
                 container: MaybeUninit::zeroed(),
             };
