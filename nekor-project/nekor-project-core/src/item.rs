@@ -530,10 +530,12 @@ impl Expansion {
 
         let projection_type = self.projection_type_use(projection_ident, projection_lifetime);
         let projection_mut_type = self.projection_type_use(projection_mut_ident, projection_lifetime);
+
         let immutable_body = match item_data {
             ExpansionData::Struct(field_list) => Self::struct_project_body(field_list, projection_ident, false)?,
             ExpansionData::Enum(variant_list) => Self::enum_project_body(variant_list, projection_ident, false)?,
         };
+
         let mutable_body = match item_data {
             ExpansionData::Struct(field_list) => Self::struct_project_body(field_list, projection_mut_ident, true)?,
             ExpansionData::Enum(variant_list) => Self::enum_project_body(variant_list, projection_mut_ident, true)?,
