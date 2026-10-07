@@ -156,7 +156,10 @@ where
     E: Extract<N, M, Output = O> + hash::Hash,
 {
     #[inline]
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: hash::Hasher,
+    {
         let &Self(target_value, ..) = self;
 
         target_value.hash(state);
@@ -350,7 +353,10 @@ where
     E: Extract<N, M, Output = O> + hash::Hash,
 {
     #[inline]
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: hash::Hasher,
+    {
         let Self(target_value, ..) = self;
 
         target_value.hash(state);

@@ -195,6 +195,7 @@ macro_rules! bit_mut {
 
 bit_mut!(u8, u16, u32, u64);
 
+/// Expand to a const-compatible implementation of [`Bit`].
 macro_rules! bit_const {
     ($($target_type:ty),+ $(,)?) => {
         $(

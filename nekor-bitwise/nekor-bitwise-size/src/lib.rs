@@ -12,6 +12,8 @@
 #![recursion_limit = "256"]
 //! Type-level integer primitive type selector.
 
+use core::convert;
+
 use nekor_primitive::scalar::Scalar;
 
 /// A uninhabited, completely compile-time type selector for the minimum viable
@@ -24,7 +26,7 @@ pub enum Size {
     /// The sole variant is impossible to construct because [`core::convert::Infallible`] is
     /// uninhabited.
     #[doc(hidden)]
-    __Variant(core::convert::Infallible),
+    __Variant(convert::Infallible),
 }
 
 /// A helper trait for the compile-time type selector [`Size`].
@@ -33,6 +35,8 @@ pub trait For<const N: usize> {
     type Target: Scalar;
 }
 
+/// A macro to implement a set of [`For`] implementations for the target type, making use of the
+/// provided bit width list.
 macro_rules! selector {
     () => {};
     (

@@ -11,3 +11,6 @@ categories.workspace = true
 
 [dependencies]
 nekor-primitive = { workspace = true }
+
+[lints]
+workspace = true

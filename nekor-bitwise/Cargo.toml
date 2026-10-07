@@ -13,3 +13,7 @@ categories.workspace = true
 nekor-primitive = { workspace = true }
 nekor-bitwise-extract = { workspace = true }
 nekor-bitwise-size = { workspace = true }
+
+
+[lints]
+workspace = true
