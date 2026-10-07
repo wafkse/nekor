@@ -1,0 +1,39 @@
+name: Rust Toolchain Matrix
+description: Resolve recent stable Rust releases at or above the workspace MSRV, plus beta and nightly.
+
+outputs:
+    matrix:
+        description: JSON array of Rust toolchains for CI.
+        value: ${{ steps.resolve.outputs.matrix }}
+
+runs:
+    using: composite
+    steps:
+        - id: resolve
+          shell: bash
+          run: |
+              python3 - <<'PY'
+              import json
+              import os
+              import subprocess
+              import tomllib
+              from pathlib import Path
+
+              manifest = tomllib.loads((Path(os.environ["GITHUB_WORKSPACE"]) / "Cargo.toml").read_text())
+              msrv = manifest["workspace"]["package"]["rust-version"]
+              stable = subprocess.check_output(["rustc", "+stable", "--version"], text=True).split()[1]
+              stable_major, stable_minor, *_ = map(int, stable.split("."))
+              msrv_major, msrv_minor, *_ = map(int, msrv.split("."))
+
+              if stable_major != msrv_major or stable_minor < msrv_minor:
+                  raise SystemExit(f"MSRV {msrv} exceeds the latest stable Rust {stable}")
+
+              oldest_minor = max(msrv_minor, stable_minor - 9)
+              toolchains = [f"{stable_major}.{minor}" for minor in range(stable_minor, oldest_minor - 1, -1)]
+              if oldest_minor == msrv_minor:
+                  toolchains[-1] = msrv
+              toolchains.extend(("beta", "nightly"))
+
+              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                  print(f"matrix={json.dumps(toolchains)}", file=output)
+              PY

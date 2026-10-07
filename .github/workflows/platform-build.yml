@@ -1,0 +1,48 @@
+name: Platform Builds
+
+on:
+    push:
+    pull_request:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    platform-build:
+        name: Platform Build (${{ matrix.platform }})
+        runs-on: ubuntu-26.04
+        timeout-minutes: 30
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: x86_64
+                      build_alias: kernel-x86_64
+                    - platform: x86_64/usermode
+                      build_alias: usermode-x86_64
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@nightly
+              with:
+                  components: rust-src
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  key: ${{ matrix.build_alias }}
+
+            - name: Render platform
+              run: cargo run --package nekor-build -- platform --name "${PLATFORM}" template build
+              env:
+                  PLATFORM: ${{ matrix.platform }}
+
+            - name: Build Nekor
+              run: cargo "${BUILD_ALIAS}" --features kernel --bin nekor
+              env:
+                  BUILD_ALIAS: ${{ matrix.build_alias }}
+
+    # Architectural assertions require the planned Eustace VMM and their own workflow.
