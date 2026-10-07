@@ -14,12 +14,16 @@ use crate::patch::{
 
 /// The input type associated with a delegated implementation.
 type DelegatedInput<D> = <<D as Delegator>::Target as Delegated>::Input;
+
 /// The output type associated with a delegated implementation.
 type DelegatedOutput<D> = <<D as Delegator>::Target as Delegated>::Output;
+
 /// The patchsite type associated with a delegator.
 type PatchsiteFor<D> = Patchsite<D, DelegatedInput<D>, DelegatedOutput<D>>;
+
 /// A static reference to a delegator's patchsite.
 type StaticPatchsite<D> = Pin<&'static PatchsiteFor<D>>;
+
 /// The identity function type used to reserve patchsite storage.
 type PatchIdentity<D, I, O> = fn() -> (D, I, O);
 
@@ -38,7 +42,7 @@ pub struct Diversion(
 /// constants.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub enum X86 {
-    /// An impossible marker variant; `X86` is used only as a namespace.
+    /// An impossible marker variant. `X86` is used only as a namespace.
     __Variant(convert::Infallible),
 }
 
@@ -207,22 +211,15 @@ where
         // their relative displacement is representable by `jmp rel32`.
         let Diversion(diversion_sequence) = unsafe { Template::assemble(target_template, self) };
 
-        match atomic_variable.compare_exchange(
-            atomic_variable.load(Ordering::Acquire),
-            diversion_sequence,
-            Ordering::AcqRel,
-            Ordering::Acquire,
-        ) {
-            target_outcome @ (Ok(target_value) | Err(target_value)) => {
-                let target_value = Diversion(target_value);
-
-                if target_outcome.is_ok() {
-                    Ok(target_value)
-                } else {
-                    Err(target_value)
-                }
-            },
-        }
+        atomic_variable
+            .compare_exchange(
+                atomic_variable.load(Ordering::Acquire),
+                diversion_sequence,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .map(Diversion)
+            .map_err(Diversion)
     }
 
     // TODO: Finish modeling the CMC-Publish and CMC-Acquire model.
