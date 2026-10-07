@@ -9,6 +9,8 @@ use crate::{
 
 /// A macro to expand to a [`Feature`] implementor for a specific [`CpuId`]
 /// invocation.
+///
+/// Optionally takes a `rustc`-recognized target feature for the `x86{,_64}` architecture.
 macro_rules! feature {
     () => {};
     (
