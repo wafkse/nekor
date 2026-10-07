@@ -16,6 +16,7 @@
 //! constructing host-side syntax and token streams.
 
 use alloc::{format, vec::Vec};
+use core::mem;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -598,7 +599,7 @@ impl Expansion {
 
         let helper_ident = format_ident!("__NekorProjectUnpin{item_ident}");
         let mut helper_generics = item_generics.clone();
-        let source_parameter_list = core::mem::take(&mut helper_generics.params);
+        let source_parameter_list = mem::take(&mut helper_generics.params);
 
         helper_generics
             .params
@@ -1013,7 +1014,7 @@ impl Expansion {
         let mut projection_generics = source_generics.clone();
 
         if has_fields {
-            let source_parameters = core::mem::take(&mut projection_generics.params);
+            let source_parameters = mem::take(&mut projection_generics.params);
 
             projection_generics
                 .params
