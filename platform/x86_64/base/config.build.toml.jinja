@@ -10,7 +10,6 @@ rustflags = [
     "-C", "force-unwind-tables={% if unwind["unwind-table"] %}yes{% else %}no{% endif %}",
 
 {% if debug.verbose -%}
-    "-C", "link-arg=-Map=target/nekor-x86_64-kernel/linker-input.map",
     "-C", "link-arg=--verbose",
 {% endif -%}
 ]
@@ -37,7 +36,6 @@ rustflags = [
 
 {% if debug.verbose %}
 # NOTE: Emit a linker input section map and pass the `--verbose` flag to the linker.
-    "-C", "link-arg=-Map=target/nekor-x86_64-kernel/linker-input.map",
     "-C", "link-arg=--verbose",
 {% endif %}
 ]
