@@ -6,7 +6,7 @@ Nekor is an async-first `no-std`, `no-alloc` unikernel written in Rust.
 
 As of writing, Nekor aims to deliver:
 
-- A lock-free, SMP-capable global `O(1)` task scheduler with explicit task priority.
+- A lock-free, SMP-capable priority scheduler with an `O(P)` time complexity, where `P` is a per-platform and per-configuration constant. 
 - True allocation-less event-driven concurrency.
 - Hassle-free static allocation for all tasks and their required resources (e.g., buffers, handles, etc.).
 - Multi-architecture support: `x86-64`, `armv7+`, `aarch64`, `riscv` (`*A` extension is required).
