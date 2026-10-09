@@ -66,7 +66,7 @@ bitflags = "2.13.2"
 camino = "1.2.2"
 fack = "0.4.0"
 miette = { version = "7.6.0", features = ["derive"] }
-tokel = "0.4.0"
+tokel = "0.4.1"
 criterion = "0.8.2"
 walkdir = "2.5"
 zerocopy = { version = "0.8.48", features = ["derive"] }
