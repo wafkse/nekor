@@ -51,22 +51,21 @@ where
     /// Access the pointer to the underlying value, lazily initializing it as
     /// needed.
     #[inline]
+    #[must_use]
     pub fn value(&self) -> &'static T {
-        let &Self(ref ptr, ..) = self;
+        let &Self(ref target_atomic, ..) = self;
 
-        if let Some(target_value) = NonNull::new(ptr.load(Ordering::Relaxed)) {
+        if let Some(target_value) = NonNull::new(target_atomic.load(Ordering::Acquire)) {
             // SAFETY: The pointer is valid due to type invariants.
             unsafe { target_value.as_ref() }
         } else {
             let target_value = Static::value_default_in::<T, D>();
 
-            match ptr.compare_exchange(
+            match target_atomic.compare_exchange(
                 ptr::null_mut::<T>(),
                 ptr::from_ref::<T>(target_value).cast_mut(),
-                // NOTE(atomic): No ordering requirements, any posterior
-                // thread that reads a stale (null, there is no
-                // re-initialization) value causes no harm.
-                Ordering::Relaxed,
+                // NOTE(atomic): Need to establish a happens-before relationship in respect to the `T` pointee.
+                Ordering::Release,
                 Ordering::Relaxed,
             ) {
                 // NOTE(atomic): We do not care whether we failed to update
@@ -82,12 +81,13 @@ where
     /// This will not eagerly initialize the variable, hence the [`Option`]
     /// output.
     #[inline]
+    #[must_use]
     pub fn cache(&self) -> Option<&'static T> {
-        let &Self(ref ptr, ..) = self;
+        let &Self(ref target_atomic, ..) = self;
 
-        match NonNull::new(ptr.load(Ordering::Relaxed)) {
+        match NonNull::new(target_atomic.load(Ordering::Acquire)) {
             // SAFETY: The pointer is valid due to type invariants.
-            Some(ptr) => Some(unsafe { ptr.as_ref() }),
+            Some(target_value) => Some(unsafe { target_value.as_ref() }),
             None => None,
         }
     }
@@ -105,12 +105,12 @@ where
     #[inline]
     #[must_use]
     pub fn duplicate(&self) -> Self {
-        let &Self(ref ptr, ..) = self;
+        let &Self(ref target_atomic, ..) = self;
 
         Self(
             // NOTE(atomic): Prefer to not require stronger ordering here, as a
             // stale pointer would be initialized regardless.
-            AtomicPtr::new(ptr.load(Ordering::Relaxed)),
+            AtomicPtr::new(target_atomic.load(Ordering::Acquire)),
             marker::PhantomData,
         )
     }
@@ -163,7 +163,7 @@ where
 #[derive(Debug)]
 // NOTE(invariant): The constructor selects static `T` storage for the erased domain, and the cached
 // pointer is null or addresses that same storage.
-pub struct Erased<T>(fn() -> &'static T, AtomicPtr<T>)
+pub struct Erased<T>(AtomicPtr<T>, fn() -> &'static T)
 where
     T: Store + Default;
 
@@ -172,32 +172,32 @@ where
     T: Store + Default,
 {
     #[inline]
+    #[must_use]
     pub const fn pointer<D>() -> Self
     where
         D: Domain,
     {
-        Self(Static::value_default_in::<T, D>, AtomicPtr::new(ptr::null_mut()))
+        Self(AtomicPtr::new(ptr::null_mut()), Static::value_default_in::<T, D>)
     }
 
     /// Access the pointer to the underlying `T`, lazily initializing it as
     /// needed.
     #[inline]
+    #[must_use]
     pub fn value(&self) -> &'static T {
-        let &Self(value_default_in, ref ptr) = self;
+        let &Self(ref target_atomic, value_default_in) = self;
 
-        if let Some(target_value) = NonNull::new(ptr.load(Ordering::Relaxed)) {
+        if let Some(target_value) = NonNull::new(target_atomic.load(Ordering::Acquire)) {
             // SAFETY: The pointer is valid due to type invariants.
             unsafe { target_value.as_ref() }
         } else {
             let target_value = value_default_in();
 
-            match ptr.compare_exchange(
+            match target_atomic.compare_exchange(
                 ptr::null_mut::<T>(),
                 ptr::from_ref::<T>(target_value).cast_mut(),
-                // NOTE(atomic): No ordering requirements, any posterior
-                // thread that reads a stale (null, there is no
-                // re-initialization) value causes no harm.
-                Ordering::Relaxed,
+                // NOTE(atomic): Need to establish a happens-before relationship in respect to the `T` pointee.
+                Ordering::Release,
                 Ordering::Relaxed,
             ) {
                 // NOTE(atomic): We do not care whether we failed to update
@@ -213,12 +213,13 @@ where
     /// This will not eagerly initialize the variable, hence the [`Option`]
     /// output.
     #[inline]
+    #[must_use]
     pub fn cache(&self) -> Option<&'static T> {
-        let &Self(.., ref ptr) = self;
+        let &Self(ref target_atomic, ..) = self;
 
-        match NonNull::new(ptr.load(Ordering::Relaxed)) {
+        match NonNull::new(target_atomic.load(Ordering::Acquire)) {
             // SAFETY: The pointer is valid due to type invariants.
-            Some(ptr) => Some(unsafe { ptr.as_ref() }),
+            Some(target_value) => Some(unsafe { target_value.as_ref() }),
             None => None,
         }
     }
@@ -236,22 +237,23 @@ where
     #[inline]
     #[must_use]
     pub fn duplicate(&self) -> Self {
-        let &Self(value_default_in, ref ptr) = self;
+        let &Self(ref target_atomic, value_default_in) = self;
 
         Self(
-            value_default_in,
             // NOTE(atomic): Prefer to not require stronger ordering here, as a
             // stale pointer would be initialized regardless.
-            AtomicPtr::new(ptr.load(Ordering::Relaxed)),
+            AtomicPtr::new(target_atomic.load(Ordering::Acquire)),
+            value_default_in,
         )
     }
 
     /// Determine the constructor function associated to this [`Erased`].
     #[inline]
+    #[must_use]
     pub const fn constructor(&self) -> fn() -> &'static T {
-        let &Self(target_constructor, ..) = self;
+        let &Self(.., target_construct) = self;
 
-        target_constructor
+        target_construct
     }
 }
 
