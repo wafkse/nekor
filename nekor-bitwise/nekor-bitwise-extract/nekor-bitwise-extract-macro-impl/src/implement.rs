@@ -1,6 +1,6 @@
 //! implement implementation infrastructure.
 
-use core::{num::NonZero, ops::RangeInclusive};
+use core::{iter::FusedIterator, num::NonZero, ops::RangeInclusive};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -12,8 +12,9 @@ use syn::{
 use crate::primitive::Primitive;
 
 /// An iterator over the bit ranges of an input-output type 2-tuple.
-// NOTE(invariant): When present, `state_end_index` stores the current inclusive end plus one, and
-// the current range fits both the input width and output width.
+///
+/// Once exhausted, this iterator remains exhausted.
+// NOTE(invariant): Active ranges fit both widths. The input-width start index marks exhaustion.
 pub struct BitRanges {
     /// The input type to the range.
     range_input: Primitive,
@@ -21,10 +22,10 @@ pub struct BitRanges {
     /// The output type to the range.
     range_output: Primitive,
 
-    /// The state start index of the iterator.
+    /// The current start index, or the input width after exhaustion.
     state_start_index: usize,
 
-    /// The state end index of the iterator.
+    /// The last yielded inclusive end plus one, if a range has been yielded.
     state_end_index: Option<NonZero<usize>>,
 }
 
@@ -87,7 +88,7 @@ impl Iterator for BitRanges {
 
                 if new_end >= input_bits {
                     // Can't fit initial_bitwidth at this position, done
-                    *state_start_index = output_bits;
+                    *state_start_index = input_bits;
                     return None;
                 }
 
@@ -101,7 +102,7 @@ impl Iterator for BitRanges {
 
             if initial_bitwidth > output_bits || end >= input_bits {
                 // initial_bitwidth doesn't fit
-                *state_start_index = output_bits;
+                *state_start_index = input_bits;
                 return None;
             }
 
@@ -110,6 +111,8 @@ impl Iterator for BitRanges {
         }
     }
 }
+
+impl FusedIterator for BitRanges {}
 
 /// The input macro structure expected by the `implement`  proc-macro.
 #[derive(Clone)]
@@ -286,5 +289,97 @@ impl Parse for Implement {
             output_type,
             trait_name,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Range coverage, permanent exhaustion, and iterator layout regression tests.
+
+    use core::mem::{align_of, size_of};
+
+    use super::{BitRanges, FusedIterator, NonZero, Primitive, RangeInclusive, Span};
+
+    /// The iterator's field types and order before the exhaustion change.
+    #[expect(
+        dead_code,
+        reason = "Only field types and order are needed for the layout comparison."
+    )]
+    struct Baseline {
+        /// The original input primitive storage.
+        pub range_input: Primitive,
+
+        /// The original output primitive storage.
+        pub range_output: Primitive,
+
+        /// The original start index storage.
+        pub state_start_index: usize,
+
+        /// The original optional end index storage.
+        pub state_end_index: Option<NonZero<usize>>,
+    }
+
+    /// Compare every unsigned primitive pair with an independently specified range matrix.
+    #[test]
+    fn unsigned_ranges_remain_exhausted() {
+        let span = Span::call_site();
+        let primitives = [
+            (Primitive::U8(span), 8, 2),
+            (Primitive::U16(span), 16, 9),
+            (Primitive::U32(span), 32, 17),
+            (Primitive::U64(span), 64, 33),
+            (Primitive::U128(span), 128, 65),
+        ];
+
+        for (input, input_bits, _) in primitives.clone() {
+            for (output, output_bits, minimum_width) in primitives.clone() {
+                let mut expected = Vec::new();
+
+                for start in 0..input_bits {
+                    for width in minimum_width..=output_bits.min(input_bits - start) {
+                        expected.push(start..=start + width - 1);
+                    }
+                }
+
+                let mut ranges = BitRanges::inout(input.clone(), output.clone());
+
+                let _: &dyn FusedIterator<Item = RangeInclusive<usize>> = &ranges;
+
+                let actual = ranges.by_ref().collect::<Vec<_>>();
+
+                assert_eq!(
+                    actual,
+                    expected,
+                    "{}-from-{} ranges must match the expected matrix",
+                    output.as_str(),
+                    input.as_str(),
+                );
+
+                for _ in 0..4 {
+                    assert_eq!(
+                        ranges.next(),
+                        None,
+                        "{}-from-{} ranges must remain exhausted",
+                        output.as_str(),
+                        input.as_str(),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Keep the iterator's size and alignment equal to its original field layout.
+    #[test]
+    fn layout_is_unchanged() {
+        assert_eq!(
+            size_of::<BitRanges>(),
+            size_of::<Baseline>(),
+            "permanent exhaustion must not increase the iterator size",
+        );
+        assert_eq!(
+            align_of::<BitRanges>(),
+            align_of::<Baseline>(),
+            "permanent exhaustion must not change the iterator alignment",
+        );
     }
 }
