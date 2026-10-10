@@ -224,10 +224,9 @@ impl SegmentSelector {
 
         target_selector.index_mut().const_merge(descriptor_index.raw());
 
-        let target_state = if matches!(descriptor_table, TableIndicator::Gdt) {
-            State::Cleared
-        } else {
-            State::Set
+        let target_state = match descriptor_table {
+            TableIndicator::Gdt => State::Cleared,
+            TableIndicator::Ldt => State::Set,
         };
 
         target_selector.table_indicator_mut().const_set(target_state);
@@ -490,16 +489,16 @@ impl CodeSegment {
     #[must_use]
     pub const fn new(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
         let access = descriptor.access();
-        let executable = matches!(access.executable().const_state(), State::Set);
-        let valid = access.is_present()
-            && access.is_code_or_data()
-            && executable
-            && descriptor.is_long_mode()
-            && !descriptor.has_default_size();
 
-        match valid {
-            true => Some(Self(selector)),
-            false => None,
+        match (
+            access.present().const_state(),
+            access.system().const_state(),
+            access.executable().const_state(),
+            descriptor.long_mode().const_state(),
+            descriptor.default_size().const_state(),
+        ) {
+            (State::Set, State::Set, State::Set, State::Set, State::Cleared) => Some(Self(selector)),
+            _ => None,
         }
     }
 
@@ -604,15 +603,17 @@ impl DataSegment {
     /// table owner.
     #[inline]
     #[must_use]
-    pub const fn new(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
-        let access = descriptor.access();
-        let executable = matches!(access.executable().const_state(), State::Set);
-        let writable = matches!(access.read_write().const_state(), State::Set);
-        let valid = access.is_present() && access.is_code_or_data() && !executable && writable;
+    pub const fn new(segment_selector: SegmentSelector, segment_descriptor: RawSegmentDescriptor) -> Option<Self> {
+        let access_byte = segment_descriptor.access();
 
-        match valid {
-            true => Some(Self(selector)),
-            false => None,
+        match (
+            access_byte.present().const_state(),
+            access_byte.system().const_state(),
+            access_byte.executable().const_state(),
+            access_byte.read_write().const_state(),
+        ) {
+            (State::Set, State::Set, State::Cleared, State::Set) => Some(Self(segment_selector)),
+            _ => None,
         }
     }
 

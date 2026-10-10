@@ -13,7 +13,7 @@ macro_rules! enumerate {
         $target_vis:vis enum $target_name:ident {
             $(
                 $(#[$variant_meta:meta])*
-                $variant_name:ident $(= $variant_discriminant:expr)?
+                $variant_ident:ident $(= $variant_discriminant:expr)?
             ),+ $(,)?
         } as $target_repr:ty
     ) => {
@@ -22,22 +22,22 @@ macro_rules! enumerate {
         $target_vis enum $target_name {
             $(
                 $(#[$variant_meta])*
-                $variant_name $(= $variant_discriminant)?,
+                $variant_ident $(= $variant_discriminant)?,
             )+
         }
 
         impl $target_name {
-            /// Lift a bare integer representation into a declared identity.
+            /// Attempt to lift a bare-reprvalue into an enumeration variant.
             #[inline]
             #[must_use]
             $target_vis const fn lift(target_value: $target_repr) -> Option<Self> {
                 match target_value {
-                    $(value if value == Self::$variant_name as $target_repr => Some(Self::$variant_name),)+
+                    $(target_value if target_value == Self::$variant_ident as $target_repr => Some(Self::$variant_ident),)+
                     _ => None,
                 }
             }
 
-            /// Return the bare integer representation of this identity.
+            /// Determine the bare-integer representation of this identity.
             #[inline]
             #[must_use]
             $target_vis const fn raw(self) -> $target_repr {
