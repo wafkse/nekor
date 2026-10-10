@@ -12,6 +12,7 @@ categories.workspace = true
 build = "build.rs"
 
 [dependencies]
+tokel = { workspace = true }
 
 [lints]
 workspace = true

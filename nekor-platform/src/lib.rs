@@ -2,4 +2,7 @@
 
 //! A crate to access various platform information for the kernel.
 
-// TODO: Make the platform files inject environment variables for metadata.
+pub mod var;
+
+#[doc(hidden)]
+pub mod reexport;
