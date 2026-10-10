@@ -109,7 +109,7 @@ impl Pa {
     #[inline]
     #[must_use]
     pub const fn new(value: u64) -> Option<Self> {
-        if let 0 = PaUpper::wrap(&value).const_value() {
+        if let u16::MIN = PaUpper::wrap(&value).const_value() {
             Some(Self(value))
         } else {
             None
@@ -397,12 +397,12 @@ impl La48Page {
     /// nonzero page offset.
     #[inline]
     #[must_use]
-    pub const fn new(address: La) -> Option<Self> {
-        let is_canonical = address.is_canonical::<La48>();
-        let page_aligned = address.offset_4kib().const_value() == 0;
-
-        if is_canonical && page_aligned {
-            Some(Self(address))
+    pub const fn new(target_address: La) -> Option<Self> {
+        if let (true, u16::MIN) = (
+            target_address.is_canonical::<La48>(),
+            target_address.offset_4kib().const_value(),
+        ) {
+            Some(Self(target_address))
         } else {
             None
         }
@@ -415,9 +415,10 @@ impl La48Page {
     #[inline]
     #[must_use]
     pub const fn raw(target_bits: u64) -> Option<Self> {
-        match La::new::<La48>(target_bits) {
-            Some(target_address) => Self::new(target_address),
-            None => None,
+        if let Some(target_address) = La::new::<La48>(target_bits) {
+            Self::new(target_address)
+        } else {
+            None
         }
     }
 

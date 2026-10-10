@@ -781,12 +781,12 @@ impl LongModeControl {
     #[inline]
     #[must_use]
     pub const fn new(cr0: Cr0, cr3: Cr3, cr4: Cr4, efer: LongModeEfer) -> Option<Self> {
-        let protection_enabled = matches!(cr0.flag_pe().const_state(), State::Set);
-        let paging_enabled = matches!(cr0.flag_pg().const_state(), State::Set);
-        let pae_enabled = matches!(cr4.flag_pae().const_state(), State::Set);
-
-        match (protection_enabled, paging_enabled, pae_enabled) {
-            (true, true, true) => Some(Self { cr0, cr3, cr4, efer }),
+        match (
+            cr0.flag_pe().const_state(),
+            cr0.flag_pg().const_state(),
+            cr4.flag_pae().const_state(),
+        ) {
+            (State::Set, State::Set, State::Set) => Some(Self { cr0, cr3, cr4, efer }),
             _ => None,
         }
     }
