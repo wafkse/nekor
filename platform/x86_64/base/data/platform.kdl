@@ -130,6 +130,7 @@ boot {
         }
     }
 
+    // Bootloader request section.
     request {
         section-name ".nekor.boot.request"
         symbol "(Nekor Boot Request)"
@@ -297,6 +298,17 @@ kernel {
 
 // Architecture-level constants.
 arch {
+    backoff {
+        // Consecutive PAUSE instructions defining the platform wait quantum.
+        pauses-per-chain (u64)1
+
+        // Pause chains performed before sampling the TSC again.
+        chains-per-check (u64)1
+
+        // Cap the internal TSC duration after converting the quantum count.
+        max-delay-ticks (u64)0x1_0000
+    }
+
     page {
         size {
             (bytes)normal (u64)0x1000       // 4 KiB
