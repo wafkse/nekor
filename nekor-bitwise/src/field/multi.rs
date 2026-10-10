@@ -71,12 +71,36 @@ pub type U128High64Mut<'value> = <U128High64<'value> as Counterpart>::Mut;
 
 /// A field new-type to interact with a contiguous segment of bits in an `E`.
 ///
-/// This item incorporates total or partial *const-fn* support, const-evaluable
-/// alternatives are outlined as:
+/// # Field Width
 ///
-/// - [`Field::const_value`] as [`Field::value`]
+/// `usize` fields use the target pointer width and retain the default fixed-width
+/// output selected by [`Size`]. A range extending beyond that width is rejected.
 ///
-/// These are identical in function prototype, modulo *constness* coloring.
+/// ```compile_fail
+/// use nekor_bitwise::field::multi::Field;
+///
+/// let value = 0_usize;
+/// let _ = Field::<0, { usize::BITS as usize }, usize>::wrap(&value);
+/// ```
+///
+/// The output type must match the field width's selection.
+///
+/// ```compile_fail
+/// use nekor_bitwise::field::multi::Field;
+///
+/// let value = 0_usize;
+/// let _ = Field::<0, 7, usize, u16>::wrap(&value);
+/// ```
+///
+/// # Value Semantics
+///
+/// Equality, hashing, and ordering use the extracted field value. Dereferencing
+/// returns the borrowed source integer, including its other fields.
+///
+/// # Const Evaluation
+///
+/// [`Field::const_value()`] provides a const-compatible counterpart to
+/// [`Field::value()`] for primitive integers.
 #[repr(transparent)]
 // NOTE(invariant): The `Extract<N, M>` bound fixes a valid field and its output representation for
 // the borrowed value.
@@ -95,6 +119,25 @@ where
     #[inline]
     pub const fn wrap(target_value: &'a E) -> Self {
         Self(target_value, marker::PhantomData)
+    }
+
+    /// The source-positioned bitwise mask identifying this [`Field`]'s bits in `E`.
+    ///
+    /// [`Extract::EXTRACT_MASK`] identifies the selected source positions.
+    /// [`Extract::BITSET_MASK`] describes the corresponding low-aligned positions.
+    ///
+    /// ```
+    /// use nekor_bitwise::field::multi::Field;
+    ///
+    /// type Tag<'value> = Field<'value, 4, 7, usize>;
+    /// const MASK: usize = Tag::mask();
+    ///
+    /// assert_eq!(MASK, 0xf0);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn mask() -> E {
+        E::EXTRACT_MASK
     }
 
     /// Determine the value of this [`Field`], as the correspondant
@@ -134,6 +177,7 @@ impl<const N: usize, const M: usize, E, O> fmt::Debug for Field<'_, N, M, E, O>
 where
     E: Extract<N, M, Output = O> + fmt::Debug,
 {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let &Self(target_value, ..) = self;
 
@@ -153,40 +197,37 @@ where
 
 impl<const N: usize, const M: usize, E, O> hash::Hash for Field<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + hash::Hash,
+    E: Extract<N, M, Output = O>,
+    O: hash::Hash,
 {
     #[inline]
     fn hash<H>(&self, state: &mut H)
     where
         H: hash::Hasher,
     {
-        let &Self(target_value, ..) = self;
-
-        target_value.hash(state);
+        self.value().hash(state);
     }
 }
 
 impl<const N: usize, const M: usize, E, O> Ord for Field<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + Ord,
+    E: Extract<N, M, Output = O>,
+    O: Ord,
 {
     #[inline]
-    fn cmp(&self, &Self(right_value, ..): &Self) -> Ordering {
-        let &Self(left_value, ..) = self;
-
-        left_value.cmp(right_value)
+    fn cmp(&self, target_value: &Self) -> Ordering {
+        self.value().cmp(&target_value.value())
     }
 }
 
 impl<const N: usize, const M: usize, E, O> PartialOrd for Field<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + PartialOrd,
+    E: Extract<N, M, Output = O>,
+    O: PartialOrd,
 {
     #[inline]
-    fn partial_cmp(&self, &Self(right_value, ..): &Self) -> Option<Ordering> {
-        let &Self(left_value, ..) = self;
-
-        left_value.partial_cmp(right_value)
+    fn partial_cmp(&self, target_value: &Self) -> Option<Ordering> {
+        self.value().partial_cmp(&target_value.value())
     }
 }
 
@@ -204,17 +245,21 @@ impl<const N: usize, const M: usize, E, O> Copy for Field<'_, N, M, E, O> where 
 
 impl<const N: usize, const M: usize, E, O> PartialEq for Field<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + PartialEq,
+    E: Extract<N, M, Output = O>,
+    O: PartialEq,
 {
     #[inline]
-    fn eq(&self, &Self(right_value, ..): &Self) -> bool {
-        let &Self(left_value, ..) = self;
-
-        left_value == right_value
+    fn eq(&self, target_value: &Self) -> bool {
+        self.value() == target_value.value()
     }
 }
 
-impl<const N: usize, const M: usize, E, O> Eq for Field<'_, N, M, E, O> where E: Extract<N, M, Output = O> + Eq {}
+impl<const N: usize, const M: usize, E, O> Eq for Field<'_, N, M, E, O>
+where
+    E: Extract<N, M, Output = O>,
+    O: Eq,
+{
+}
 
 /// A helper macro to implement the distinct combinations of the [`Field`]
 /// implementors.
@@ -256,16 +301,28 @@ field!(u64 for [u8, u16, u32, u64]);
 
 field!(u128 for [u8, u16, u32, u64, u128]);
 
+#[cfg(target_pointer_width = "16")]
+field!(usize for [u8, u16]);
+
+#[cfg(target_pointer_width = "32")]
+field!(usize for [u8, u16, u32]);
+
+#[cfg(target_pointer_width = "64")]
+field!(usize for [u8, u16, u32, u64]);
+
 /// A mutable field new-type to interact with a contiguous segment of bits in a
 /// `E`.
 ///
-/// This item incorporates total or partial *const-fn* support, const-evaluable
-/// alternatives are outlined as:
+/// # Value Semantics
 ///
-/// - [`FieldMut::const_value`] as [`FieldMut::value`]
-/// - [`FieldMut::const_merge`] as [`FieldMut::merge`]
+/// Equality, hashing, and ordering use the extracted value, as with [`Field`].
+/// Dereferencing returns the borrowed source integer.
 ///
-/// These are identical in function prototype, modulo *constness* coloring.
+/// # Const Evaluation
+///
+/// [`FieldMut::const_value()`] and [`FieldMut::const_merge()`] provide
+/// const-compatible counterparts to [`FieldMut::value()`] and
+/// [`FieldMut::merge()`] for primitive integers.
 #[repr(transparent)]
 // NOTE(invariant): The `Extract<N, M>` bound fixes a valid field and its output representation for
 // the mutably borrowed value.
@@ -296,7 +353,11 @@ where
         <E as Extract<N, M>>::extract(target_value)
     }
 
-    /// Merge the value of this [`FieldMut`] and [`Extract::Output`] type.
+    /// Replace the selected field and return its previous extracted value.
+    ///
+    /// Input bits exceeding the field width are discarded. Every bit outside
+    /// the selected field is preserved. The output type supplies the field's
+    /// integer storage capacity.
     #[inline]
     pub fn merge(&mut self, target_input: O) -> O {
         let &mut Self(ref mut target_value, ..) = self;
@@ -331,6 +392,7 @@ impl<const N: usize, const M: usize, E, O> fmt::Debug for FieldMut<'_, N, M, E, 
 where
     E: Extract<N, M, Output = O> + fmt::Debug,
 {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(target_value, ..) = self;
 
@@ -350,56 +412,57 @@ where
 
 impl<const N: usize, const M: usize, E, O> hash::Hash for FieldMut<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + hash::Hash,
+    E: Extract<N, M, Output = O>,
+    O: hash::Hash,
 {
     #[inline]
     fn hash<H>(&self, state: &mut H)
     where
         H: hash::Hasher,
     {
-        let Self(target_value, ..) = self;
-
-        target_value.hash(state);
+        self.value().hash(state);
     }
 }
 
 impl<const N: usize, const M: usize, E, O> Ord for FieldMut<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + Ord,
+    E: Extract<N, M, Output = O>,
+    O: Ord,
 {
     #[inline]
-    fn cmp(&self, Self(right_value, ..): &Self) -> Ordering {
-        let Self(left_value, ..) = self;
-
-        left_value.cmp(right_value)
+    fn cmp(&self, target_value: &Self) -> Ordering {
+        self.value().cmp(&target_value.value())
     }
 }
 
 impl<const N: usize, const M: usize, E, O> PartialOrd for FieldMut<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + PartialOrd,
+    E: Extract<N, M, Output = O>,
+    O: PartialOrd,
 {
     #[inline]
-    fn partial_cmp(&self, Self(right_value, ..): &Self) -> Option<Ordering> {
-        let Self(left_value, ..) = self;
-
-        left_value.partial_cmp(right_value)
+    fn partial_cmp(&self, target_value: &Self) -> Option<Ordering> {
+        self.value().partial_cmp(&target_value.value())
     }
 }
 
 impl<const N: usize, const M: usize, E, O> PartialEq for FieldMut<'_, N, M, E, O>
 where
-    E: Extract<N, M, Output = O> + PartialEq,
+    E: Extract<N, M, Output = O>,
+    O: PartialEq,
 {
     #[inline]
-    fn eq(&self, Self(right_value, ..): &Self) -> bool {
-        let Self(left_value, ..) = self;
-
-        left_value == right_value
+    fn eq(&self, target_value: &Self) -> bool {
+        self.value() == target_value.value()
     }
 }
 
-impl<const N: usize, const M: usize, E, O> Eq for FieldMut<'_, N, M, E, O> where E: Extract<N, M, Output = O> + Eq {}
+impl<const N: usize, const M: usize, E, O> Eq for FieldMut<'_, N, M, E, O>
+where
+    E: Extract<N, M, Output = O>,
+    O: Eq,
+{
+}
 
 /// A helper macro to implement the distinct combinations of the [`FieldMut`]
 /// implementors.
@@ -427,9 +490,10 @@ macro_rules! field_mut {
                     Extractor::<N, M, $target_type, $target_output>::extract(target_value)
                 }
 
-                /// Merge the value of this [`FieldMut`] and [`Extract::Output`] type.
+                /// Replace the selected field and return its previous extracted value.
                 ///
-                /// This is a const-fn-compatible alternative to the `merge` associated function in this item.
+                /// This is the const-compatible counterpart of [`FieldMut::merge()`].
+                /// Excess input bits are discarded and bits outside the field are preserved.
                 #[inline]
                 pub const fn const_merge(&mut self, target_input: $target_output) -> $target_output {
                     let &mut Self(ref mut target_value, ..) = self;
@@ -451,13 +515,222 @@ field_mut!(u64 for [u8, u16, u32, u64]);
 
 field_mut!(u128 for [u8, u16, u32, u64, u128]);
 
+#[cfg(target_pointer_width = "16")]
+field_mut!(usize for [u8, u16]);
+
+#[cfg(target_pointer_width = "32")]
+field_mut!(usize for [u8, u16, u32]);
+
+#[cfg(target_pointer_width = "64")]
+field_mut!(usize for [u8, u16, u32, u64]);
+
 #[cfg(test)]
 mod tests {
-    use super::{
-        U8High4, U8High4Mut, U8Low4, U8Low4Mut, U16High8, U16High8Mut, U16Low8, U16Low8Mut, U32High16, U32High16Mut,
-        U32Low16, U32Low16Mut, U64High32, U64High32Mut, U64Low32, U64Low32Mut, U128High64, U128High64Mut, U128Low64,
-        U128Low64Mut,
+    //! Test field projections, comparison semantics, and truncating merges.
+
+    extern crate std;
+
+    #[cfg(target_pointer_width = "16")]
+    use core::primitive::u16 as Word;
+    #[cfg(target_pointer_width = "32")]
+    use core::primitive::u32 as Word;
+    #[cfg(target_pointer_width = "64")]
+    use core::primitive::u64 as Word;
+    use core::{
+        cmp::Ordering,
+        hash::{Hash, Hasher},
     };
+    use std::hash::DefaultHasher;
+
+    use super::{
+        Field, U8High4, U8High4Mut, U8Low4, U8Low4Mut, U16High8, U16High8Mut, U16Low8, U16Low8Mut, U32High16,
+        U32High16Mut, U32Low16, U32Low16Mut, U64High32, U64High32Mut, U64Low32, U64Low32Mut, U128High64, U128High64Mut,
+        U128Low64, U128Low64Mut,
+    };
+    use crate::prelude::{Counterpart, Extract};
+
+    /// Verify that comparisons and hashes depend only on the projection.
+    #[test]
+    fn projected_comparisons_and_hashes() {
+        type Low<'value> = Field<'value, 0, 7, u16>;
+        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+
+        let left = 0x0101_u16;
+        let right = 0x0201_u16;
+        let left_field = Low::wrap(&left);
+        let right_field = Low::wrap(&right);
+
+        assert_eq!(left_field, right_field);
+        assert_eq!(left_field.cmp(&right_field), Ordering::Equal);
+        assert_eq!(left_field.partial_cmp(&right_field), Some(Ordering::Equal));
+        assert_eq!(*left_field, left);
+        assert_eq!(*right_field, right);
+
+        let mut left_hash = DefaultHasher::new();
+        let mut right_hash = DefaultHasher::new();
+
+        left_field.hash(&mut left_hash);
+        right_field.hash(&mut right_hash);
+        assert_eq!(left_hash.finish(), right_hash.finish());
+
+        let mut left = 0x0102_u16;
+        let mut right = 0x0201_u16;
+        let left_field = LowMut::wrap(&mut left);
+        let right_field = LowMut::wrap(&mut right);
+
+        assert!(left_field > right_field);
+        assert_eq!(left_field.cmp(&right_field), Ordering::Greater);
+        assert_eq!(left_field.partial_cmp(&right_field), Some(Ordering::Greater));
+
+        let mut left = 0x0101_u16;
+        let mut right = 0x0201_u16;
+        let left_field = LowMut::wrap(&mut left);
+        let right_field = LowMut::wrap(&mut right);
+        let mut left_hash = DefaultHasher::new();
+        let mut right_hash = DefaultHasher::new();
+
+        assert_eq!(left_field, right_field);
+        left_field.hash(&mut left_hash);
+        right_field.hash(&mut right_hash);
+        assert_eq!(left_hash.finish(), right_hash.finish());
+    }
+
+    #[test]
+    fn pointer_fields_extract_and_merge_without_touching_outside_bits() {
+        type Tag<'value> = Field<'value, 4, 7, usize>;
+        type TagMut<'value> = <Tag<'value> as Counterpart>::Mut;
+
+        const MASK: usize = Tag::mask();
+        const VALUE: u8 = Tag::wrap(&0xa5_usize).const_value();
+        const MERGED: (usize, u8, u8) = {
+            let mut value = usize::MAX;
+            let mut field = TagMut::wrap(&mut value);
+
+            let previous = field.const_merge(0xa5);
+            let current = field.const_value();
+
+            (value, previous, current)
+        };
+
+        assert_eq!(MASK, 0xf0);
+        assert_eq!(MASK, <usize as Extract<4, 7>>::EXTRACT_MASK);
+        assert_eq!(U8High4::mask(), 0xf0);
+        assert_eq!(U128High64::mask(), 0xffff_ffff_ffff_ffff_0000_0000_0000_0000);
+        assert_eq!(VALUE, 0xa);
+        assert_eq!(MERGED, (usize::MAX ^ 0xa0, 0xf, 0x5));
+
+        let (merged_value, ..) = MERGED;
+
+        let mut value = usize::MAX;
+        let mut field = TagMut::wrap(&mut value);
+
+        assert_eq!(field.value(), 0xf);
+        assert_eq!(field.merge(0xa5), 0xf);
+        assert_eq!(field.value(), 0x5);
+        assert_eq!(value, merged_value);
+        assert_eq!(Tag::wrap(&value).value(), 0x5);
+    }
+
+    #[test]
+    fn pointer_fields_support_high_and_full_width_const_operations() {
+        const HIGH: usize = usize::BITS as usize - 1;
+        const START: usize = usize::BITS as usize - 8;
+
+        type High<'value> = Field<'value, START, HIGH, usize>;
+        type HighMut<'value> = <High<'value> as Counterpart>::Mut;
+        type Full<'value> = Field<'value, 0, HIGH, usize>;
+        type FullMut<'value> = <Full<'value> as Counterpart>::Mut;
+
+        const HIGH_MASK: usize = High::mask();
+        const HIGH_VALUE: u8 = High::wrap(&usize::MAX).const_value();
+        const HIGH_MERGED: (usize, u8, u8) = {
+            let mut value = usize::MAX;
+            let mut field = HighMut::wrap(&mut value);
+
+            let previous = field.const_merge(0);
+            let current = field.const_value();
+
+            (value, previous, current)
+        };
+        const FULL_VALUE: Word = Full::wrap(&usize::MAX).const_value();
+        const FULL_MERGED: (usize, Word, Word) = {
+            let mut value = usize::MAX;
+            let mut field = FullMut::wrap(&mut value);
+
+            let previous = field.const_merge(0x1234);
+            let current = field.const_value();
+
+            (value, previous, current)
+        };
+
+        assert_eq!(HIGH_VALUE, u8::MAX);
+        assert_eq!(HIGH_MERGED, (usize::MAX >> 8, u8::MAX, 0));
+        #[cfg(target_pointer_width = "16")]
+        assert_eq!(HIGH_MASK, 0xff00);
+        #[cfg(target_pointer_width = "32")]
+        assert_eq!(HIGH_MASK, 0xff00_0000);
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(HIGH_MASK, 0xff00_0000_0000_0000);
+        assert_eq!(FULL_VALUE, Word::MAX);
+        assert_eq!(FULL_MERGED, (0x1234, Word::MAX, 0x1234));
+        assert_eq!(Full::mask(), usize::MAX);
+
+        let (high_merged_value, ..) = HIGH_MERGED;
+
+        let (full_merged_value, ..) = FULL_MERGED;
+
+        let mut value = usize::MAX;
+
+        assert_eq!(HighMut::wrap(&mut value).merge(0), u8::MAX);
+        assert_eq!(value, high_merged_value);
+        assert_eq!(High::wrap(&value).value(), 0);
+        assert_eq!(FullMut::wrap(&mut value).merge(0x1234), Word::MAX >> 8);
+        assert_eq!(value, full_merged_value);
+        assert_eq!(Full::wrap(&value).value(), 0x1234);
+    }
+
+    #[test]
+    fn pointer_fields_support_u16_const_output() {
+        type Low<'value> = Field<'value, 0, 15, usize>;
+        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+
+        const VALUE: u16 = Low::wrap(&usize::MAX).const_value();
+        const MERGED: (usize, u16, u16) = {
+            let mut value = usize::MAX;
+            let mut field = LowMut::wrap(&mut value);
+
+            let previous = field.const_merge(0x1234);
+            let current = field.const_value();
+
+            (value, previous, current)
+        };
+
+        assert_eq!(VALUE, u16::MAX);
+        assert_eq!(MERGED, (usize::MAX ^ 0xedcb, u16::MAX, 0x1234));
+        assert_eq!(Low::mask(), 0xffff);
+    }
+
+    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    #[test]
+    fn pointer_fields_support_u32_const_output() {
+        type Low<'value> = Field<'value, 0, 31, usize>;
+        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+
+        const VALUE: u32 = Low::wrap(&usize::MAX).const_value();
+        const MERGED: (usize, u32, u32) = {
+            let mut value = usize::MAX;
+            let mut field = LowMut::wrap(&mut value);
+
+            let previous = field.const_merge(0x1234_5678);
+            let current = field.const_value();
+
+            (value, previous, current)
+        };
+
+        assert_eq!(VALUE, u32::MAX);
+        assert_eq!(MERGED, (usize::MAX ^ 0xedcb_a987, u32::MAX, 0x1234_5678));
+        assert_eq!(Low::mask(), 0xffff_ffff);
+    }
 
     #[test]
     fn half_aliases_project_each_supported_unsigned_word() {

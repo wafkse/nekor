@@ -8,7 +8,17 @@ use crate::{
 };
 
 /// A managed immutable handle to the `N`-th bit in the type `I`.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+///
+/// Equality and ordering compare the selected [`State`].
+///
+/// Indices outside the integer's width are rejected by the type bound.
+///
+/// ```compile_fail
+/// use nekor_bitwise::field::single::Bit;
+///
+/// let _ = Bit::<u128, 128>::wrap(&u128::MIN);
+/// ```
+#[derive(Debug)]
 #[repr(transparent)]
 // NOTE(invariant): The `BitAt<N>` bound proves that `N` names a valid bit in the borrowed value.
 pub struct Bit<'a, I, const N: usize>(&'a I)
@@ -69,7 +79,9 @@ where
 }
 
 /// A managed mutable handle to the `N`-th bit in the type `I`.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+///
+/// Equality and ordering compare the selected [`State`], as with [`Bit`].
+#[derive(Debug)]
 #[repr(transparent)]
 // NOTE(invariant): The `BitAt<N>` bound proves that `N` names a valid bit in the borrowed value.
 pub struct BitMut<'a, I, const N: usize>(&'a mut I)
@@ -149,7 +161,7 @@ where
 
 /// A helper macro to implement the distinct combinations of the [`BitMut`]
 /// implementors.
-macro_rules! bit_mut {
+macro_rules! mutable {
     () => {};
     (
         $(
@@ -193,10 +205,10 @@ macro_rules! bit_mut {
     };
 }
 
-bit_mut!(u8, u16, u32, u64);
+mutable!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
 /// Expand to a const-compatible implementation of [`Bit`].
-macro_rules! bit_const {
+macro_rules! constant {
     ($($target_type:ty),+ $(,)?) => {
         $(
             impl<'a, const N: usize> Bit<'a, $target_type, N>
@@ -216,4 +228,114 @@ macro_rules! bit_const {
     };
 }
 
-bit_const!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+constant!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+
+/// Implement comparisons over a static bit's projected state.
+macro_rules! compare {
+    () => {};
+    ($($target_type:ident),* $(,)?) => {
+        $crate::reexport::tokel::stream! {
+            $(
+            impl<I, const N: usize> PartialEq for $target_type<'_, I, N>
+            where
+                I: BitAt<N>,
+            {
+                #[inline]
+                fn eq(&self, target_value: &Self) -> bool {
+                    self.state() == target_value.state()
+                }
+            }
+
+            impl<I, const N: usize> Eq for $target_type<'_, I, N> where I: BitAt<N> {}
+
+            impl<I, const N: usize> Ord for $target_type<'_, I, N>
+            where
+                I: BitAt<N>,
+            {
+                #[inline]
+                fn cmp(&self, target_value: &Self) -> core::cmp::Ordering {
+                    self.state().cmp(&target_value.state())
+                }
+            }
+
+            impl<I, const N: usize> PartialOrd for $target_type<'_, I, N>
+            where
+                I: BitAt<N>,
+            {
+                #[inline]
+                fn partial_cmp(&self, target_value: &Self) -> Option<core::cmp::Ordering> {
+                    Some(self.cmp(target_value))
+                }
+            }
+
+            )*
+        }
+
+
+    };
+}
+
+compare![Bit, BitMut];
+
+#[cfg(test)]
+mod tests {
+    //! Test projected states and const operations across integer widths.
+
+    use super::{Bit, BitMut};
+    use crate::prelude::State;
+
+    /// Bit comparisons use their projected states.
+    #[test]
+    fn projected_comparisons() {
+        let left = 0x01_u8;
+        let right = 0xff_u8;
+
+        assert_eq!(Bit::<u8, 0>::wrap(&left), Bit::<u8, 0>::wrap(&right));
+        assert!(Bit::<u8, 0>::wrap(&0x02) < Bit::<u8, 0>::wrap(&0x01));
+
+        let mut left = left;
+        let mut right = right;
+
+        assert_eq!(BitMut::<u8, 0>::wrap(&mut left), BitMut::<u8, 0>::wrap(&mut right));
+    }
+
+    /// Generate const-evaluated highest-bit checks for each primitive.
+    macro_rules! highest {
+        () => {};
+        ($($target_type:ident),* $(,)?) => {
+            crate::reexport::tokel::stream! {
+            {
+                $(
+                {
+                    const N: usize = $target_type::BITS as usize - 1;
+                    const VALUE: ($target_type, State, State, State, State) = {
+                        let mut value: $target_type = 0;
+                        let mut bit = BitMut::<$target_type, N>::wrap(&mut value);
+
+                        let before = bit.const_set(State::Set);
+                        let after = bit.const_state();
+                        let previous = bit.const_toggle();
+                        let cleared = bit.const_state();
+
+                        (value, before, after, previous, cleared)
+                    };
+
+                    assert_eq!(VALUE, (0, State::Cleared, State::Set, State::Set, State::Cleared));
+                    assert_eq!(Bit::<$target_type, N>::wrap(&$target_type::MAX).const_state(),
+                        if $target_type::MIN == 0 { State::Set } else { State::Cleared });
+                }
+
+                )*
+            }
+        }
+
+
+        };
+    }
+
+    /// Mutable and immutable const operations reach each primitive's highest bit.
+    #[test]
+    fn primitive_const_parity() {
+        highest!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+    }
+}

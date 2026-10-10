@@ -147,8 +147,9 @@ where
 macro_rules! bits {
     () => {};
     (
-        [$($target_index:literal),*] for $target_type:ty
+        [$($target_index:literal),*] for $target_type:ident
     ) => {
+        crate::reexport::tokel::stream! {
         impl Bitwise for $target_type {
             const BITS: u32 = Self::BITS;
         }
@@ -164,7 +165,6 @@ macro_rules! bits {
 
             #[inline]
             fn set(&mut self, target_indice: Selected<Self>, target_state: State) -> State {
-
                 let set_state = <Self as BitOp>::get(self, target_indice);
 
                 match target_state {
@@ -189,6 +189,7 @@ macro_rules! bits {
                     _ => State::Set,
                 }
             }
+
         }
 
         impl<const N: usize> BitAtExtractor<N, $target_type>
@@ -261,6 +262,7 @@ macro_rules! bits {
                 }
             }
         )+
+        }
     };
 }
 
@@ -301,3 +303,61 @@ bits!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 #[cfg(target_pointer_width = "64")]
 bits!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63] for isize);
+
+bits!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127] for u128);
+bits!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127] for i128);
+
+#[cfg(test)]
+mod tests {
+    //! Exercise single-bit operations for a custom bitwise implementation.
+
+    use super::{BitOp, Bitwise, Selected, State};
+
+    /// A byte wrapper implementing only the original single-bit operations.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    struct Custom(pub u8);
+
+    impl Bitwise for Custom {
+        const BITS: u32 = u8::BITS;
+    }
+
+    impl BitOp for Custom {
+        #[inline]
+        fn get(&self, target_indice: Selected<Self>) -> State {
+            let Self(target_value) = self;
+
+            let target_indice = Selected::<u8>::new(target_indice.index());
+
+            BitOp::get(target_value, target_indice)
+        }
+
+        #[inline]
+        fn set(&mut self, target_indice: Selected<Self>, target_state: State) -> State {
+            let Self(target_value) = self;
+
+            let target_indice = Selected::<u8>::new(target_indice.index());
+
+            BitOp::set(target_value, target_indice, target_state)
+        }
+
+        #[inline]
+        fn single(target_indice: Selected<Self>) -> Self {
+            let target_indice = Selected::<u8>::new(target_indice.index());
+
+            Self(BitOp::single(target_indice))
+        }
+    }
+
+    /// Custom bitwise types support selected-bit state transitions.
+    #[test]
+    fn custom_bit_operations() {
+        let high = Selected::<Custom>::new(7);
+        let mut value = Custom(0x80);
+
+        assert_eq!(value.get(high), State::Set);
+        assert_eq!(value.set(high, State::Cleared), State::Set);
+        assert_eq!(value, Custom(u8::MIN));
+        assert_eq!(value.toggle(high), State::Cleared);
+        assert_eq!(value, Custom(0x80));
+    }
+}

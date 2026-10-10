@@ -5,7 +5,9 @@
 use crate::{bit::BitOp, field::dynamic::select::Selected, prelude::State};
 
 /// A managed immutable handle to a bit in the integer `B`.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
+///
+/// Equality and ordering compare the selected [`State`].
+#[derive(Debug, Copy, Clone)]
 // NOTE(invariant): The stored `Selected<B>` proves the selected bit is within the borrowed value.
 pub struct BitDyn<'a, B>(&'a B, Selected<B>)
 where
@@ -82,7 +84,9 @@ where
 }
 
 /// A managed mutable handle to a bit in the integer `B`.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+///
+/// Equality and ordering compare the selected [`State`], as with [`BitDyn`].
+#[derive(Debug)]
 // NOTE(invariant): The stored `Selected<B>` proves the selected bit is within the borrowed value.
 pub struct BitDynMut<'a, B>(&'a mut B, Selected<B>)
 where
@@ -164,5 +168,77 @@ where
         let &mut Self(ref mut target_value, target_indice) = self;
 
         <B as BitOp>::toggle(target_value, target_indice)
+    }
+}
+
+/// Implement comparisons over a runtime-selected bit's projected state.
+macro_rules! compare {
+    () => {};
+    ($($target_type:ident),* $(,)?) => {
+        crate::reexport::tokel::stream! {
+            $(
+            impl<B> PartialEq for $target_type<'_, B>
+            where
+                B: BitOp,
+            {
+                #[inline]
+                fn eq(&self, target_value: &Self) -> bool {
+                    self.state() == target_value.state()
+                }
+            }
+
+            impl<B> Eq for $target_type<'_, B> where B: BitOp {}
+
+            impl<B> Ord for $target_type<'_, B>
+            where
+                B: BitOp,
+            {
+                #[inline]
+                fn cmp(&self, target_value: &Self) -> core::cmp::Ordering {
+                    self.state().cmp(&target_value.state())
+                }
+            }
+
+            impl<B> PartialOrd for $target_type<'_, B>
+            where
+                B: BitOp,
+            {
+                #[inline]
+                fn partial_cmp(&self, target_value: &Self) -> Option<core::cmp::Ordering> {
+                    Some(self.cmp(target_value))
+                }
+            }
+
+            )*
+        }
+
+
+    };
+}
+
+compare!(BitDyn, BitDynMut);
+
+#[cfg(test)]
+mod tests {
+    //! Compare projected states independently of their selected indices.
+
+    use super::{BitDyn, BitDynMut};
+    use crate::field::dynamic::select::Selected;
+
+    /// Different backing integers and indices can select the same state.
+    #[test]
+    fn projected_comparisons() {
+        let left = 1_u8;
+        let right = 0x80_u8;
+        let low = Selected::<u8>::new(u32::MIN);
+        let high = Selected::<u8>::new(7);
+
+        assert_eq!(BitDyn::wrap(&left, low), BitDyn::wrap(&right, high));
+        assert!(BitDyn::wrap(&0xfe, low) < BitDyn::wrap(&left, low));
+
+        let mut left = left;
+        let mut right = right;
+
+        assert_eq!(BitDynMut::wrap(&mut left, low), BitDynMut::wrap(&mut right, high));
     }
 }

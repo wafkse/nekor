@@ -9,6 +9,15 @@ pub mod bit;
 
 pub mod endian;
 
+pub mod pointer;
+
+#[doc(hidden)]
+pub mod reexport {
+    //! Dependencies used by exported macro expansions.
+
+    pub use tokel;
+}
+
 pub mod prelude {
     //! The prelude module for the `nekor-bitwise` crate.
 
