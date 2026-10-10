@@ -2,6 +2,172 @@
 
 use core::arch;
 
+pub mod relax {
+    //! Instructions that reduce processo activity while waiting.
+
+    use core::arch;
+
+    use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
+
+    use super::info::{TscDeadlineEax, TscDeadlineEdx};
+
+    /// Indicates to the processor that the code sequence is a spin-wait loop.
+    ///
+    /// This instruction is useful for reducing power consumption and improving
+    /// performance in certain scenarios.
+    #[inline]
+    pub fn pause() {
+        // SAFETY: PAUSE only changes the processor's spin-wait behavior.
+        unsafe { arch::asm!("pause", options(nomem, nostack, preserves_flags, att_syntax)) };
+    }
+
+    /// Execute consecutive `pause` instructions grouped into chains.
+    ///
+    /// A chain contains `PAUSE_COUNT` consecutive `pause` instructions. Callers may
+    /// treat one chain as a wait quantum and use `CHAIN_COUNT` to determine how many
+    /// quanta execute between timestamp checks.
+    ///
+    /// The grouping introduces no branches or timestamp reads between chains.
+    /// Both counts are const parameters so callers can select their grouping
+    /// without generic const arithmetic. If either count is zero, no instructions
+    /// are emitted.
+    #[inline]
+    pub fn chain<const PAUSE_COUNT: usize, const CHAIN_COUNT: usize>() {
+        // SAFETY: Each PAUSE only changes the processor's spin-wait behavior.
+        unsafe {
+            arch::asm!(
+                ".rept {chain_count}",
+                ".rept {pause_count}",
+                "pause",
+                ".endr",
+                ".endr",
+                chain_count = const CHAIN_COUNT,
+                pause_count = const PAUSE_COUNT,
+                options(nomem, nostack, preserves_flags, att_syntax)
+            );
+        }
+    }
+
+    /// A C-State for the processor to enter during a [`tpause`] instruction.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum Cstate {
+        /// A sub-C-State of `C0` that is optimized for faster wakeup latency, but
+        /// incurs a higher power consumption.
+        C0_1,
+
+        /// A sub-C-State of `C0` that is optimized for low power consumption, but
+        /// incurs additional wakeup latency.
+        ///
+        /// This guarantees an increase in performance of other logical threads in
+        /// the same processor core.
+        C0_2,
+    }
+
+    /// Direct the processor to enter an implementation-defined low-power state
+    /// until:
+    ///
+    /// - The timestamp counter reaches the specified deadline.
+    /// - The processor thread is interrupted.
+    ///
+    /// This instruction is useful for reducing power consumption and improving
+    /// performance in certain scenarios.
+    ///
+    /// # Safety
+    ///
+    /// This requires the `Waitpkg` extension to be present.
+    ///
+    /// The feature is represented by `nekor_aal_feature::arch::x86::qualified::Waitpkg`.
+    #[inline]
+    pub unsafe fn tpause(wait_state: Cstate, target_deadline: u64) {
+        type TpauseCState<'a> = Bit<'a, u32, 0>;
+        type TpauseCStateMut<'a> = <TpauseCState<'a> as Counterpart>::Mut;
+
+        type TpauseCStateReserved<'a> = Field<'a, 1, 31, u32>;
+        type TpauseCStateReservedMut<'a> = <TpauseCStateReserved<'a> as Counterpart>::Mut;
+
+        let edx = TscDeadlineEdx::wrap(&target_deadline).value();
+        let eax = TscDeadlineEax::wrap(&target_deadline).value();
+
+        let mut ecx = u32::MIN;
+
+        TpauseCStateMut::wrap(&mut ecx).set(if wait_state == Cstate::C0_1 {
+            State::Set
+        } else {
+            State::Cleared
+        });
+
+        // NOTE: Keep all reserved bits clear.
+        TpauseCStateReservedMut::wrap(&mut ecx).merge(u32::MIN);
+
+        // SAFETY: The caller establishes WAITPKG support.
+        unsafe {
+            arch::asm!(
+                "tpause %ecx",
+                in("edx") edx,
+                in("eax") eax,
+                in("ecx") ecx,
+                options(nomem, nostack, att_syntax)
+            );
+        }
+    }
+}
+
+pub mod info {
+    //! Instructions that read processor information and counters.
+
+    use core::arch;
+
+    use nekor_bitwise::prelude::{Counterpart, Field};
+
+    /// The lower-half of the timestamp counter deadline.
+    ///
+    /// This is to be located in the `eax` register.
+    pub type TscDeadlineEax<'a> = Field<'a, 0, 31, u64>;
+
+    /// The higher-half of the timestamp counter deadline.
+    ///
+    /// This is to be located in the `edx` register.
+    pub type TscDeadlineEdx<'a> = Field<'a, 32, 63, u64>;
+
+    /// The mutable alternative to [`TscDeadlineEax`].
+    pub type TscDeadlineEaxMut<'a> = <TscDeadlineEax<'a> as Counterpart>::Mut;
+
+    /// The mutable alternative to [`TscDeadlineEdx`].
+    pub type TscDeadlineEdxMut<'a> = <TscDeadlineEdx<'a> as Counterpart>::Mut;
+
+    /// Reads the current value of the time-stamp counter.
+    ///
+    /// # Safety
+    ///
+    /// This is a partially-privileged instruction, therefore, the caller must
+    /// satisfy either of:
+    ///
+    /// - The *Time Stamp Disable* (TSD) bit in the `cr4` control register is cleared.
+    /// - ..or the current *Current Privilege Level* is `Ring0`.
+    #[inline]
+    #[must_use]
+    pub unsafe fn rdtsc() -> u64 {
+        let (edx, eax): (u32, u32);
+
+        // SAFETY: The caller permits RDTSC in this processor context.
+        unsafe {
+            arch::asm!(
+                "rdtsc",
+                lateout("eax") eax,
+                lateout("edx") edx,
+                options(nomem, nostack, preserves_flags, att_syntax)
+            );
+        }
+
+        let mut target_value = u64::MIN;
+
+        TscDeadlineEaxMut::wrap(&mut target_value).merge(eax);
+        TscDeadlineEdxMut::wrap(&mut target_value).merge(edx);
+
+        target_value
+    }
+}
+
 pub mod gdtr {
     //! Instructions related to the *Global Descriptor Table Register*.
 
@@ -139,6 +305,18 @@ pub mod idtr {
                 options(nostack, preserves_flags, att_syntax)
             );
         }
+    }
+}
+
+/// Fence preceding loads against subsequent loads.
+///
+/// This operation also acts as a compiler barrier for memory accesses.
+#[inline]
+pub fn lfence() {
+    // SAFETY: LFENCE is available on the supported processor baseline. Omitting `nomem`
+    // prevents compiler memory motion across the fence.
+    unsafe {
+        arch::asm!("lfence", options(nostack, preserves_flags, att_syntax));
     }
 }
 
