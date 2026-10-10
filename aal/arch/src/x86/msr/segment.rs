@@ -1,52 +1,24 @@
-//! FS and GS segment-base MSR representations.
+//! FS and GS segment-base model-specific register representations.
 //!
-//! Raw types preserve register images. Checked values carry canonical
+//! Raw types preserve register snapshots. Checked values carry canonical
 //! linear addresses for the selected x86-64 address mode.
 
-use super::{Cpl0Access, Msr, ReadWrite};
+use crate::x86::msr::{Cpl0Access, detail::snapshotted};
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
-/// Exact IA32_FS_BASE register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw FS-base image.
-pub struct RawFsBase(u64);
-
-impl RawFsBase {
-    /// Constructs a raw FS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw FS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawFsBase is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawFsBase {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0100;
-}
-
-impl super::private::Sealed for RawFsBase {}
+snapshotted::snapshot!(
+    /// `IA32_FS_BASE` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFsBase for (0xC000_0100) use Cpl0Access
+);
 
 /// Canonical FS base.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw FS-base image.
+// or checked lifting from a raw FS-base snapshot.
 pub struct FsBase(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -58,7 +30,7 @@ impl FsBase {
         Self(address)
     }
 
-    /// Lifts a raw FS-base image when it is canonical under M.
+    /// Lifts a raw FS-base snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawFsBase) -> Option<Self>
@@ -82,7 +54,7 @@ impl FsBase {
         address
     }
 
-    /// Lowers this checked base into the exact register image.
+    /// Lowers this checked base into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawFsBase {
@@ -92,46 +64,18 @@ impl FsBase {
     }
 }
 
-/// Exact IA32_GS_BASE register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw GS-base image.
-pub struct RawGsBase(u64);
-
-impl RawGsBase {
-    /// Constructs a raw GS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw GS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawGsBase is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawGsBase {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0101;
-}
-
-impl super::private::Sealed for RawGsBase {}
+snapshotted::snapshot!(
+    /// `IA32_GS_BASE` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawGsBase for (0xC000_0101) use Cpl0Access
+);
 
 /// Canonical GS base.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw GS-base image.
+// or checked lifting from a raw GS-base snapshot.
 pub struct GsBase(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -143,7 +87,7 @@ impl GsBase {
         Self(address)
     }
 
-    /// Lifts a raw GS-base image when it is canonical under M.
+    /// Lifts a raw GS-base snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawGsBase) -> Option<Self>
@@ -167,7 +111,7 @@ impl GsBase {
         address
     }
 
-    /// Lowers this checked base into the exact register image.
+    /// Lowers this checked base into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawGsBase {
@@ -177,46 +121,18 @@ impl GsBase {
     }
 }
 
-/// Exact IA32_KERNEL_GS_BASE register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw kernel-GS-base image.
-pub struct RawKernelGsBase(u64);
-
-impl RawKernelGsBase {
-    /// Constructs a raw kernel-GS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw kernel-GS-base image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawKernelGsBase is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawKernelGsBase {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0102;
-}
-
-impl super::private::Sealed for RawKernelGsBase {}
+snapshotted::snapshot!(
+    /// `IA32_KERNEL_GS_BASE` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawKernelGsBase for (0xC000_0102) use Cpl0Access
+);
 
 /// Canonical kernel GS base exchanged by SWAPGS.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw kernel-GS-base image.
+// or checked lifting from a raw kernel-GS-base snapshot.
 pub struct KernelGsBase(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -228,7 +144,7 @@ impl KernelGsBase {
         Self(address)
     }
 
-    /// Lifts a raw kernel-GS-base image when it is canonical under M.
+    /// Lifts a raw kernel-GS-base snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawKernelGsBase) -> Option<Self>
@@ -252,7 +168,7 @@ impl KernelGsBase {
         address
     }
 
-    /// Lowers this checked base into the exact register image.
+    /// Lowers this checked base into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawKernelGsBase {
@@ -264,7 +180,8 @@ impl KernelGsBase {
 
 #[cfg(test)]
 mod tests {
-    use super::{Msr, RawFsBase, RawGsBase, RawKernelGsBase};
+    use super::{RawFsBase, RawGsBase, RawKernelGsBase};
+    use crate::x86::msr::Msr;
 
     #[test]
     fn register_indices_match_architecture() {

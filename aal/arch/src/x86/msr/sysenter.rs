@@ -1,12 +1,12 @@
-//! Legacy SYSENTER MSR representations.
+//! Legacy SYSENTER model-specific register representations.
 //!
-//! Raw types preserve architectural register images. Checked values
+//! Raw types preserve architectural register snapshots. Checked values
 //! carry selector adjacency and canonical linear-address properties.
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
-use super::{Cpl0Access, Msr, ReadWrite};
 use crate::x86::{
+    msr::{Cpl0Access, detail::snapshotted},
     privilege::PrivilegeLevel,
     segmentation::{CodeSegment, DataSegment, TableIndicator},
 };
@@ -25,29 +25,13 @@ pub type SysEnterCsReserved<'value> = Field<'value, 16, 63, u64>;
 /// Mutable counterpart to SysEnterCsReserved.
 pub type SysEnterCsReservedMut<'value> = <SysEnterCsReserved<'value> as Counterpart>::Mut;
 
-/// Exact IA32_SYSENTER_CS register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw SYSENTER_CS image.
-pub struct RawSysEnterCs(u64);
+snapshotted::snapshot!(
+    /// `IA32_SYSENTER_CS` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawSysEnterCs for (0x0000_0174) use Cpl0Access
+);
 
 impl RawSysEnterCs {
-    /// Constructs a raw SYSENTER_CS image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw SYSENTER_CS image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
     /// Borrows the selector field.
     #[inline]
     #[must_use]
@@ -83,20 +67,10 @@ impl RawSysEnterCs {
     }
 }
 
-// SAFETY: RawSysEnterCs is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawSysEnterCs {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0x0000_0174;
-}
-
-impl super::private::Sealed for RawSysEnterCs {}
-
 /// Checked SYSENTER code and stack selector family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The stored raw image selects the supplied ring-zero GDT code segment and the
+// NOTE(invariant): The stored raw snapshot selects the supplied ring-zero GDT code segment and the
 // supplied ring-zero data segment has the immediately following descriptor index. This does not
 // prove that either descriptor is installed in the live GDT.
 pub struct SysEnterCs(RawSysEnterCs);
@@ -106,13 +80,14 @@ impl SysEnterCs {
     #[inline]
     #[must_use]
     pub const fn new(code: CodeSegment, data: DataSegment) -> Option<Self> {
-        let tables_valid = matches!(code.table(), TableIndicator::Gdt) && matches!(data.table(), TableIndicator::Gdt);
-        let privileges_valid =
-            matches!(code.privilege(), PrivilegeLevel::Ring0) && matches!(data.privilege(), PrivilegeLevel::Ring0);
-        let adjacent = matches!(data.index().raw().checked_sub(code.index().raw()), Some(1));
-
-        match (tables_valid, privileges_valid, adjacent) {
-            (true, true, true) => {
+        match (
+            code.table(),
+            data.table(),
+            code.privilege(),
+            data.privilege(),
+            data.index().raw().checked_sub(code.index().raw()),
+        ) {
+            (TableIndicator::Gdt, TableIndicator::Gdt, PrivilegeLevel::Ring0, PrivilegeLevel::Ring0, Some(1)) => {
                 let mut target_value = RawSysEnterCs::new(u64::MIN);
 
                 target_value.selector_mut().const_merge(code.raw().raw());
@@ -132,7 +107,7 @@ impl SysEnterCs {
         target_value.selector()
     }
 
-    /// Lowers this checked selector family into the exact register image.
+    /// Lowers this checked selector family into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawSysEnterCs {
@@ -142,46 +117,18 @@ impl SysEnterCs {
     }
 }
 
-/// Exact IA32_SYSENTER_ESP register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw SYSENTER_ESP image.
-pub struct RawSysEnterSp(u64);
-
-impl RawSysEnterSp {
-    /// Constructs a raw SYSENTER_ESP image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw SYSENTER_ESP image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawSysEnterSp is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawSysEnterSp {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0x0000_0175;
-}
-
-impl super::private::Sealed for RawSysEnterSp {}
+snapshotted::snapshot!(
+    /// `IA32_SYSENTER_ESP` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawSysEnterSp for (0x0000_0175) use Cpl0Access
+);
 
 /// Canonical SYSENTER stack pointer.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw SYSENTER_ESP image.
+// or checked lifting from a raw `SYSENTER_ESP` snapshot.
 pub struct SysEnterSp(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -193,7 +140,7 @@ impl SysEnterSp {
         Self(address)
     }
 
-    /// Lifts a raw stack-pointer image when it is canonical under M.
+    /// Lifts a raw stack-pointer snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawSysEnterSp) -> Option<Self>
@@ -217,7 +164,7 @@ impl SysEnterSp {
         address
     }
 
-    /// Lowers this checked stack pointer into the exact register image.
+    /// Lowers this checked stack pointer into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawSysEnterSp {
@@ -227,46 +174,18 @@ impl SysEnterSp {
     }
 }
 
-/// Exact IA32_SYSENTER_EIP register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw SYSENTER_EIP image.
-pub struct RawSysEnterIp(u64);
-
-impl RawSysEnterIp {
-    /// Constructs a raw SYSENTER_EIP image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw SYSENTER_EIP image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawSysEnterIp is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawSysEnterIp {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0x0000_0176;
-}
-
-impl super::private::Sealed for RawSysEnterIp {}
+snapshotted::snapshot!(
+    /// `IA32_SYSENTER_EIP` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawSysEnterIp for (0x0000_0176) use Cpl0Access
+);
 
 /// Canonical SYSENTER instruction pointer.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw SYSENTER_EIP image.
+// or checked lifting from a raw `SYSENTER_EIP` snapshot.
 pub struct SysEnterIp(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -278,7 +197,7 @@ impl SysEnterIp {
         Self(address)
     }
 
-    /// Lifts a raw instruction-pointer image when it is canonical under M.
+    /// Lifts a raw instruction-pointer snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawSysEnterIp) -> Option<Self>
@@ -302,7 +221,7 @@ impl SysEnterIp {
         address
     }
 
-    /// Lowers this checked instruction pointer into the exact register image.
+    /// Lowers this checked instruction pointer into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawSysEnterIp {
@@ -314,9 +233,10 @@ impl SysEnterIp {
 
 #[cfg(test)]
 mod tests {
-    use super::{Msr, RawSysEnterCs, RawSysEnterIp, RawSysEnterSp, SysEnterCs};
+    use super::{RawSysEnterCs, RawSysEnterIp, RawSysEnterSp, SysEnterCs};
     use crate::x86::{
         descriptor::{DescriptorIndex, RawSegmentDescriptor},
+        msr::Msr,
         privilege::PrivilegeLevel,
         segmentation::{CodeSegment, DataSegment, SegmentSelector, TableIndicator},
     };

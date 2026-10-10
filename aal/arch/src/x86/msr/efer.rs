@@ -1,12 +1,12 @@
 //! Extended feature enable register representations and access.
 //!
-//! RawEfer owns the architectural image. Efer exposes safe mutation
+//! RawEfer owns the architectural snapshot. Efer exposes safe mutation
 //! of software-controlled fields. LongModeEfer carries the stronger active
 //! long-mode proof needed by saved control-state representations.
 
 use nekor_bitwise::prelude::{Bit, Counterpart, State};
 
-use crate::x86::msr::{Cpl0Access, Msr, ReadWrite};
+use crate::x86::msr::{Cpl0Access, detail::snapshotted};
 
 /// System Call Extensions enable flag in RawEfer.
 pub type EferSce<'value> = Bit<'value, u64, 0>;
@@ -32,31 +32,15 @@ pub type EferLmaMut<'value> = <EferLma<'value> as Counterpart>::Mut;
 /// Mutable counterpart to EferNxe.
 pub type EferNxeMut<'value> = <EferNxe<'value> as Counterpart>::Mut;
 
-/// Exact IA32_EFER register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw EFER image.
-pub struct RawEfer(u64);
+snapshotted::snapshot!(
+    /// `IA32_EFER` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawEfer for (0xC000_0080) use Cpl0Access
+);
 
 impl RawEfer {
-    /// Architectural reset image used by this model.
+    /// Architectural reset snapshot used by this model.
     pub const RESET: Self = Self(u64::MIN);
-
-    /// Constructs a raw EFER image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw EFER image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
 
     /// Borrows the system-call enable flag.
     #[inline]
@@ -130,28 +114,18 @@ impl RawEfer {
     }
 }
 
-// SAFETY: RawEfer is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawEfer {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0080;
-}
-
-impl super::private::Sealed for RawEfer {}
-
-/// Software-controlled EFER value.
+/// Software-controlled `EFER` value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The wrapped raw image can preserve every hardware-provided bit while the public
-// mutation API excludes processor-maintained LMA.
+// NOTE(invariant): The wrapped raw snapshot can preserve every hardware-provided bit while the
+// public mutation API excludes processor-maintained LMA.
 pub struct Efer(RawEfer);
 
 impl Efer {
     /// Architectural reset value used by this model.
     pub const RESET: Self = Self(RawEfer::RESET);
 
-    /// Lifts a raw EFER image.
+    /// Lifts a raw `EFER` snapshot.
     #[inline]
     #[must_use]
     pub const fn lift(target_value: RawEfer) -> Self {
@@ -218,7 +192,7 @@ impl Efer {
         target_value.nxe_mut()
     }
 
-    /// Lowers this value into the exact EFER image.
+    /// Lowers this value into the `EFER` snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawEfer {
@@ -228,15 +202,15 @@ impl Efer {
     }
 }
 
-/// EFER value proven suitable for restoring an active long-mode context.
+/// `EFER` value proven suitable for restoring an active long-mode context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The wrapped EFER image always has both LME and LMA set. Construction checks
+// NOTE(invariant): The wrapped `EFER` snapshot always has both LME and LMA set. Construction checks
 // LME and writes LMA only through the raw representation used for saved-state transport.
 pub struct LongModeEfer(Efer);
 
 impl LongModeEfer {
-    /// Creates an active long-mode EFER proof when LME is enabled.
+    /// Creates an active long-mode `EFER` proof when LME is enabled.
     #[inline]
     #[must_use]
     pub const fn new(efer: Efer) -> Option<Self> {
@@ -252,7 +226,7 @@ impl LongModeEfer {
         }
     }
 
-    /// Lowers this proof into the exact saved EFER image.
+    /// Lowers this proof into the saved `EFER` snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawEfer {
@@ -266,7 +240,8 @@ impl LongModeEfer {
 mod tests {
     use nekor_bitwise::prelude::State;
 
-    use super::{Efer, LongModeEfer, Msr, RawEfer};
+    use super::{Efer, LongModeEfer, RawEfer};
+    use crate::x86::msr::Msr;
 
     #[test]
     fn long_mode_requires_enable_and_sets_active_restore_state() {

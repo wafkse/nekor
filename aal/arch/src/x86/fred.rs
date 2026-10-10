@@ -1,17 +1,17 @@
 //! x86 Flexible Return and Event Delivery capability facts.
 
-/// Proof that the current processor exposes FRED transitions and their
+/// Proof that the current processor exposes `FRED` transitions and their
 /// architectural MSRs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// NOTE(invariant): Construction requires the caller to establish FRED support on the current CPU.
-pub struct Fred(());
+// NOTE(invariant): Construction requires the caller to establish `FRED` support on the current CPU.
+pub struct FredCapability(());
 
-impl Fred {
-    /// Create the FRED capability proof for the current processor.
+impl FredCapability {
+    /// Create the `FRED` capability proof for the current processor.
     ///
     /// # Safety
     ///
-    /// The current processor must report the FRED architectural feature.
+    /// The current processor must report the `FRED` architectural feature.
     #[inline]
     #[must_use]
     pub const unsafe fn assume() -> Self {
@@ -20,9 +20,9 @@ impl Fred {
 }
 
 enumerate![
-    /// FRED supervisor stack level.
+    /// A `FRED` supervisor stack level.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub enum Level {
+    pub enum FredLevel {
         /// Ordinary supervisor event stack level.
         Zero = 0,
 
@@ -39,12 +39,12 @@ enumerate![
 
 #[cfg(test)]
 mod tests {
-    use super::Level;
+    use super::FredLevel;
 
     #[test]
     fn stack_levels_cover_the_complete_hardware_domain() {
-        assert_eq!(Level::lift(0), Some(Level::Zero));
-        assert_eq!(Level::lift(3), Some(Level::Three));
-        assert_eq!(Level::lift(4), None);
+        assert_eq!(FredLevel::lift(0), Some(FredLevel::Zero));
+        assert_eq!(FredLevel::lift(3), Some(FredLevel::Three));
+        assert_eq!(FredLevel::lift(4), None);
     }
 }

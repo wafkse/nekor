@@ -1,12 +1,14 @@
-//! Flexible Return and Event Delivery MSR representations and access.
+//! Flexible Return and Event Delivery model-specific register representations and access.
 //!
-//! Raw types preserve every architectural register image. Checked values keep
+//! Raw types preserve every architectural register snapshot. Checked values keep
 //! address alignment and policy constraints out of the raw transport layer.
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field};
 
-use super::{FredAccess, Msr, ReadWrite, UnavailableAccess};
-use crate::x86::fred::Level as FredLevel;
+use crate::x86::{
+    fred::FredLevel,
+    msr::{FredAccess, UnavailableAccess, detail::snapshotted},
+};
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
@@ -58,32 +60,16 @@ pub type FredConfigReserved11Mut<'value> = <FredConfigReserved11<'value> as Coun
 /// Mutable counterpart to FredConfigHandler.
 pub type FredConfigHandlerMut<'value> = <FredConfigHandler<'value> as Counterpart>::Mut;
 
-/// Low page-offset classification used by checked FRED handler construction.
+/// Low page-offset classification used by checked `FRED` handler construction.
 type FredHandlerOffset<'value> = Field<'value, 0, 11, u64>;
 
-/// Exact IA32_FRED_CONFIG register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw FRED configuration image.
-pub struct RawFredConfig(u64);
+snapshotted::snapshot!(
+    /// `IA32_FRED_CONFIG` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFredConfig for (0x0000_01D4) use FredAccess
+);
 
 impl RawFredConfig {
-    /// Constructs a raw FRED configuration image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw FRED configuration image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
     /// Borrows the current stack-level field.
     #[inline]
     #[must_use]
@@ -104,7 +90,7 @@ impl RawFredConfig {
     /// Borrows reserved bit two.
     #[inline]
     #[must_use]
-    pub const fn reserved_2(&self) -> FredConfigReserved2<'_> {
+    pub const fn reserved2(&self) -> FredConfigReserved2<'_> {
         let &Self(ref target_value) = self;
 
         FredConfigReserved2::wrap(target_value)
@@ -112,7 +98,7 @@ impl RawFredConfig {
 
     /// Mutably borrows reserved bit two.
     #[inline]
-    pub const fn reserved_2_mut(&mut self) -> FredConfigReserved2Mut<'_> {
+    pub const fn reserved2_mut(&mut self) -> FredConfigReserved2Mut<'_> {
         let &mut Self(ref mut target_value) = self;
 
         FredConfigReserved2Mut::wrap(target_value)
@@ -138,7 +124,7 @@ impl RawFredConfig {
     /// Borrows reserved bits four and five.
     #[inline]
     #[must_use]
-    pub const fn reserved_4_5(&self) -> FredConfigReserved4_5<'_> {
+    pub const fn reserved45(&self) -> FredConfigReserved4_5<'_> {
         let &Self(ref target_value) = self;
 
         FredConfigReserved4_5::wrap(target_value)
@@ -146,7 +132,7 @@ impl RawFredConfig {
 
     /// Mutably borrows reserved bits four and five.
     #[inline]
-    pub const fn reserved_4_5_mut(&mut self) -> FredConfigReserved4_5Mut<'_> {
+    pub const fn reserved45_mut(&mut self) -> FredConfigReserved4_5Mut<'_> {
         let &mut Self(ref mut target_value) = self;
 
         FredConfigReserved4_5Mut::wrap(target_value)
@@ -189,7 +175,7 @@ impl RawFredConfig {
     /// Borrows reserved bit eleven.
     #[inline]
     #[must_use]
-    pub const fn reserved_11(&self) -> FredConfigReserved11<'_> {
+    pub const fn reserved11(&self) -> FredConfigReserved11<'_> {
         let &Self(ref target_value) = self;
 
         FredConfigReserved11::wrap(target_value)
@@ -197,7 +183,7 @@ impl RawFredConfig {
 
     /// Mutably borrows reserved bit eleven.
     #[inline]
-    pub const fn reserved_11_mut(&mut self) -> FredConfigReserved11Mut<'_> {
+    pub const fn reserved11_mut(&mut self) -> FredConfigReserved11Mut<'_> {
         let &mut Self(ref mut target_value) = self;
 
         FredConfigReserved11Mut::wrap(target_value)
@@ -221,17 +207,7 @@ impl RawFredConfig {
     }
 }
 
-// SAFETY: RawFredConfig is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawFredConfig {
-    type Access = ReadWrite;
-    type Authority = FredAccess;
-
-    const ADDRESS: u32 = 0x0000_01D4;
-}
-
-impl super::private::Sealed for RawFredConfig {}
-
-/// Checked baseline FRED configuration.
+/// Checked baseline `FRED` configuration.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): The handler is page aligned and canonical. Lowering clears reserved fields,
@@ -247,7 +223,7 @@ pub struct FredConfig {
 
 #[cfg(target_arch = "x86_64")]
 impl FredConfig {
-    /// Creates a baseline FRED configuration.
+    /// Creates a baseline `FRED` configuration.
     #[inline]
     #[must_use]
     pub const fn new(handler: La, interrupt: FredLevel) -> Option<Self> {
@@ -277,7 +253,7 @@ impl FredConfig {
         interrupt
     }
 
-    /// Lowers this checked configuration into the exact register image.
+    /// Lowers this checked configuration into the register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawFredConfig {
@@ -312,29 +288,13 @@ pub type FredLevelsDfMut<'value> = <FredLevelsDf<'value> as Counterpart>::Mut;
 /// Mutable counterpart to FredLevelsMc.
 pub type FredLevelsMcMut<'value> = <FredLevelsMc<'value> as Counterpart>::Mut;
 
-/// Exact IA32_FRED_STKLVLS register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw FRED stack-level image.
-pub struct RawFredLevels(u64);
+snapshotted::snapshot!(
+    /// `IA32_FRED_STKLVLS` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFredLevels for (0x0000_01D0) use FredAccess
+);
 
 impl RawFredLevels {
-    /// Constructs a raw FRED stack-level image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw FRED stack-level image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
     /// Borrows the NMI stack-level field.
     #[inline]
     #[must_use]
@@ -387,17 +347,7 @@ impl RawFredLevels {
     }
 }
 
-// SAFETY: RawFredLevels is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawFredLevels {
-    type Access = ReadWrite;
-    type Authority = FredAccess;
-
-    const ADDRESS: u32 = 0x0000_01D0;
-}
-
-impl super::private::Sealed for RawFredLevels {}
-
-/// Checked machine-safety FRED stack-level policy.
+/// Checked machine-safety `FRED` stack-level policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction fixes NMI to level one, double fault to level two, machine check
 // to level three, and leaves every other raw field clear when lowered.
@@ -416,7 +366,7 @@ impl FredLevels {
     /// Constructs the revision 1 machine-safety assignment.
     #[inline]
     #[must_use]
-    pub const fn machine_safety() -> Self {
+    pub const fn safety() -> Self {
         Self {
             nmi: FredLevel::One,
             df: FredLevel::Two,
@@ -451,7 +401,7 @@ impl FredLevels {
         mc
     }
 
-    /// Lowers this policy into the exact stack-level register image.
+    /// Lowers this policy into the stack-level register snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawFredLevels {
@@ -467,169 +417,151 @@ impl FredLevels {
     }
 }
 
-/// Low six-bit alignment field used to validate FRED regular-stack pointers.
+/// Low six-bit alignment field used to validate `FRED` regular-stack pointers.
 pub type FredRspOffset<'value> = Field<'value, 0, 5, u64>;
 
-/// Defines a raw and checked regular-stack register pair.
-macro_rules! fred_rsp {
-    ($raw:ident, $checked:ident, $address:expr, $level:literal) => {
-        #[doc = concat!("Exact IA32_FRED_RSP", stringify!($level), " register image.")]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        #[repr(transparent)]
-        // NOTE: Every u64 value is a representable raw FRED regular-stack image.
-        pub struct $raw(u64);
+/// Implementation details for `FRED` regular-stack register pairs.
+mod detail {
+    /// Defines a raw and checked regular-stack register pair for a `FRED` level.
+    macro_rules! stack {
+        () => {};
+        (
+            $(
+                #[$target_meta:meta]
+            )*
 
-        impl $raw {
-            /// Architectural zero image.
-            pub const ZERO: Self = Self(u64::MIN);
+            $target_vis:vis struct $target_name:ident for ($target_address:expr)
+        ) => {
+            tokel::stream!(
+                $crate::x86::msr::detail::snapshotted::snapshot!(
+                    /// `FRED` regular-stack register snapshot.
+                    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+                    $target_vis struct [< Raw $target_name >]:flatten:concatenate for ($target_address)
+                    use FredAccess
+                );
 
-            /// Constructs a raw regular-stack image.
-            #[inline]
-            #[must_use]
-            pub const fn new(target_value: u64) -> Self {
-                Self(target_value)
-            }
-
-            /// Returns the raw regular-stack image.
-            #[inline]
-            #[must_use]
-            pub const fn raw(self) -> u64 {
-                let Self(target_value) = self;
-
-                target_value
-            }
-        }
-
-        // SAFETY: The raw type is transparent over u64 and every bit pattern is valid.
-        unsafe impl Msr for $raw {
-            type Access = ReadWrite;
-            type Authority = FredAccess;
-
-            const ADDRESS: u32 = $address;
-        }
-
-        impl super::private::Sealed for $raw {}
-
-        #[doc = concat!("Checked FRED regular-stack pointer for level ", stringify!($level), ".")]
-        #[cfg(target_arch = "x86_64")]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        #[repr(transparent)]
-        // NOTE: The stored address is canonical and 64-byte aligned.
-        pub struct $checked(La);
-
-        #[cfg(target_arch = "x86_64")]
-        impl $checked {
-            /// Creates a checked regular-stack pointer.
-            #[inline]
-            #[must_use]
-            pub const fn new(address: La) -> Option<Self> {
-                let target_value = address.bits();
-
-                match FredRspOffset::wrap(&target_value).const_value() {
-                    0 => Some(Self(address)),
-                    _ => None,
+                impl [< Raw $target_name >]:flatten:concatenate {
+                    /// Architectural zero snapshot.
+                    $target_vis const ZERO: Self = Self(u64::MIN);
                 }
-            }
 
-            /// Lifts a raw image when it is canonical under M and properly aligned.
-            #[inline]
-            #[must_use]
-            pub const fn lift<M>(target_value: $raw) -> Option<Self>
-            where
-                M: LaMode,
-            {
-                let target_value = target_value.raw();
-                let aligned = matches!(FredRspOffset::wrap(&target_value).const_value(), 0);
-                let address = La::new::<M>(target_value);
+                $(
+                    #[$target_meta]
+                )*
+                #[cfg(target_arch = "x86_64")]
+                #[repr(transparent)]
+                $target_vis struct $target_name(La);
 
-                match (aligned, address) {
-                    (true, Some(address)) => Some(Self(address)),
-                    _ => None,
+                #[cfg(target_arch = "x86_64")]
+                impl $target_name {
+                    /// Creates a checked regular-stack pointer.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn new(address: La) -> Option<Self> {
+                        let target_value = address.bits();
+
+                        match FredRspOffset::wrap(&target_value).const_value() {
+                            0 => Some(Self(address)),
+                            _ => None,
+                        }
+                    }
+
+                    /// Lifts a raw snapshot when it is canonical under M and properly aligned.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn lift<M>(target_value: [< Raw $target_name >]:flatten:concatenate) -> Option<Self>
+                    where
+                        M: LaMode,
+                    {
+                        let target_value = target_value.raw();
+
+                        match (
+                            FredRspOffset::wrap(&target_value).const_value(),
+                            La::new::<M>(target_value),
+                        ) {
+                            (0, Some(address)) => Some(Self(address)),
+                            _ => None,
+                        }
+                    }
+
+                    /// Returns the canonical regular-stack address.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn la(self) -> La {
+                        let Self(address) = self;
+
+                        address
+                    }
+
+                    /// Lowers this checked pointer into the register snapshot.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn raw(self) -> [< Raw $target_name >]:flatten:concatenate {
+                        let Self(address) = self;
+
+                        <[< Raw $target_name >]:flatten:concatenate>::new(address.bits())
+                    }
                 }
-            }
+            );
+        };
+    }
 
-            /// Returns the canonical regular-stack address.
-            #[inline]
-            #[must_use]
-            pub const fn la(self) -> La {
-                let Self(address) = self;
-
-                address
-            }
-
-            /// Lowers this checked pointer into the exact register image.
-            #[inline]
-            #[must_use]
-            pub const fn raw(self) -> $raw {
-                let Self(address) = self;
-
-                $raw::new(address.bits())
-            }
-        }
-    };
+    pub(in crate::x86::msr::fred) use stack;
 }
 
-fred_rsp!(RawFredRsp0, FredRsp0, 0x0000_01CC, 0);
-fred_rsp!(RawFredRsp1, FredRsp1, 0x0000_01CD, 1);
-fred_rsp!(RawFredRsp2, FredRsp2, 0x0000_01CE, 2);
-fred_rsp!(RawFredRsp3, FredRsp3, 0x0000_01CF, 3);
+detail::stack!(
+    /// Checked `FRED` regular-stack pointer for level 0.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct FredRsp0 for (0x0000_01CC)
+);
 
-/// Defines an exact FRED shadow-stack register image.
-///
-/// Access remains unavailable because the required shadow-stack capability is
-/// not modeled by the FRED proof alone.
-macro_rules! raw_fred_ssp {
-    ($name:ident, $address:expr, $level:literal) => {
-        #[doc = concat!("Exact IA32_FRED_SSP", stringify!($level), " register image.")]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        #[repr(transparent)]
-        // NOTE: Every u64 value is a representable raw FRED shadow-stack image.
-        pub struct $name(u64);
+detail::stack!(
+    /// Checked `FRED` regular-stack pointer for level 1.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct FredRsp1 for (0x0000_01CD)
+);
 
-        impl $name {
-            /// Constructs a raw shadow-stack image.
-            #[inline]
-            #[must_use]
-            pub const fn new(target_value: u64) -> Self {
-                Self(target_value)
-            }
+detail::stack!(
+    /// Checked `FRED` regular-stack pointer for level 2.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct FredRsp2 for (0x0000_01CE)
+);
 
-            /// Returns the raw shadow-stack image.
-            #[inline]
-            #[must_use]
-            pub const fn raw(self) -> u64 {
-                let Self(target_value) = self;
+detail::stack!(
+    /// Checked `FRED` regular-stack pointer for level 3.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct FredRsp3 for (0x0000_01CF)
+);
 
-                target_value
-            }
-        }
+// NOTE: `FRED` shadow-stack access requires a capability not modeled by the `FRED` proof alone.
+snapshotted::snapshot!(
+    /// `IA32_FRED_SSP1` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFredSsp1 for (0x0000_01D1) use UnavailableAccess
+);
 
-        // SAFETY: The raw type is transparent over u64 and every bit pattern is valid.
-        unsafe impl Msr for $name {
-            type Access = ReadWrite;
-            type Authority = UnavailableAccess;
+snapshotted::snapshot!(
+    /// `IA32_FRED_SSP2` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFredSsp2 for (0x0000_01D2) use UnavailableAccess
+);
 
-            const ADDRESS: u32 = $address;
-        }
-
-        impl super::private::Sealed for $name {}
-    };
-}
-
-raw_fred_ssp!(RawFredSsp1, 0x0000_01D1, 1);
-raw_fred_ssp!(RawFredSsp2, 0x0000_01D2, 2);
-raw_fred_ssp!(RawFredSsp3, 0x0000_01D3, 3);
+snapshotted::snapshot!(
+    /// `IA32_FRED_SSP3` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFredSsp3 for (0x0000_01D3) use UnavailableAccess
+);
 
 #[cfg(test)]
 mod tests {
     use nekor_bitwise::prelude::State;
 
     use super::{
-        FredConfig, FredLevels, FredRsp1, Msr, RawFredConfig, RawFredLevels, RawFredRsp0, RawFredRsp1, RawFredRsp2,
+        FredConfig, FredLevels, FredRsp1, RawFredConfig, RawFredLevels, RawFredRsp0, RawFredRsp1, RawFredRsp2,
         RawFredRsp3, RawFredSsp1, RawFredSsp2, RawFredSsp3,
     };
     use crate::{
-        x86::fred::Level as FredLevel,
+        x86::{fred::FredLevel, msr::Msr},
         x86_64::paging::{La, La48},
     };
 
@@ -645,9 +577,9 @@ mod tests {
         assert_eq!(raw.interrupt().const_value(), 0);
         assert_eq!(raw.regular().const_value(), 0);
         assert_eq!(raw.shadow().const_state(), State::Cleared);
-        assert_eq!(raw.reserved_2().const_state(), State::Cleared);
-        assert_eq!(raw.reserved_4_5().const_value(), 0);
-        assert_eq!(raw.reserved_11().const_state(), State::Cleared);
+        assert_eq!(raw.reserved2().const_state(), State::Cleared);
+        assert_eq!(raw.reserved45().const_value(), 0);
+        assert_eq!(raw.reserved11().const_state(), State::Cleared);
 
         let unaligned = La::new::<La48>(handler.bits() + 8).expect("fixture address remains canonical");
 
@@ -655,8 +587,8 @@ mod tests {
     }
 
     #[test]
-    fn machine_safety_levels_lower_to_named_fields() {
-        let levels = FredLevels::machine_safety();
+    fn safety_levels_lower_to_named_fields() {
+        let levels = FredLevels::safety();
         let raw = levels.raw();
 
         assert_eq!(levels.nmi(), FredLevel::One);
@@ -671,7 +603,7 @@ mod tests {
     fn regular_stacks_require_sixty_four_byte_alignment() {
         let aligned = La::new::<La48>(0xffff_ffff_8000_2040).expect("fixture stack top must be canonical");
         let unaligned = La::new::<La48>(aligned.bits() + 8).expect("fixture address remains canonical");
-        let rsp = FredRsp1::new(aligned).expect("aligned FRED stack top must validate");
+        let rsp = FredRsp1::new(aligned).expect("aligned `FRED` stack top must validate");
 
         assert_eq!(rsp.la(), aligned);
         assert_eq!(FredRsp1::lift::<La48>(rsp.raw()).map(FredRsp1::la), Some(aligned));
@@ -683,21 +615,21 @@ mod tests {
         let mut target_value = RawFredConfig::new(u64::MIN);
 
         target_value.level_mut().const_merge(FredLevel::Three.raw());
-        target_value.reserved_2_mut().const_set(State::Set);
+        target_value.reserved2_mut().const_set(State::Set);
         target_value.shadow_mut().const_set(State::Set);
-        target_value.reserved_4_5_mut().const_merge(3);
+        target_value.reserved45_mut().const_merge(3);
         target_value.regular_mut().const_merge(7);
         target_value.interrupt_mut().const_merge(FredLevel::Two.raw());
-        target_value.reserved_11_mut().const_set(State::Set);
+        target_value.reserved11_mut().const_set(State::Set);
         target_value.handler_mut().const_merge(1);
 
         assert_eq!(target_value.level().const_value(), FredLevel::Three.raw());
-        assert_eq!(target_value.reserved_2().const_state(), State::Set);
+        assert_eq!(target_value.reserved2().const_state(), State::Set);
         assert_eq!(target_value.shadow().const_state(), State::Set);
-        assert_eq!(target_value.reserved_4_5().const_value(), 3);
+        assert_eq!(target_value.reserved45().const_value(), 3);
         assert_eq!(target_value.regular().const_value(), 7);
         assert_eq!(target_value.interrupt().const_value(), FredLevel::Two.raw());
-        assert_eq!(target_value.reserved_11().const_state(), State::Set);
+        assert_eq!(target_value.reserved11().const_state(), State::Set);
         assert_eq!(target_value.handler().const_value(), 1);
     }
 

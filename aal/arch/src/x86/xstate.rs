@@ -9,9 +9,9 @@ use bitflags::bitflags;
 /// Proof that the current processor exposes the XFD architectural MSRs and semantics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction requires the caller to establish XFD support on the current CPU.
-pub struct Xfd(());
+pub struct XfdCapability(());
 
-impl Xfd {
+impl XfdCapability {
     /// Create the XFD capability proof for the current processor.
     ///
     /// # Safety
@@ -27,9 +27,9 @@ impl Xfd {
 /// Proof that the current processor exposes IA32_XSS and supervisor XSAVE state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction requires the caller to establish supervisor XSAVE support.
-pub struct XsaveSupervisor(());
+pub struct XsaveSupervisorCapability(());
 
-impl XsaveSupervisor {
+impl XsaveSupervisorCapability {
     /// Create the supervisor XSAVE capability proof for the current processor.
     ///
     /// # Safety

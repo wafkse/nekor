@@ -1,185 +1,111 @@
-//! Extended-state MSR representations and capability-aware access.
+//! Extended-state model-specific register representations and capability-aware access.
 //!
-//! [`XstateComponents`](crate::x86::xstate::XstateComponents) provides the
-//! component vocabulary. The wrappers in this module retain MSR identity and
+//! [`XstateComponents`] provides the
+//! component vocabulary. The wrappers in this module retain model-specific register identity and
 //! preserve every raw bit supplied by hardware.
 
-use super::{Msr, ReadWrite, XfdAccess, XssAccess};
+use super::{XfdAccess, XssAccess};
 use crate::x86::xstate::XstateComponents;
 
-/// `IA32_XFD` disabled-component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The flags value preserves every IA32_XFD bit. Safe hardware
-// access additionally requires an XFD capability proof.
-pub struct RawXfd(XstateComponents);
+/// Implementation details for component-backed model-specific register snapshots.
+mod detail {
+    /// Defines a component-backed model-specific register snapshot with its index and authority.
+    macro_rules! component {
+        () => {};
+        (
+            $(
+                #[$target_meta:meta]
+            )*
 
-impl RawXfd {
-    /// Empty disabled-component bitmap.
-    pub const EMPTY: Self = Self(XstateComponents::empty());
+            $target_vis:vis struct $target_name:ident for ($target_address:expr) use $target_authority:ty
+        ) => {
+            tokel::stream!(
+                $(
+                    #[$target_meta]
+                )*
+                #[repr(transparent)]
+                $target_vis struct $target_name(XstateComponents);
 
-    /// Constructs a raw XFD image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(XstateComponents::from_bits_retain(target_value))
+                impl $target_name {
+                    /// An empty XSTATE component bitmap.
+                    $target_vis const EMPTY: Self = Self(XstateComponents::empty());
+
+                    /// Constructs a raw register snapshot.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn new(target_value: u64) -> Self {
+                        Self(XstateComponents::from_bits_retain(target_value))
+                    }
+
+                    /// Returns the raw register snapshot.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn raw(self) -> u64 {
+                        let Self(component) = self;
+
+                        component.bits()
+                    }
+
+                    /// Borrows the register's XSTATE component bitmap.
+                    #[inline]
+                    #[must_use]
+                    $target_vis const fn components(&self) -> &XstateComponents {
+                        let &Self(ref component) = self;
+
+                        component
+                    }
+
+                    /// Mutably borrows the register's XSTATE component bitmap.
+                    #[inline]
+                    $target_vis const fn components_mut(&mut self) -> &mut XstateComponents {
+                        let &mut Self(ref mut component) = self;
+
+                        component
+                    }
+                }
+
+                // SAFETY: The snapshot has the size and alignment of u64 through transparent
+                // XstateComponents storage, and every u64 bit pattern is valid.
+                // The declared authority supplies the register's privilege and feature proof.
+                unsafe impl $crate::x86::msr::Msr for $target_name {
+                    type Access = nekor_register::mode::Rw<Self, u32>;
+                    type Authority = $target_authority;
+
+                    const ADDRESS: u32 = $target_address;
+                }
+
+                impl $crate::x86::msr::detail::Sealed for $target_name {}
+            );
+        };
     }
 
-    /// Returns the raw XFD image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(components) = self;
-
-        components.bits()
-    }
-
-    /// Borrows the disabled XSTATE components.
-    #[inline]
-    #[must_use]
-    pub const fn components(&self) -> &XstateComponents {
-        let &Self(ref components) = self;
-
-        components
-    }
-
-    /// Mutably borrows the disabled XSTATE components.
-    #[inline]
-    pub const fn components_mut(&mut self) -> &mut XstateComponents {
-        let &mut Self(ref mut components) = self;
-
-        components
-    }
+    pub(in crate::x86::msr::xstate) use component;
 }
 
-// SAFETY: RawXfd has the size and alignment of u64 through transparent
-// XstateComponents storage, and every u64 bit pattern is valid.
-unsafe impl Msr for RawXfd {
-    type Access = ReadWrite;
-    type Authority = XfdAccess;
+detail::component!(
+    /// `IA32_XFD` disabled-component bitmap.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawXfd for (0x0000_01C4) use XfdAccess
+);
 
-    const ADDRESS: u32 = 0x0000_01C4;
-}
+detail::component!(
+    /// `IA32_XFD_ERR` component bitmap.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawXfdErr for (0x0000_01C5) use XfdAccess
+);
 
-impl super::private::Sealed for RawXfd {}
-
-/// `IA32_XFD_ERR` component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The flags value preserves every IA32_XFD_ERR bit. Safe
-// hardware access additionally requires an XFD capability proof.
-pub struct RawXfdErr(XstateComponents);
-
-impl RawXfdErr {
-    /// Empty error-component bitmap.
-    pub const EMPTY: Self = Self(XstateComponents::empty());
-
-    /// Constructs a raw XFD error image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(XstateComponents::from_bits_retain(target_value))
-    }
-
-    /// Returns the raw XFD error image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(components) = self;
-
-        components.bits()
-    }
-
-    /// Borrows the faulting XSTATE components.
-    #[inline]
-    #[must_use]
-    pub const fn components(&self) -> &XstateComponents {
-        let &Self(ref components) = self;
-
-        components
-    }
-
-    /// Mutably borrows the faulting XSTATE components.
-    #[inline]
-    pub const fn components_mut(&mut self) -> &mut XstateComponents {
-        let &mut Self(ref mut components) = self;
-
-        components
-    }
-}
-
-// SAFETY: RawXfdErr has the size and alignment of u64 through transparent
-// XstateComponents storage, and every u64 bit pattern is valid.
-unsafe impl Msr for RawXfdErr {
-    type Access = ReadWrite;
-    type Authority = XfdAccess;
-
-    const ADDRESS: u32 = 0x0000_01C5;
-}
-
-impl super::private::Sealed for RawXfdErr {}
-
-/// `IA32_XSS` supervisor component bitmap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The flags value preserves every IA32_XSS bit. Processor
-// support and XSAVE policy are checked at the hardware access boundary.
-pub struct RawXss(XstateComponents);
-
-impl RawXss {
-    /// Empty supervisor component bitmap.
-    pub const EMPTY: Self = Self(XstateComponents::empty());
-
-    /// Constructs a raw XSS image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(XstateComponents::from_bits_retain(target_value))
-    }
-
-    /// Returns the raw XSS image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(components) = self;
-
-        components.bits()
-    }
-
-    /// Borrows the supervisor XSTATE components.
-    #[inline]
-    #[must_use]
-    pub const fn components(&self) -> &XstateComponents {
-        let &Self(ref components) = self;
-
-        components
-    }
-
-    /// Mutably borrows the supervisor XSTATE components.
-    #[inline]
-    pub const fn components_mut(&mut self) -> &mut XstateComponents {
-        let &mut Self(ref mut components) = self;
-
-        components
-    }
-}
-
-// SAFETY: RawXss has the size and alignment of u64 through transparent
-// XstateComponents storage, and every u64 bit pattern is valid.
-unsafe impl Msr for RawXss {
-    type Access = ReadWrite;
-    type Authority = XssAccess;
-
-    const ADDRESS: u32 = 0x0000_0DA0;
-}
-
-impl super::private::Sealed for RawXss {}
+detail::component!(
+    /// `IA32_XSS` supervisor component bitmap.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawXss for (0x0000_0DA0) use XssAccess
+);
 
 #[cfg(test)]
 mod tests {
     use core::mem;
 
-    use super::{Msr, RawXfd, RawXfdErr, RawXss, XstateComponents};
+    use super::{RawXfd, RawXfdErr, RawXss, XstateComponents};
+    use crate::x86::msr::Msr;
 
     #[test]
     fn xfd_registers_share_component_vocabulary_without_losing_identity() {

@@ -1,59 +1,31 @@
-//! Fast system-call and system-return MSR representations.
+//! Fast system-call and system-return model-specific register representations.
 //!
-//! Raw types preserve architectural register images. Checked types
+//! Raw types preserve architectural register snapshots. Checked types
 //! encode the selector and linear-address relationships used by long-mode
 //! SYSCALL and SYSRET.
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
-use super::{Cpl0Access, Msr, ReadWrite};
 use crate::x86::{
+    msr::{Cpl0Access, detail::snapshotted},
     privilege::PrivilegeLevel,
     segmentation::{CodeSegment, DataSegment, RawSegmentSelector, TableIndicator},
 };
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
-/// Exact IA32_LSTAR register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw LSTAR image.
-pub struct RawLStar(u64);
-
-impl RawLStar {
-    /// Constructs a raw LSTAR image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw LSTAR image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawLStar is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawLStar {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0082;
-}
-
-impl super::private::Sealed for RawLStar {}
+snapshotted::snapshot!(
+    /// `IA32_LSTAR` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawLStar for (0xC000_0082) use Cpl0Access
+);
 
 /// Canonical long-mode system-call target.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw LSTAR image.
+// or checked lifting from a raw `LSTAR` snapshot.
 pub struct LStar(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -65,7 +37,7 @@ impl LStar {
         Self(address)
     }
 
-    /// Lifts a raw LSTAR image when it is canonical under M.
+    /// Lifts a raw `LSTAR` snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawLStar) -> Option<Self>
@@ -89,7 +61,7 @@ impl LStar {
         address
     }
 
-    /// Lowers this checked target into its exact LSTAR image.
+    /// Lowers this checked target into its `LSTAR` snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawLStar {
@@ -99,46 +71,18 @@ impl LStar {
     }
 }
 
-/// Exact IA32_CSTAR register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw CSTAR image.
-pub struct RawCStar(u64);
-
-impl RawCStar {
-    /// Constructs a raw CSTAR image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw CSTAR image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawCStar is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawCStar {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0083;
-}
-
-impl super::private::Sealed for RawCStar {}
+snapshotted::snapshot!(
+    /// `IA32_CSTAR` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawCStar for (0xC000_0083) use Cpl0Access
+);
 
 /// Canonical compatibility-mode system-call target.
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw CSTAR image.
+// or checked lifting from a raw `CSTAR` snapshot.
 pub struct CStar(La);
 
 #[cfg(target_arch = "x86_64")]
@@ -150,7 +94,7 @@ impl CStar {
         Self(address)
     }
 
-    /// Lifts a raw CSTAR image when it is canonical under M.
+    /// Lifts a raw `CSTAR` snapshot when it is canonical under M.
     #[inline]
     #[must_use]
     pub const fn lift<M>(target_value: RawCStar) -> Option<Self>
@@ -174,7 +118,7 @@ impl CStar {
         address
     }
 
-    /// Lowers this checked target into its exact CSTAR image.
+    /// Lowers this checked target into its `CSTAR` snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawCStar {
@@ -196,29 +140,13 @@ pub type StarUserSelector<'value> = Field<'value, 48, 63, u64>;
 /// Mutable counterpart to StarUserSelector.
 pub type StarUserSelectorMut<'value> = <StarUserSelector<'value> as Counterpart>::Mut;
 
-/// Exact IA32_STAR register image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw STAR image.
-pub struct RawStar(u64);
+snapshotted::snapshot!(
+    /// `IA32_STAR` register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawStar for (0xC000_0081) use Cpl0Access
+);
 
 impl RawStar {
-    /// Constructs a raw STAR image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw STAR image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
     /// Borrows the kernel code-selector field.
     #[inline]
     #[must_use]
@@ -254,16 +182,6 @@ impl RawStar {
     }
 }
 
-// SAFETY: RawStar is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawStar {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0081;
-}
-
-impl super::private::Sealed for RawStar {}
-
 /// Adjacent ring-zero GDT segments supplied for long-mode SYSCALL.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -280,13 +198,16 @@ impl SyscallSegments {
     #[inline]
     #[must_use]
     pub const fn new(code: CodeSegment, data: DataSegment) -> Option<Self> {
-        let tables_valid = matches!(code.table(), TableIndicator::Gdt) && matches!(data.table(), TableIndicator::Gdt);
-        let privileges_valid =
-            matches!(code.privilege(), PrivilegeLevel::Ring0) && matches!(data.privilege(), PrivilegeLevel::Ring0);
-        let adjacent = matches!(data.index().raw().checked_sub(code.index().raw()), Some(1));
-
-        match (tables_valid, privileges_valid, adjacent) {
-            (true, true, true) => Some(Self(code.raw().raw())),
+        match (
+            code.table(),
+            data.table(),
+            code.privilege(),
+            data.privilege(),
+            data.index().raw().checked_sub(code.index().raw()),
+        ) {
+            (TableIndicator::Gdt, TableIndicator::Gdt, PrivilegeLevel::Ring0, PrivilegeLevel::Ring0, Some(1)) => {
+                Some(Self(code.raw().raw()))
+            },
             _ => None,
         }
     }
@@ -318,14 +239,22 @@ impl SysretSegments {
     #[inline]
     #[must_use]
     pub const fn new(data: DataSegment, code: CodeSegment) -> Option<Self> {
-        let tables_valid = matches!(data.table(), TableIndicator::Gdt) && matches!(code.table(), TableIndicator::Gdt);
-        let privileges_valid =
-            matches!(data.privilege(), PrivilegeLevel::Ring3) && matches!(code.privilege(), PrivilegeLevel::Ring3);
-        let adjacent = matches!(code.index().raw().checked_sub(data.index().raw()), Some(1));
-        let base = data.index().raw().checked_sub(1);
-
-        match (tables_valid, privileges_valid, adjacent, base) {
-            (true, true, true, Some(base)) => {
+        match (
+            data.table(),
+            code.table(),
+            data.privilege(),
+            code.privilege(),
+            code.index().raw().checked_sub(data.index().raw()),
+            data.index().raw().checked_sub(1),
+        ) {
+            (
+                TableIndicator::Gdt,
+                TableIndicator::Gdt,
+                PrivilegeLevel::Ring3,
+                PrivilegeLevel::Ring3,
+                Some(1),
+                Some(base),
+            ) => {
                 let mut selector = RawSegmentSelector::zeroed();
 
                 selector.index_mut().const_merge(base);
@@ -346,15 +275,15 @@ impl SysretSegments {
     }
 }
 
-/// Checked long-mode IA32_STAR selector configuration.
+/// Checked long-mode `IA32_STAR` selector configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The wrapped raw image is constructed only from independently proven SYSCALL
+// NOTE(invariant): The wrapped raw snapshot is constructed only from independently proven SYSCALL
 // and SYSRET selector families and cannot be mutated through this semantic type.
 pub struct Star(RawStar);
 
 impl Star {
-    /// Constructs STAR from proven SYSCALL and SYSRET selector families.
+    /// Constructs `STAR` from proven SYSCALL and SYSRET selector families.
     #[inline]
     #[must_use]
     pub const fn new(kernel: SyscallSegments, user: SysretSegments) -> Self {
@@ -386,7 +315,7 @@ impl Star {
         target_value.user()
     }
 
-    /// Lowers this checked selector configuration into the exact STAR image.
+    /// Lowers this checked selector configuration into the `STAR` snapshot.
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawStar {
@@ -396,48 +325,21 @@ impl Star {
     }
 }
 
-/// Exact IA32_FMASK register image.
-///
-/// The bit positions correspond to RFLAGS positions, but a mask is not an
-/// RFLAGS machine state and therefore does not reuse the semantic Rflags type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): Every u64 value is a representable raw FMASK image.
-pub struct RawFMask(u64);
-
-impl RawFMask {
-    /// Constructs a raw FMASK image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: u64) -> Self {
-        Self(target_value)
-    }
-
-    /// Returns the raw FMASK image.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> u64 {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-// SAFETY: RawFMask is transparent over u64 and every bit pattern is valid.
-unsafe impl Msr for RawFMask {
-    type Access = ReadWrite;
-    type Authority = Cpl0Access;
-
-    const ADDRESS: u32 = 0xC000_0084;
-}
-
-impl super::private::Sealed for RawFMask {}
+snapshotted::snapshot!(
+    /// `IA32_FMASK` register snapshot.
+    ///
+    /// The bit positions correspond to RFLAGS positions, but a mask is not an
+    /// RFLAGS machine state and therefore does not reuse the semantic Rflags type.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RawFMask for (0xC000_0084) use Cpl0Access
+);
 
 #[cfg(test)]
 mod tests {
-    use super::{Msr, RawCStar, RawFMask, RawLStar, RawStar, Star, SyscallSegments, SysretSegments};
+    use super::{RawCStar, RawFMask, RawLStar, RawStar, Star, SyscallSegments, SysretSegments};
     use crate::x86::{
         descriptor::{DescriptorIndex, RawSegmentDescriptor},
+        msr::Msr,
         privilege::PrivilegeLevel,
         segmentation::{CodeSegment, DataSegment, SegmentSelector, TableIndicator},
     };
@@ -461,9 +363,9 @@ mod tests {
     #[test]
     fn star_encodes_proven_selector_families() {
         let kernel = SyscallSegments::new(code(1, PrivilegeLevel::Ring0), data(2, PrivilegeLevel::Ring0))
-            .expect("adjacent kernel segments must validate");
+            .expect("is_adjacent kernel segments must validate");
         let user = SysretSegments::new(data(3, PrivilegeLevel::Ring3), code(4, PrivilegeLevel::Ring3))
-            .expect("adjacent user segments must validate");
+            .expect("is_adjacent user segments must validate");
         let star = Star::new(kernel, user);
 
         assert_eq!(star.kernel().const_value(), 8);
@@ -476,7 +378,7 @@ mod tests {
     }
 
     #[test]
-    fn raw_star_preserves_arbitrary_images() {
+    fn raw_star_preserves_arbitrary_snapshots() {
         let raw = RawStar::new(u64::MAX);
 
         assert_eq!(raw.raw(), u64::MAX);
