@@ -5,7 +5,14 @@
 
 use core::{arch, ptr::NonNull};
 
-use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
+pub use nekor_aal_arch::x86::instruction::{
+    info::{TscDeadlineEax, TscDeadlineEaxMut, TscDeadlineEdx, TscDeadlineEdxMut, rdtsc},
+    relax::{Cstate, pause, tpause},
+};
+use nekor_bitwise::prelude::{Bit, Counterpart, State};
+
+#[cfg(not(miri))]
+pub mod monitor;
 
 /// Monitor a select memory address through the `monitor` instruction.
 ///
@@ -36,7 +43,8 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
             in("eax") target_address.as_ptr(),
             in("ecx") usize::MIN,
             in("edx") usize::MIN,
-            options(nostack, readonly, preserves_flags, att_syntax)
+            // Keep the condition load after monitor engagement.
+            options(nostack, preserves_flags, att_syntax)
         )
     }
 
@@ -50,7 +58,8 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
             in("rax") target_address.as_ptr(),
             in("rcx") usize::MIN,
             in("rdx") usize::MIN,
-            options(nostack, readonly, preserves_flags, att_syntax)
+            // Keep the condition load after monitor engagement.
+            options(nostack, preserves_flags, att_syntax)
         );
     }
 }
@@ -69,101 +78,17 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
 #[inline]
 pub unsafe fn mwait() {
     // SAFETY: Privilege level is guaranteed by caller.
-    unsafe { arch::asm!("mwait", options(nostack, readonly, att_syntax)) }
-}
-
-/// Indicates to the processor that the code sequence is a spin-wait loop.
-///
-/// This instruction is useful for reducing power consumption and improving
-/// performance in certain scenarios.
-#[inline]
-pub fn pause() {
-    // SAFETY: The `pause` instruction introduces non-safety-altering behavior.
-    unsafe {
-        arch::asm!("pause", options(nomem, nostack, preserves_flags, att_syntax));
-    }
-}
-
-/// A C-State for the processor to enter during a [`tpause`] instruction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Cstate {
-    /// A sub-C-State of `C0` that is optimized for faster wakeup latency, but
-    /// incurs a higher power consumption.
-    C0_1,
-
-    /// A sub-C-State of `C0` that is optimized for low power consumption, but
-    /// incurs additional wakeup latency.
-    ///
-    /// This guarantees an increase in performance of other logical threads in
-    /// the same processor core.
-    C0_2,
-}
-
-/// The higher-half of the timestamp counter deadline.
-///
-/// This is to be located in the `eax` register.
-pub type TscDeadlineEax<'a> = Field<'a, 0, 31, u64>;
-
-/// The lower-half of the timestamp counter deadline.
-///
-/// This is to be located in the `edx` register.
-pub type TscDeadlineEdx<'a> = Field<'a, 32, 63, u64>;
-
-/// The mutable alternative to [`TscDeadlineEax`].
-pub type TscDeadlineEaxMut<'a> = <TscDeadlineEax<'a> as Counterpart>::Mut;
-
-/// The mutable alternative to [`TscDeadlineEdx`].
-pub type TscDeadlineEdxMut<'a> = <TscDeadlineEdx<'a> as Counterpart>::Mut;
-
-/// Direct the processor to enter an implementation-defined low-power state
-/// until:
-///
-/// - The timestamp counter reaches the specified deadline.
-/// - The processor thread is interrupted.
-///
-/// This instruction is useful for reducing power consumption and improving
-/// performance in certain scenarios.
-///
-/// # Safety
-///
-/// This requires the [`Waitpkg`] extension to be present.
-///
-/// [`Waitpkg`]: nekor_aal_feature::arch::x86::qualified::Waitpkg
-#[inline]
-pub unsafe fn tpause(wait_state: Cstate, target_deadline: u64) {
-    type TpauseCState<'a> = Bit<'a, u32, 0>;
-    type TpauseCStateMut<'a> = <TpauseCState<'a> as Counterpart>::Mut;
-
-    type TpauseCStateReserved<'a> = Field<'a, 1, 31, u32>;
-    type TpauseCStateReservedMut<'a> = <TpauseCStateReserved<'a> as Counterpart>::Mut;
-
-    let edx = TscDeadlineEdx::wrap(&target_deadline).value();
-    let eax = TscDeadlineEax::wrap(&target_deadline).value();
-
-    let mut ecx = u32::MIN;
-
-    TpauseCStateMut::wrap(&mut ecx).set(if wait_state == Cstate::C0_1 {
-        State::Set
-    } else {
-        State::Cleared
-    });
-
-    // NOTE: We always zero out any bits marked as reserved.
-    TpauseCStateReservedMut::wrap(&mut ecx).merge(u32::MIN);
-
-    // SAFETY: The `tpause` instruction is available and introduces
-    // non-safety-altering behavior.
     unsafe {
         arch::asm!(
-            "tpause",
-            in("edx") edx,
-            in("eax") eax,
-            in("ecx") ecx,
-            options(nomem, nostack, att_syntax));
+            "mwait",
+            in("eax") u32::MIN,
+            in("ecx") u32::MIN,
+            options(nostack, att_syntax)
+        );
     }
 }
 
-/// An AMD-specific `hardware monitor` instruction comparable to the [`monitor`]
+/// An AMD-specific `hardware monitor` instruction comparable to the [`monitor()`]
 /// instruction.
 ///
 /// However, in contrast to the regular `monitor` instruction, this is
@@ -188,14 +113,15 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
     /// The hint flags provided to the `monitorx` instruction.
     ///
     /// There are no existing hints for this instruction.
-    const NO_MONITORX_HINTS: u32 = u32::MIN;
+    const MONITORX_HINT: u32 = u32::MIN;
 
     /// The extensions provided to the `monitorx` instruction.
     ///
     /// There are no existing extensions for this instruction.
-    const NO_MONITORX_EXTENSIONS: u32 = u32::MIN;
+    const MONITORX_EXTENDED: u32 = u32::MIN;
 
-    // SAFETY: The monitor
+    // SAFETY: The caller guarantees MONITORX support and an accessible address.
+    #[cfg(target_pointer_width = "64")]
     unsafe {
         arch::asm!(
             // NOTE(asm): Seems that no assembler in our toolchain supports the AMD-specific `monitorx` extension.
@@ -203,46 +129,109 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
             // NOTE: AMD indicates that there are no existing extensions or hints for this instruction.
             //
             // For further information, see the documentation for the `monitorx` instruction on the AMD Developer Manual.
-            in("edx") NO_MONITORX_HINTS,
-            in("ecx") NO_MONITORX_EXTENSIONS,
+            in("edx") MONITORX_HINT,
+            in("ecx") MONITORX_EXTENDED,
             in("rax") target_address.as_ptr(),
+            options(nostack, att_syntax)
+        );
+    }
+
+    // SAFETY: The same requirement applies in 32-bit mode.
+    #[cfg(target_pointer_width = "32")]
+    unsafe {
+        arch::asm!(
+            "monitorx",
+            in("edx") MONITORX_HINT,
+            in("ecx") MONITORX_EXTENDED,
+            in("eax") target_address.as_ptr(),
             options(nostack, att_syntax)
         );
     }
 }
 
-/// Reads the current value of the time-stamp counter.
+/// Wait on a range previously armed by [`monitorx`], with a bounded timeout.
+///
+/// `timeout` is a relative count in software P0 clocks.
 ///
 /// # Safety
 ///
-/// This is a partially-privileged instruction, therefore, the caller must
-/// satisfy either of:
-///
-/// - The *Time Stamp Disable* (TSD) bit in the `cr4` control register is cleared.
-/// - ..or the current *Current Privilege Level* is `Ring0`.
+/// The current CPU must support MONITORX/MWAITX, and the caller must have
+/// executed `monitorx` on this CPU before waiting.
 #[inline]
-#[must_use]
-pub unsafe fn rdtsc() -> u64 {
-    let (edx, eax): (u32, u32);
+pub unsafe fn mwaitx(timeout: u32) {
+    type MwaitxTimer<'a> = Bit<'a, u32, 1>;
+    type MwaitxTimerMut<'a> = <MwaitxTimer<'a> as Counterpart>::Mut;
 
-    // SAFETY:
-    //
-    // The `rdtsc` instruction introduces non-safety-altering behavior, and the
-    // caller guarantees that the instruction will not cause a fault due to
-    // missing privileges or a disabled TSC.
+    let mut ecx = 0_u32;
+
+    MwaitxTimerMut::wrap(&mut ecx).set(State::Set);
+
+    // SAFETY: The caller establishes support and the matching monitor state.
     unsafe {
+        #[cfg(target_pointer_width = "64")]
         arch::asm!(
-            "rdtsc",
-            lateout("eax") eax,
-            lateout("edx") edx,
-            options(nomem, nostack, preserves_flags, att_syntax)
+            "pushq %rbx",
+            "movl {timeout:e}, %ebx",
+            "mwaitx",
+            "popq %rbx",
+            timeout = in(reg) timeout,
+            in("eax") 0_u32,
+            in("ecx") ecx,
+            options(att_syntax)
+        );
+
+        #[cfg(target_pointer_width = "32")]
+        arch::asm!(
+            "pushl %ebx",
+            "movl {timeout:e}, %ebx",
+            "mwaitx",
+            "popl %ebx",
+            timeout = in(reg) timeout,
+            in("eax") 0_u32,
+            in("ecx") ecx,
+            options(att_syntax)
         );
     }
+}
 
-    let mut target_value = u64::MIN;
+/// Arm a user-level monitor on the supplied readable address.
+///
+/// # Safety
+///
+/// The current CPU must support WAITPKG, and `target_address` must be readable
+/// in the current address space.
+#[inline]
+pub unsafe fn umonitor<T>(target_address: NonNull<T>) {
+    // SAFETY: The caller establishes WAITPKG support and address accessibility.
+    unsafe {
+        #[cfg(target_pointer_width = "64")]
+        arch::asm!("umonitor %rax", in("rax") target_address.as_ptr(), options(nostack, att_syntax));
 
-    TscDeadlineEaxMut::wrap(&mut target_value).merge(eax);
-    TscDeadlineEdxMut::wrap(&mut target_value).merge(edx);
+        #[cfg(target_pointer_width = "32")]
+        arch::asm!("umonitor %eax", in("eax") target_address.as_ptr(), options(nostack, att_syntax));
+    }
+}
 
-    target_value
+/// Wait on the address previously armed by [`umonitor`] until a deadline or wake.
+///
+/// # Safety
+///
+/// The current CPU must support WAITPKG, TSC access must be enabled, and the
+/// matching user monitor must have been armed on this CPU.
+#[inline]
+pub unsafe fn umwait(wait_state: Cstate, target_deadline: u64) {
+    let eax = TscDeadlineEax::wrap(&target_deadline).value();
+    let edx = TscDeadlineEdx::wrap(&target_deadline).value();
+    let ecx = u32::from(wait_state == Cstate::C0_1);
+
+    // SAFETY: The caller establishes WAITPKG and TSC access.
+    unsafe {
+        arch::asm!(
+            "umwait %ecx",
+            in("eax") eax,
+            in("edx") edx,
+            in("ecx") ecx,
+            options(nostack, att_syntax)
+        );
+    }
 }

@@ -1,82 +1,44 @@
-//! # Value Monitoring
+//! Value monitoring.
 //!
-//! The [`Monitor`] abstraction provides a lightweight mechanism for
-//! observing mutable accesses to a shared memory location. There are **two
-//! primary monitoring strategies**:
+//! [`Monitor::engage`] arms observation of a shared value. [`Monitored::wait`] waits for a
+//! possible wake event or performs a backoff cycle when no hardware monitor is selected.
 //!
-//! ## 1. Side-Channel Based Monitoring
+//! *Side-channel monitoring*, such as `monitor`/`mwait`, observes memory writes.
+//! *Event-based monitoring*, such as `wfe`/`sev`, requires explicit signals through access guards.
 //!
-//! Side-channel monitors rely on **hardware-assisted memory observation**.
-//! A thread can efficiently suspend execution until a write is detected at
-//! a monitored memory location. Wakeups may be **spurious**, so the
-//! monitored value must always be rechecked.
+//! # Remarks
 //!
-//! ## 2. Wake-Up Based Event Monitoring
-//!
-//! Wake-up monitors use **explicit signaling** to notify waiting threads.
-//! Threads suspend until another thread or core sends a wakeup event. This
-//! approach guarantees that waiting threads are notified, and is typically
-//! used for inter-core coordination.
-//!
-//! ## Platform Examples
-//!
-//! | Monitoring Type            | Example Instructions | Notes                              |
-//! |----------------------------|-------------------|------------------------------------|
-//! | Side-Channel Based          | `monitor` / `mwait` | Efficient, best-effort wakeups     |
-//! | Wake-Up Based Event         | `wfe` / `sev`       | Explicit wakeup between cores      |
-//!
-//! ## General Notes
-//!
-//! * [`Monitor::engage`] starts monitoring the memory location.
-//! * [`Monitored::wait`] suspends the thread until a possible wake event occurs.
-//! * All monitor operations are **best-effort**; the monitored value must be rechecked after
-//!   wakeup.
-//! * Side-channel monitoring is highly efficient, while wake-up event monitoring provides explicit
-//!   guarantees across threads or cores.
-//! * Access guards must be used for *Wake-Up Based Event Monitoring* to function.
-//!
-//! [`Monitor`]: crate::monitor::Monitor
-//! [`Monitored::wait`]: crate::monitor::Monitored::wait
+//! Monitoring is best-effort. Recheck the condition after engagement and after waking.
+//! [`Polling`] combines bounded optimistic retries with monitored waiting.
 
 use core::{
-    marker,
+    hint, marker,
     ops::{Deref, DerefMut},
-    ptr::NonNull,
 };
 
-#[cfg(all(target_os = "none", not(any(usermode, test, miri))))]
-use crate::arch;
+use nekor_backoff::backoff::{Backoff, BackoffState};
 
-/// A new-type that monitors memory accesses to the underlying value.
+/// A value with selective monitor engagement and guarded access.
 ///
-/// # Functionality
+/// # Remarks
 ///
-/// This allows an accessor to *selectively wake up* a waiting partner for the
-/// same value.
-///
-/// By "selective", this implies that the underlying `T` can be freely mutated
-/// without a corresponding wake-up event being emitted in an implicit manner.
-///
-/// For additional information, see the [`module-level documentation`].
-///
-/// [`module-level documentation`]: self
+/// Direct mutation does not implicitly emit an explicit wakeup signal.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): Monitoring and guarded access refer to the same wrapped value.
+// NOTE(invariant): None.
 pub struct Monitor<T>(
-    // NOTE: Architectures relying on side-channel monitoring benefit from the
-    // underlying value being cacheline-isolated.
+    // NOTE: Cache-line isolation benefits side-channel monitoring.
     T,
 );
 
 impl<T> Monitor<T> {
-    /// Construct a new [`Monitor`] new-type.
+    /// Wrap a value in a [`Monitor`].
     #[inline]
     pub const fn new(target_value: T) -> Self {
         Self(target_value)
     }
 
-    /// Access the underlying value through a dedicated RAII guard.
+    /// Borrow the value through a [`MonitorGuard`].
     #[inline]
     pub const fn access(&self) -> MonitorGuard<'_, T> {
         let Self(ref target_value) = *self;
@@ -84,7 +46,7 @@ impl<T> Monitor<T> {
         MonitorGuard(target_value)
     }
 
-    /// Mutably access the underlying value through a dedicated RAII guard.
+    /// Borrow the value exclusively through a [`MonitorGuardMut`].
     #[inline]
     pub const fn access_mut(&mut self) -> MonitorGuardMut<'_, T> {
         let &mut Self(ref mut target_value) = self;
@@ -92,49 +54,23 @@ impl<T> Monitor<T> {
         MonitorGuardMut(target_value)
     }
 
-    /// Engage the monitor on the value.
-    #[cfg(not(all(
-        target_os = "none",
-        not(any(usermode, test, miri)),
-        any(target_arch = "x86", target_arch = "x86_64")
-    )))]
-    #[inline]
-    pub const fn engage(&self) -> Monitored<'_, T> {
-        let target_pointer = NonNull::from_ref(self);
-
-        Monitored(target_pointer, marker::PhantomData)
-    }
-
-    /// Engage the monitor on the value.
-    #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
+    /// Arm monitoring and return a borrowed [`Monitored`] token.
     #[inline]
     pub fn engage(&self) -> Monitored<'_, T> {
-        let target_pointer = NonNull::from_ref(self);
+        cfg_select! {
+            all(any(target_arch = "x86", target_arch = "x86_64"), not(miri)) => {
+                use core::ptr::NonNull;
 
-        #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
-        unsafe {
-            arch::x86::monitor(target_pointer);
-        };
+                use nekor_aal_hotpatch::prelude::Patch;
 
-        #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
-        unsafe {
-            arch::x86_64::monitor(target_pointer);
-        };
+                use crate::arch::x86::monitor::{Dispatch, Operation};
 
-        Monitored(target_pointer, marker::PhantomData)
-    }
+                Patch::<Dispatch, Dispatch>::run(Operation::Arm(NonNull::from_ref(self).cast()));
 
-    /// Engage the monitor on the value.
-    #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
-    #[inline]
-    pub fn engage(&self) -> Monitored<'_, T> {
-        let target_pointer = NonNull::from_ref(self);
-
-        unsafe {
-            arch::x86_64::monitor(target_pointer);
-        };
-
-        Monitored(target_pointer, marker::PhantomData)
+                Monitored(marker::PhantomData)
+            },
+            _ => Monitored(marker::PhantomData),
+        }
     }
 }
 
@@ -158,63 +94,163 @@ impl<T> DerefMut for Monitor<T> {
     }
 }
 
-/// A currently-monitored memory address through architecture-specific means.
+/// A monitor engagement that keeps the value borrowed until waiting.
 ///
 /// # Remarks
 ///
-/// Note that the monitor behavior is best-effort, and could spuriously trigger.
-///
-/// Always check the underlying condition after a [`Monitored::wait`].
-#[repr(transparent)]
-// NOTE(invariant): The non-null pointer refers to a monitor valid for the borrowed lifetime.
-pub struct Monitored<'a, T>(NonNull<Monitor<T>>, marker::PhantomData<&'a T>);
+/// Wakeups may be spurious. Recheck the condition after [`Monitored::wait`].
+// NOTE(invariant): None.
+pub struct Monitored<'a, T>(marker::PhantomData<&'a Monitor<T>>);
 
 impl<T> Monitored<'_, T> {
-    /// Wait for a write to happen at the monitored location.
+    /// Wait for a possible monitored write or wake event.
     ///
-    /// # Remark
+    /// # Remarks
     ///
-    /// This is done on a best-effort basis, if no monitor hardware capability
-    /// is present, this is effectively an entry to an
-    /// architecture-dependent optimized state.
-    #[cfg(not(all(
-        target_os = "none",
-        not(any(usermode, test, miri)),
-        any(target_arch = "x86", target_arch = "x86_64")
-    )))]
+    /// [`BackoffState`] advances once, even if the selected monitor ignores the delay.
+    /// Retain it across waits to increase timed delays. Without hardware monitoring,
+    /// backoff returns after the requested delay for a condition recheck.
     #[inline]
-    pub const fn wait(self) {}
+    pub fn wait(self, backoff_state: &mut BackoffState) {
+        cfg_select! {
+            all(any(target_arch = "x86", target_arch = "x86_64"), not(miri)) => {
+                use nekor_aal_hotpatch::prelude::Patch;
+                use nekor_backoff::arch::x86::Delay;
 
-    /// Wait for a write to happen at the monitored location.
-    #[cfg(all(target_os = "none", target_arch = "x86", not(any(usermode, test, miri))))]
-    #[inline]
-    pub fn wait(self) {
-        unsafe {
-            arch::x86::mwait();
-        };
-    }
+                use crate::arch::x86::monitor::{Dispatch, Operation};
 
-    /// Wait for a write to happen at the monitored location.
-    #[cfg(all(target_os = "none", target_arch = "x86_64", not(any(usermode, test, miri))))]
-    #[inline]
-    pub fn wait(self) {
-        unsafe {
-            arch::x86_64::mwait();
+                let target_delay = backoff_state.advance().map_or(Delay::Hint, Delay::Timed);
+
+                Patch::<Dispatch, Dispatch>::run(Operation::Wait(target_delay));
+            },
+            _ => Backoff::cycle(backoff_state),
         };
     }
 }
 
-/// The load side of a monitored value.
+/// The outcome of an operation on a monitored value.
 ///
-/// In architectures with well-defined interprocessor signaling, this will wake
-/// any waiting side.
+/// [`Attempt::Pending`] must permit a retry without invalid partial mutation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Attempt<R> {
+    /// The operation completed.
+    Ready(R),
+
+    /// The operation needs a retry.
+    Pending,
+}
+
+/// An optimistic retry budget before monitored waiting.
+///
+/// The immediate attempt and post-engagement recheck do not consume the budget.
+/// Workloads may define their own [`Tier`].
+pub trait Tier {
+    /// Optimistic retries after the immediate attempt.
+    const RETRIES: usize;
+}
+
+/// Engage the monitor after the immediate attempt fails.
+pub struct Immediate;
+
+impl Tier for Immediate {
+    const RETRIES: usize = 0;
+}
+
+/// Poll briefly before engaging the monitor.
+pub struct Cruise;
+
+impl Tier for Cruise {
+    const RETRIES: usize = 4;
+}
+
+/// Poll longer for operations expected to complete quickly.
+pub struct Fastlane;
+
+impl Tier for Fastlane {
+    const RETRIES: usize = 8;
+}
+
+/// Bounded polling followed by monitored waiting.
+///
+/// Wakeups do not restore the retry budget. Backoff progresses across waits.
+// NOTE(invariant): `remaining` only decreases and never exceeds `P::RETRIES`.
+pub struct Polling<'a, T, P: Tier> {
+    /// The borrowed monitor.
+    monitor: &'a Monitor<T>,
+
+    /// Optimistic retries remaining.
+    remaining: usize,
+
+    /// Backoff progression across waits.
+    backoff_state: BackoffState,
+
+    /// The compile-time retry tier.
+    tier: marker::PhantomData<P>,
+}
+
+impl<'a, T, P: Tier> Polling<'a, T, P> {
+    /// Borrow a monitor with [`Backoff::minimal`] for timed waits.
+    #[inline]
+    pub const fn of(monitor: &'a Monitor<T>) -> Self {
+        Self::with_backoff(monitor, Backoff::minimal())
+    }
+
+    /// Borrow a monitor with the selected [`Backoff`] strategy.
+    #[inline]
+    pub const fn with_backoff(monitor: &'a Monitor<T>, backoff: Backoff) -> Self {
+        Self {
+            monitor,
+            remaining: P::RETRIES,
+            backoff_state: backoff.state(),
+            tier: marker::PhantomData,
+        }
+    }
+
+    /// Retry an operation until it completes.
+    ///
+    /// The attempt may inspect or atomically modify the value. [`Attempt::Pending`]
+    /// must permit a retry. Each passive wait follows engagement and a condition recheck.
+    #[inline]
+    pub fn until<R>(&mut self, mut target_closure: impl FnMut(&T) -> Attempt<R>) -> R {
+        let &mut Self {
+            monitor,
+            ref mut remaining,
+            ref mut backoff_state,
+            ..
+        } = self;
+
+        loop {
+            match target_closure(monitor) {
+                Attempt::Ready(target_outcome) => break target_outcome,
+                Attempt::Pending => (),
+            }
+
+            if *remaining != 0 {
+                *remaining -= 1;
+                hint::spin_loop();
+                continue;
+            }
+
+            let engaged = monitor.engage();
+
+            match target_closure(monitor) {
+                Attempt::Ready(result) => break result,
+                Attempt::Pending => engaged.wait(backoff_state),
+            }
+        }
+    }
+}
+
+/// Shared guarded access to a monitored value.
+///
+/// Explicit wakeup strategies require guarded access.
 #[derive(Debug, Clone)]
 #[repr(transparent)]
-// NOTE(invariant): The borrowed value remains valid for the lifetime of the load guard.
+// NOTE(invariant): None.
 pub struct MonitorGuard<'a, T>(&'a T);
 
 impl<T> MonitorGuard<'_, T> {
-    /// Access a reference to the monitor-guarded type.
+    /// Borrow the guarded value.
     #[inline]
     #[must_use]
     pub const fn as_ref(&self) -> &'_ T {
@@ -235,9 +271,9 @@ impl<T> Deref for MonitorGuard<'_, T> {
     }
 }
 
-/// The store side of a monitored value.
+/// Exclusive guarded access to a monitored value.
 #[repr(transparent)]
-// NOTE(invariant): The exclusive borrow remains valid for the lifetime of the store guard.
+// NOTE(invariant): None.
 pub struct MonitorGuardMut<'a, T>(&'a mut T);
 
 impl<T> Deref for MonitorGuardMut<'_, T> {
@@ -257,5 +293,155 @@ impl<T> DerefMut for MonitorGuardMut<'_, T> {
         let &mut Self(ref mut target_value) = self;
 
         target_value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+
+    use alloc::sync::Arc;
+    use core::{
+        num::NonZero,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+    use std::{sync::Barrier, thread};
+
+    use nekor_backoff::backoff::Backoff;
+
+    use super::{Attempt, Cruise, Immediate, Monitor, Polling, Tier};
+
+    #[test]
+    fn recheck_after_engagement_completes_without_waiting() {
+        let target = Monitor::new(AtomicUsize::new(0));
+        let mut polling = Polling::<_, Immediate>::of(&target);
+        let mut calls = 0;
+
+        let result = polling.until(|_| {
+            calls += 1;
+
+            match calls {
+                1 => Attempt::Pending,
+                _ => Attempt::Ready(calls),
+            }
+        });
+
+        assert_eq!(result, 2);
+    }
+
+    #[test]
+    fn early_budget_is_consumed_once() {
+        struct Burst;
+
+        impl Tier for Burst {
+            const RETRIES: usize = 3;
+        }
+
+        let target = Monitor::new(AtomicUsize::new(0));
+        let mut polling = Polling::<_, Burst>::of(&target);
+        let mut calls = 0;
+
+        let result = polling.until(|_| {
+            calls += 1;
+
+            match calls {
+                1..5 => Attempt::Pending,
+                _ => Attempt::Ready(calls),
+            }
+        });
+
+        assert_eq!(result, 5);
+        assert_eq!(polling.remaining, 0);
+    }
+
+    #[test]
+    fn write_between_engagement_and_recheck_is_observed() {
+        let target = Arc::new(Monitor::new(AtomicUsize::new(0)));
+        let ready = Arc::new(Barrier::new(2));
+        let written = Arc::new(Barrier::new(2));
+        let writer_target = Arc::clone(&target);
+        let writer_ready = Arc::clone(&ready);
+        let writer_written = Arc::clone(&written);
+
+        let writer = thread::spawn(move || {
+            writer_ready.wait();
+            writer_target.store(1, Ordering::Release);
+            writer_written.wait();
+        });
+
+        let mut polling = Polling::<_, Immediate>::of(&target);
+        let mut calls = 0;
+        let result = polling.until(|value| {
+            calls += 1;
+
+            if calls == 2 {
+                ready.wait();
+                written.wait();
+            }
+
+            match value.load(Ordering::Acquire) {
+                0 => Attempt::Pending,
+                observed => Attempt::Ready(observed),
+            }
+        });
+
+        writer.join().expect("writer thread panicked");
+        assert_eq!(result, 1);
+        assert_eq!(calls, 2);
+    }
+
+    #[test]
+    fn wakeups_do_not_restore_early_budget() {
+        let target = Monitor::new(AtomicUsize::new(0));
+        let mut polling = Polling::<_, Cruise>::of(&target);
+        let mut calls = 0;
+
+        let result = polling.until(|_| {
+            calls += 1;
+
+            match calls {
+                1..8 => Attempt::Pending,
+                _ => Attempt::Ready(calls),
+            }
+        });
+
+        assert_eq!(result, 8);
+        assert_eq!(polling.remaining, 0);
+    }
+
+    #[test]
+    fn pending_compare_exchange_can_be_retried() {
+        let target = Monitor::new(AtomicUsize::new(0));
+        let mut polling = Polling::<_, Cruise>::of(&target);
+        let attempts = AtomicUsize::new(0);
+
+        let result = polling.until(|value| {
+            let attempt = attempts.fetch_add(1, Ordering::Relaxed);
+
+            if attempt == 1 {
+                value.store(1, Ordering::Release);
+            }
+
+            match value.compare_exchange(1, 2, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(previous) => Attempt::Ready(previous),
+                Err(..) => Attempt::Pending,
+            }
+        });
+
+        assert_eq!(result, 1);
+        assert_eq!(target.load(Ordering::Acquire), 2);
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn default_monitor_path_returns_for_recheck() {
+        let target = Monitor::new(AtomicUsize::new(0));
+        let mut backoff_state = Backoff::minimal().state();
+
+        target.engage().wait(&mut backoff_state);
+        target.engage().wait(&mut backoff_state);
+
+        assert_eq!(target.load(Ordering::Relaxed), 0);
+        assert_eq!(backoff_state.cycle(), NonZero::new(2));
     }
 }
