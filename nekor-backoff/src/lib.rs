@@ -18,6 +18,8 @@ pub mod limit;
 
 pub mod retry;
 
+pub mod arch;
+
 pub mod prelude {
     //! A prelude for the `nekor-backoff` crate.
     //!

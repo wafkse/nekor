@@ -75,6 +75,14 @@ impl Retry {
         target_state.strategy()
     }
 
+    /// Access the backoff state shared by this retry sequence.
+    #[inline]
+    pub fn backoff_state_mut(&mut self) -> &mut BackoffState {
+        let &mut Self(.., ref mut target_state) = self;
+
+        target_state
+    }
+
     /// Attempt some operation, tracking it into this [`Retry`].
     ///
     /// This yields either:

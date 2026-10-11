@@ -13,6 +13,10 @@ categories.workspace = true
 usermode = []
 
 [dependencies]
+nekor-aal-arch = { workspace = true }
+nekor-aal-feature = { workspace = true }
+nekor-aal-hotpatch = { workspace = true }
+nekor-platform = { workspace = true }
 
 [lints]
 workspace = true
