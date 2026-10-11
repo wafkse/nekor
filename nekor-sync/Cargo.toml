@@ -1,5 +1,6 @@
 [package]
 name = "nekor-sync"
+autobenches = false
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -17,6 +18,15 @@ nekor-aal-cache = { workspace = true }
 nekor-primitive = { workspace = true }
 nekor-bitwise = { workspace = true }
 nekor-backoff = { workspace = true }
+tokel = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+nekor-aal-hotpatch = { workspace = true }
+
+[[bench]]
+name = "mutex"
+harness = false
 
 [lints]
 workspace = true

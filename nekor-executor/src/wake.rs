@@ -51,16 +51,34 @@ use core::{
     fmt,
     mem::ManuallyDrop,
     ptr::{self, NonNull},
-    sync::atomic::Ordering,
+    sync::atomic::{AtomicPtr, Ordering},
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
-use nekor_sync::atomic::tagged::{AtomicTaggedPointer, Field, Tag, TagField, TaggedPointer};
+use nekor_bitwise::{
+    field::multi,
+    prelude::{Counterpart, Extract},
+};
+use nekor_sync::atomic::tagged::{Field, Tag, TagField, Tagged};
 
 use crate::{schedule::Scheduler, task::Task};
 
-/// The low address bits reserved for a [`WakeClass`] tag.
-const WAKE_TAG_MASK: usize = 0b111;
+/// The first address bit reserved for a [`WakeClass`] tag.
+const CLASS_FIRST: usize = 0;
+
+/// The last address bit reserved for a [`WakeClass`] tag.
+const CLASS_LAST: usize = 2;
+
+/// The raw address field checked before a [`WakeClass`] tag is installed.
+type WakeClassBits<'value> = multi::Field<'value, CLASS_FIRST, CLASS_LAST, usize>;
+
+/// The logical [`WakeClass`] projected from a tagged address.
+///
+/// [`NonNull<Task>`] supplies alignment capacity, not the actual pointee identity.
+type WakeClassField<'value> = Tagged<'value, CLASS_FIRST, CLASS_LAST, NonNull<Task>, WakeClass>;
+
+/// The mutable counterpart of [`WakeClassField`].
+type WakeClassFieldMut<'value> = <WakeClassField<'value> as Counterpart>::Mut;
 
 /// The virtual function table associated with task [`Waker`] instances.
 pub static VTABLE: RawWakerVTable = const {
@@ -100,7 +118,7 @@ pub static VTABLE: RawWakerVTable = const {
 /// A test-only table for aligned atomic wake counters.
 #[cfg(test)]
 // NOTE(rationale): Wake-list tests in a sibling module need this static callback table.
-pub(super) static TEST_VTABLE: RawWakerVTable = const {
+pub(in crate::wake) static TEST_VTABLE: RawWakerVTable = const {
     /// Clones a test waker.
     ///
     /// # Safety
@@ -180,7 +198,7 @@ unsafe impl Tag for WakeClass {
     type Type = TagField;
     type Value = Self;
 
-    const MASK: usize = WAKE_TAG_MASK;
+    const MASK: usize = <usize as Extract<CLASS_FIRST, CLASS_LAST>>::BITSET_MASK;
 }
 
 // SAFETY: Every encoded class fits the reserved field. Decoding accepts exactly
@@ -204,10 +222,7 @@ unsafe impl Field for WakeClass {
 
 // NOTE: The task wake class uses a `Task` data pointer. The explicit
 // task alignment guarantees support for every bit required by `WakeClass`.
-const _: () = assert!(
-    TaggedPointer::<Task, WakeClass>::pointee_supports_tag(),
-    "task pointers must support WakeClass tags"
-);
+const _: usize = WakeClassField::mask();
 
 /// A validated static wake target from the kernel's supported class set.
 ///
@@ -216,9 +231,9 @@ const _: () = assert!(
 /// resource.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-// NOTE(invariant): The tagged target has a valid wake class and static data for that class's
-// vtable.
-pub struct WakeTarget(TaggedPointer<(), WakeClass>);
+// NOTE(invariant): The class field decodes to a valid `WakeClass`. Clearing it recovers a
+// non-null static data pointer valid for that class's vtable.
+pub struct WakeTarget(NonNull<()>);
 
 impl WakeTarget {
     /// Validates and encodes a supported waker.
@@ -231,8 +246,20 @@ impl WakeTarget {
     pub fn new(target_waker: &Waker) -> Option<Self> {
         let target_class = WakeClass::from_vtable(target_waker.vtable())?;
         let target_data = NonNull::new(target_waker.data().cast_mut())?;
+        let target_address = target_data.as_ptr().addr();
 
-        TaggedPointer::new(target_data, target_class).map(Self)
+        match WakeClassBits::wrap(&target_address).value() {
+            0 => {
+                let tagged_target = target_data.as_ptr().map_addr(|mut target_address| {
+                    _ = WakeClassFieldMut::new(&mut target_address, target_class);
+
+                    target_address
+                });
+
+                NonNull::new(tagged_target).map(Self)
+            },
+            _ => None,
+        }
     }
 
     /// Invokes this target's class-specific wake-by-reference behavior.
@@ -240,11 +267,13 @@ impl WakeTarget {
     fn wake_by_ref(self) -> bool {
         let Self(tagged_target) = self;
 
-        let Some((target_data, target_class)) = tagged_target.split() else {
-            return false;
-        };
+        let mut target_address = tagged_target.as_ptr().addr();
+        let target_class = WakeClassFieldMut::wrap(&mut target_address)
+            .expect("WakeTarget contains a valid wake class")
+            .clear();
+        let target_data = tagged_target.as_ptr().map_addr(|_| target_address);
 
-        let raw_waker = RawWaker::new(target_data.as_ptr().cast_const(), target_class.vtable());
+        let raw_waker = RawWaker::new(target_data.cast_const(), target_class.vtable());
 
         // SAFETY: The `WakeTarget` invariant proves that the decoded data and
         // selected vtable form a valid static waker. `ManuallyDrop` preserves
@@ -278,16 +307,15 @@ unsafe impl Sync for WakeTarget {}
 /// [`WakeTarget`]. Arm, cancellation, and wake claiming use atomic exchanges so
 /// an interrupt never waits for a registration owner.
 #[repr(transparent)]
-#[derive(Debug)]
 // NOTE(invariant): The atomic value is null or holds a tagged pointer from a valid `WakeTarget`.
-pub struct AtomicWaker(AtomicTaggedPointer<(), WakeClass>);
+pub struct AtomicWaker(AtomicPtr<()>);
 
 impl AtomicWaker {
     /// Constructs an inactive atomic wake slot.
     #[inline]
     #[must_use]
     pub const fn null() -> Self {
-        Self(AtomicTaggedPointer::null())
+        Self(AtomicPtr::new(ptr::null_mut()))
     }
 
     /// Arms this slot with a validated target.
@@ -304,7 +332,7 @@ impl AtomicWaker {
 
         let WakeTarget(tagged_target) = target_waker;
 
-        target_slot.swap(Some(tagged_target), Ordering::SeqCst).is_some()
+        !target_slot.swap(tagged_target.as_ptr(), Ordering::SeqCst).is_null()
     }
 
     /// Cancels the currently active target.
@@ -318,7 +346,7 @@ impl AtomicWaker {
     pub fn cancel(&self) -> bool {
         let Self(target_slot) = self;
 
-        target_slot.swap(None, Ordering::SeqCst).is_some()
+        !target_slot.swap(ptr::null_mut(), Ordering::SeqCst).is_null()
     }
 
     /// Determines whether this slot currently contains an active target.
@@ -327,7 +355,7 @@ impl AtomicWaker {
     pub fn is_armed(&self) -> bool {
         let Self(target_slot) = self;
 
-        !target_slot.is_null(Ordering::SeqCst)
+        !target_slot.load(Ordering::SeqCst).is_null()
     }
 
     /// Claims and invokes the currently active target.
@@ -341,10 +369,162 @@ impl AtomicWaker {
     pub fn wake(&self) -> bool {
         let Self(target_slot) = self;
 
-        let Some(claimed_target) = target_slot.swap(None, Ordering::SeqCst) else {
-            return false;
-        };
+        let claimed_target = target_slot.swap(ptr::null_mut(), Ordering::SeqCst);
 
-        WakeTarget(claimed_target).wake_by_ref()
+        match NonNull::new(claimed_target) {
+            Some(claimed_target) => {
+                // NOTE: Only validated `WakeTarget` values are stored in this slot.
+                WakeTarget(claimed_target).wake_by_ref()
+            },
+            None => false,
+        }
+    }
+}
+
+impl fmt::Debug for AtomicWaker {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("AtomicWaker").finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::{boxed::Box, vec::Vec};
+    use core::{
+        mem, ptr,
+        sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+        task::Waker,
+    };
+    use std::thread;
+
+    use nekor_sync::atomic::tagged::{Encoding, Tag, TagField};
+
+    use super::{AtomicWaker, TEST_VTABLE, WakeClass, WakeClassField, WakeTarget};
+
+    /// Static data for the counter wake class.
+    #[repr(C, align(8))]
+    struct AlignedCounter(pub AtomicUsize);
+
+    impl AlignedCounter {
+        /// Allocate a counter with permanent test lifetime.
+        fn new() -> &'static Self {
+            let target_counter = Box::new(Self(AtomicUsize::new(usize::MIN)));
+
+            #[cfg(miri)]
+            {
+                nekor_miri::memory::leak(target_counter)
+            }
+            #[cfg(not(miri))]
+            {
+                Box::leak(target_counter)
+            }
+        }
+
+        /// Construct a target through the supported counter vtable.
+        fn target(&'static self) -> WakeTarget {
+            let Self(target_counter) = self;
+
+            let target_address = ptr::from_ref(target_counter).cast::<()>();
+
+            // SAFETY: The counter is static and aligned for `TEST_VTABLE`.
+            let target_waker = unsafe { Waker::new(target_address, &TEST_VTABLE) };
+
+            WakeTarget::new(&target_waker).expect("counter has supported class and alignment")
+        }
+    }
+
+    /// Erased data retains its provenance through local field packing and decoding.
+    #[test]
+    fn packed_target_round_trips_erased_data() {
+        let counter = AlignedCounter::new();
+        let target = counter.target();
+
+        let WakeTarget(tagged_pointer) = target;
+
+        let target_address = tagged_pointer.as_ptr().addr();
+
+        assert!(matches!(
+            WakeClassField::wrap(&target_address)
+                .expect("packed counter has an assigned wake class")
+                .value(),
+            WakeClass::Test
+        ));
+        assert!(target.wake_by_ref());
+
+        let AlignedCounter(counter_value) = counter;
+
+        assert_eq!(counter_value.load(Ordering::SeqCst), 1);
+    }
+
+    /// The local field does not make unassigned classes valid.
+    #[test]
+    fn wake_class_rejects_unassigned_values() {
+        for target_value in 2..=WakeClass::MASK {
+            assert!(<TagField as Encoding<WakeClass>>::decode(target_value).is_none());
+            assert!(WakeClassField::wrap(&target_value).is_none());
+        }
+
+        assert!(<TagField as Encoding<WakeClass>>::decode(usize::MAX).is_none());
+    }
+
+    /// Cancellation and repeated claiming preserve the null registration state.
+    #[test]
+    fn atomic_slot_arms_cancels_and_claims() {
+        let counter = AlignedCounter::new();
+        let target = counter.target();
+        let slot = AtomicWaker::null();
+
+        assert!(!slot.is_armed());
+        assert!(!slot.wake());
+        assert!(!slot.cancel());
+        assert!(!slot.arm(target));
+        assert!(slot.is_armed());
+        assert!(slot.arm(target));
+        assert!(slot.cancel());
+        assert!(!slot.cancel());
+        assert!(!slot.arm(target));
+        assert!(slot.wake());
+        assert!(!slot.wake());
+
+        let AlignedCounter(counter_value) = counter;
+
+        assert_eq!(counter_value.load(Ordering::SeqCst), 1);
+    }
+
+    /// Concurrent wake attempts claim the packed target exactly once.
+    #[test]
+    fn concurrent_claim_invokes_once() {
+        let counter = AlignedCounter::new();
+        let slot = AtomicWaker::null();
+
+        assert!(!slot.arm(counter.target()));
+
+        thread::scope(|scope| {
+            let mut handles = Vec::new();
+
+            for _ in 0..8 {
+                handles.push(scope.spawn(|| slot.wake()));
+            }
+
+            let claimed_count = handles
+                .into_iter()
+                .map(|handle| usize::from(handle.join().expect("wake worker panicked")))
+                .sum::<usize>();
+
+            assert_eq!(claimed_count, 1);
+        });
+
+        let AlignedCounter(counter_value) = counter;
+
+        assert_eq!(counter_value.load(Ordering::SeqCst), 1);
+        assert!(!slot.is_armed());
+    }
+
+    /// Packing and atomic registration retain a pointer-sized representation.
+    #[test]
+    fn wake_storage_is_pointer_sized() {
+        assert_eq!(mem::size_of::<WakeTarget>(), mem::size_of::<*mut ()>());
+        assert_eq!(mem::size_of::<AtomicWaker>(), mem::size_of::<AtomicPtr<()>>());
+        assert_eq!(mem::align_of::<AtomicWaker>(), mem::align_of::<AtomicPtr<()>>());
     }
 }

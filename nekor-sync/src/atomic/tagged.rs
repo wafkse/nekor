@@ -1,27 +1,25 @@
-//! Strict-provenance tagged atomic pointers.
+//! Tag descriptions and typed projections over pointer address fields.
 //!
-//! This module separates three concepts.
+//! [`Maskable`] describes the capacity supplied by a pointee's alignment.
+//! [`Field`] converts a complete tag value, while [`Bitfield`] describes
+//! independently combinable variants represented by [`BitfieldSet`].
 //!
-//! - [`Maskable`] describes tag bits guaranteed by a pointee's alignment.
-//! - [`TaggedPointer`] combines one non-null pointer with one validated logical value from a
-//!   [`Tag`] domain.
-//! - [`AtomicTaggedPointer`] stores either null or one tagged pointer atomically.
+//! [`Tagged`] and [`TaggedMut`] project a tag from an address image through
+//! `nekor-bitwise` fields. Their pointer type determines the available alignment
+//! bits, while their tag type determines the accepted logical values.
 //!
-//! Tags occupy address bits that are zero in the untagged pointer. Pointer
-//! encoding and decoding use strict-provenance address mapping rather than an
-//! integer-to-pointer reconstruction.
-//!
-//! This module does not confer pointee ownership, extend pointee lifetime, or
-//! solve pointer ABA. Those properties remain responsibilities of the semantic
-//! abstraction built on top of the tagged pointer.
+//! The consuming abstraction retains the pointer and applies address changes
+//! through provenance-preserving mapping. These views do not establish actual
+//! pointer alignment, pointee ownership, lifetime, or protection against ABA.
+//! Atomic storage and null-state semantics remain with the consumer.
 
-use core::{
-    fmt, marker, mem,
-    ptr::{self, NonNull},
-    sync::atomic::{AtomicPtr, Ordering},
+use core::{fmt, marker, mem, ptr::NonNull};
+
+use nekor_bitwise::{
+    bit::BitOp,
+    field::{dynamic::select::Selected, multi},
+    prelude::{Counterpart, Extract},
 };
-
-use nekor_bitwise::{bit::BitOp, field::dynamic::select::Selected};
 
 /// A pointer representation whose pointee alignment provides tag capacity.
 ///
@@ -110,9 +108,22 @@ pub enum TagBitfield {}
 /// A type-level marker for one value encoded inside a contiguous tag field.
 pub enum TagField {}
 
+/// A type-level marker for a checked integer tag.
+pub enum TagMasked {}
+
 impl private::Sealed for TagBitfield {}
 
 impl private::Sealed for TagField {}
+
+impl private::Sealed for TagMasked {}
+
+// SAFETY: `Masked<M>` admits exactly the integer values contained in `M`.
+unsafe impl<const M: usize> Tag for Masked<M> {
+    type Type = TagMasked;
+    type Value = Self;
+
+    const MASK: usize = M;
+}
 
 /// The shared layout metadata for a pointer-tag domain.
 ///
@@ -124,13 +135,15 @@ impl private::Sealed for TagField {}
 ///
 /// Implementors must uphold all of the following conditions.
 ///
-/// - `MASK` identifies every address bit used by this tag domain and no other address bit.
+/// - `MASK` identifies every bit used by the unshifted tag encoding and no other bit.
 /// - `Type` selects the semantic category implemented by this domain.
-/// - `Value` is the logical value required by the selected category.
-/// - The mask and category remain context-independent for the lifetime of every tagged pointer
-///   using this domain.
+/// - `Value` is the logical value required by the selected category. [`Encoding::encode`] must
+///   return `Some(encoded)` for every valid value, with no bits outside `MASK`.
+/// - [`Encoding::decode`] must recover the same logical value from every emitted encoding.
+/// - The mask, category, and conversions remain context-independent for the lifetime of every
+///   projection using this domain.
 pub unsafe trait Tag: Copy {
-    /// The address-bit mask reserved by this tag domain.
+    /// The low-aligned mask of the tag encoding, independent of its address placement.
     const MASK: usize;
 
     /// The type-level semantic category of this tag domain.
@@ -167,9 +180,9 @@ pub unsafe trait Bitfield: Tag<Type = TagBitfield, Value = BitfieldSet<Self>> {
 
 /// A tag domain whose enum variants represent complete packed field values.
 ///
-/// A field occupies a contiguous range beginning at pointer bit zero. One enum
-/// inhabitant describes the complete field rather than one independently
-/// combinable bit.
+/// A field encoding occupies a contiguous range beginning at bit zero. A
+/// [`Tagged`] view places that encoding in the selected address bits. One enum
+/// inhabitant describes the field rather than one independently combinable bit.
 ///
 /// # Safety
 ///
@@ -364,6 +377,7 @@ where
 }
 
 impl<B> fmt::Debug for BitfieldSet<B> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let &Self { ref bits, .. } = self;
 
@@ -386,10 +400,10 @@ impl<B> Eq for BitfieldSet<B> {}
 
 /// The sealed conversion policy for one pointer-tag category.
 ///
-/// This trait connects shared tagged-pointer storage to the deliberately
-/// distinct [`Field`] and [`Bitfield`] conversion contracts. Only
-/// [`TagField`] and [`TagBitfield`] implement it.
-pub trait TagEncoding<T>: private::Sealed
+/// [`TagField`], [`TagBitfield`], and [`TagMasked`] provide policies for the
+/// corresponding tag categories. The unsafe [`Tag`] contract governs the
+/// selected policy, including implementations for a downstream tag domain.
+pub trait Encoding<T>: private::Sealed
 where
     T: Tag,
 {
@@ -400,43 +414,28 @@ where
     fn decode(encoded: usize) -> Option<T::Value>;
 }
 
-impl<T> TagEncoding<T> for TagField
+impl<T> Encoding<T> for TagField
 where
     T: Field,
 {
     #[inline]
     fn encode(target_value: T::Value) -> Option<usize> {
-        let encoded = T::value(target_value);
-
-        if T::MASK & T::MASK.wrapping_add(1) != usize::MIN
-            || encoded & !T::MASK != usize::MIN
-            || T::from_value(encoded).is_none()
-        {
-            None
-        } else {
-            Some(encoded)
-        }
+        Some(T::value(target_value))
     }
 
     #[inline]
     fn decode(encoded: usize) -> Option<T::Value> {
-        if T::MASK & T::MASK.wrapping_add(1) != usize::MIN || encoded & !T::MASK != usize::MIN {
-            None
-        } else {
-            T::from_value(encoded)
-        }
+        T::from_value(encoded)
     }
 }
 
-impl<T> TagEncoding<T> for TagBitfield
+impl<T> Encoding<T> for TagBitfield
 where
     T: Bitfield,
 {
     #[inline]
     fn encode(target_value: T::Value) -> Option<usize> {
-        let encoded = BitfieldSet::<T>::bits(target_value);
-
-        BitfieldSet::<T>::from_bits(encoded).map(|_| encoded)
+        Some(target_value.bits())
     }
 
     #[inline]
@@ -445,114 +444,280 @@ where
     }
 }
 
-/// A non-null pointer carrying one validated logical tag value in its address
-/// bits.
+impl<const M: usize> Encoding<Masked<M>> for TagMasked {
+    #[inline]
+    fn encode(target_value: Masked<M>) -> Option<usize> {
+        Some(target_value.unwrap())
+    }
+
+    #[inline]
+    fn decode(encoded: usize) -> Option<Masked<M>> {
+        Masked::new(encoded)
+    }
+}
+
+/// The integer field underlying a pointer-tag projection.
+type Area<'value, const N: usize, const M: usize> = multi::Field<'value, N, M, usize, <usize as Extract<N, M>>::Output>;
+
+/// The mutable counterpart of [`Area`].
+type AreaMut<'value, const N: usize, const M: usize> = <Area<'value, N, M> as Counterpart>::Mut;
+
+/// An immutable projection of a tag from a pointer address image.
 ///
-/// The pointer is never dereferenced while tagged. Use
-/// [`TaggedPointer::pointer`] or [`TaggedPointer::split`] to recover its
-/// untagged address first.
+/// `P` describes the pointer representation and `T` describes the tag. The
+/// selected address bits must fit the alignment capacity of `P`, and every
+/// encoding admitted by `T` must fit the selected field. Both restrictions are
+/// checked during const evaluation when the projection is constructed.
+///
+/// Insufficient pointee alignment is rejected even when a particular address
+/// would happen to supply the requested bits.
+///
+/// ```compile_fail
+/// use core::ptr::NonNull;
+/// use nekor_sync::atomic::tagged::{Masked, Tagged};
+///
+/// let address = 0_usize;
+/// let _ = Tagged::<0, 1, NonNull<u8>, Masked<3>>::wrap(&address);
+/// ```
+///
+/// The borrowed integer is an address image, not an owning pointer. Its origin
+/// and actual alignment remain the caller's responsibility. Apply changes to
+/// the original pointer through address mapping rather than integer casts.
 #[repr(transparent)]
-// NOTE(invariant): Clearing `T::MASK` recovers the non-null pointer, and the tag bits decode as
-// `T::Value`.
-pub struct TaggedPointer<P, T>
+// NOTE(invariant): The projected field decodes to a valid `T::Value`. Its positions fit
+// `P::MASK`, and `T::MASK` fits the field's low-aligned encoding capacity.
+pub struct Tagged<'value, const N: usize, const M: usize, P, T>(
+    Area<'value, N, M>,
+    marker::PhantomData<fn() -> (P, T)>,
+)
 where
-    T: Tag,
-{
-    /// The provenance-carrying pointer with its tag bits applied.
-    tagged: NonNull<P>,
+    usize: Extract<N, M>,
+    P: Maskable,
+    T: Tag;
 
-    /// The encoded tag type.
-    marker: marker::PhantomData<T>,
+/// A mutable projection of a tag from a pointer address image.
+///
+/// Mutation accepts logical tag values and leaves the other address bits
+/// unchanged. The underlying integer and raw mutable field are not exposed.
+/// [`TaggedMut::clear`] consumes the projection because zero need not be an
+/// assigned tag encoding.
+///
+/// The positioned field, rather than its unshifted width, must fit the pointer
+/// alignment capacity.
+///
+/// ```compile_fail
+/// use core::ptr::NonNull;
+/// use nekor_sync::atomic::tagged::{Masked, TaggedMut};
+///
+/// let mut address = 0_usize;
+/// let _ = TaggedMut::<1, 2, NonNull<u32>, Masked<3>>::wrap(&mut address);
+/// ```
+#[repr(transparent)]
+// NOTE(invariant): The projected field decodes to a valid `T::Value`. Its positions fit
+// `P::MASK`, and `T::MASK` fits the field's low-aligned encoding capacity.
+pub struct TaggedMut<'value, const N: usize, const M: usize, P, T>(
+    AreaMut<'value, N, M>,
+    marker::PhantomData<fn() -> (P, T)>,
+)
+where
+    usize: Extract<N, M>,
+    P: Maskable,
+    T: Tag;
+
+mod detail {
+    //! Shared operations for immutable and mutable tag projections.
+
+    /// Implements operations shared by the statically declared projection types.
+    macro_rules! projected {
+        (impl $target_name:ident for($target_borrow:ty)use $target_area:ident) => {
+            tokel::stream! {
+                impl<'value, const N: usize, const M: usize, P, T> $target_name<'value, N, M, P, T>
+                where
+                    usize: Extract<N, M>,
+                    <usize as Extract<N, M>>::Output: TryInto<usize>,
+                    P: Maskable,
+                    T: Tag,
+                    T::Type: Encoding<T>,
+                {
+                    /// The source-positioned mask reserved by this projection.
+                    #[inline]
+                    #[must_use]
+                    pub const fn mask() -> usize {
+                        const {
+                            assert!(
+                                <usize as Extract<N, M>>::EXTRACT_MASK & !P::MASK == 0,
+                                "tag field exceeds pointer alignment capacity"
+                            );
+                            assert!(
+                                T::MASK & !<usize as Extract<N, M>>::BITSET_MASK == 0,
+                                "tag encoding exceeds projected field capacity"
+                            );
+                        }
+
+                        Area::<N, M>::mask()
+                    }
+
+                    /// Project an existing tag encoding from an address image.
+                    ///
+                    /// Returns [`None`] for an unassigned encoding, including bits
+                    /// outside the tag's domain but inside the projected field.
+                    #[inline]
+                    #[must_use]
+                    pub fn wrap(target_value: $target_borrow) -> Option<Self> {
+                        _ = Self::mask();
+
+                        let target_area = $target_area::<N, M>::wrap(target_value);
+
+                        // SAFETY: The sealed `usize` extractor produces an unsigned
+                        // field value no wider than `usize`.
+                        let encoded = unsafe { target_area.value().try_into().unwrap_unchecked() };
+
+                        match encoded & !T::MASK {
+                            0 => <T::Type as Encoding<T>>::decode(encoded)
+                                .map(|_| Self(target_area, marker::PhantomData)),
+                            _ => None,
+                        }
+                    }
+
+                    /// Read the logical value held by this projection.
+                    #[inline]
+                    #[must_use]
+                    pub fn value(&self) -> T::Value {
+                        let &Self(ref target_area, _) = self;
+
+                        // SAFETY: The sealed `usize` extractor produces an unsigned
+                        // field value no wider than `usize`.
+                        let encoded = unsafe { target_area.value().try_into().unwrap_unchecked() };
+
+                        // SAFETY: The projection invariant establishes an accepted
+                        // encoding, and `Tag` requires context-independent decoding.
+                        unsafe { <T::Type as Encoding<T>>::decode(encoded).unwrap_unchecked() }
+                    }
+                }
+            }
+        };
+    }
+
+    pub(in crate::atomic::tagged) use projected;
 }
 
-impl<P, T> TaggedPointer<P, T>
+detail::projected!(impl Tagged for (&'value usize) use Area);
+detail::projected!(impl TaggedMut for (&'value mut usize) use AreaMut);
+
+impl<'value, const N: usize, const M: usize, P, T> TaggedMut<'value, N, M, P, T>
 where
+    usize: Extract<N, M>,
+    <usize as Extract<N, M>>::Output: TryFrom<usize> + TryInto<usize>,
+    P: Maskable,
     T: Tag,
-    T::Type: TagEncoding<T>,
+    T::Type: Encoding<T>,
 {
-    /// Attempts to attach `target_tag` to `target_pointer`.
+    /// Initialize a tag field, replacing even an unassigned existing encoding.
     ///
-    /// This checks the actual pointer address, which permits tagging an erased
-    /// pointer whose static pointee alignment no longer communicates the
-    /// alignment of its underlying allocation.
-    #[inline]
-    #[must_use]
-    pub fn new(target_pointer: NonNull<P>, target_tag: T::Value) -> Option<Self> {
-        let encoded_tag = <T::Type as TagEncoding<T>>::encode(target_tag)?;
-        let pointer_address = target_pointer.as_ptr().addr();
-
-        if pointer_address & T::MASK != usize::MIN {
-            return None;
-        }
-
-        let tagged_pointer = target_pointer
-            .as_ptr()
-            .map_addr(|target_address| target_address | encoded_tag);
-        let tagged = NonNull::new(tagged_pointer)?;
-        let marker = marker::PhantomData;
-
-        Some(Self { tagged, marker })
-    }
-
-    /// Determines whether the static pointee alignment supports this tag.
+    /// Bits outside the selected field are unchanged. This does not prove that
+    /// the address image came from an aligned pointer.
     ///
-    /// A `false` result does not prohibit tagging a particular erased pointer
-    /// through [`TaggedPointer::new`]. It means only that the tag requires more
-    /// bits than the static pointee alignment makes available.
-    #[inline]
-    #[must_use]
-    pub const fn pointee_supports_tag() -> bool
-    where
-        NonNull<P>: Maskable,
-    {
-        T::MASK & !<NonNull<P> as Maskable>::MASK == 0
-    }
-
-    /// Returns the untagged pointer while preserving its provenance.
-    #[inline]
-    #[must_use]
-    pub fn pointer(self) -> NonNull<P> {
-        let Self { tagged, .. } = self;
-
-        let target_pointer = tagged.as_ptr().map_addr(|target_address| target_address & !T::MASK);
-
-        // SAFETY: The representation invariant guarantees that clearing the tag
-        // recovers the original non-null pointer.
-        unsafe { NonNull::new_unchecked(target_pointer) }
-    }
-
-    /// Attempts to decode the stored logical tag value.
-    #[inline]
-    #[must_use]
-    pub fn tag(self) -> Option<T::Value> {
-        let Self { tagged, .. } = self;
-
-        let encoded_tag = tagged.as_ptr().addr() & T::MASK;
-
-        <T::Type as TagEncoding<T>>::decode(encoded_tag)
-    }
-
-    /// Recovers the untagged pointer and decoded logical tag value.
+    /// A tag's encoding space must fit the field, not just its current value.
     ///
-    /// Returns [`None`] only when an unsafe tag-domain implementation violated
-    /// its decoding contract or unsafe code forged this type's representation.
+    /// ```compile_fail
+    /// use core::ptr::NonNull;
+    /// use nekor_sync::atomic::tagged::{Masked, TaggedMut};
+    ///
+    /// let mut address = 0_usize;
+    /// let tag = Masked::<7>::new(1).expect("tag fits its own domain");
+    /// let _ = TaggedMut::<0, 1, NonNull<u32>, Masked<7>>::new(&mut address, tag);
+    /// ```
     #[inline]
     #[must_use]
-    pub fn split(self) -> Option<(NonNull<P>, T::Value)> {
-        self.tag().map(|target_tag| (self.pointer(), target_tag))
+    pub fn new(target_value: &'value mut usize, target_tag: T::Value) -> Self {
+        _ = Self::mask();
+
+        // SAFETY: `Tag` requires every logical value to have an encoding within `T::MASK`.
+        let encoded = unsafe { <T::Type as Encoding<T>>::encode(target_tag).unwrap_unchecked() };
+
+        // SAFETY: `Self::mask()` proves that `T::MASK` fits the field, whose sealed
+        // extractor selects an output wide enough for every field value.
+        let target_input = unsafe { <usize as Extract<N, M>>::Output::try_from(encoded).unwrap_unchecked() };
+
+        let mut target_area = AreaMut::<N, M>::wrap(target_value);
+
+        _ = target_area.merge(target_input);
+
+        Self(target_area, marker::PhantomData)
     }
 
-    /// Attempts to replace the stored logical tag value without changing the
-    /// pointer.
+    /// Replace the tag and return its previous logical value.
     #[inline]
-    #[must_use]
-    pub fn retag(self, target_tag: T::Value) -> Option<Self> {
-        Self::new(self.pointer(), target_tag)
+    pub fn merge(&mut self, target_tag: T::Value) -> T::Value {
+        // SAFETY: `Tag` requires every logical value to have an encoding within `T::MASK`.
+        let encoded = unsafe { <T::Type as Encoding<T>>::encode(target_tag).unwrap_unchecked() };
+
+        // SAFETY: The projection invariant bounds `T::MASK` by the field capacity,
+        // and the sealed extractor's output represents every field value.
+        let target_input = unsafe { <usize as Extract<N, M>>::Output::try_from(encoded).unwrap_unchecked() };
+        let previous_tag = self.value();
+
+        let &mut Self(ref mut target_area, _) = self;
+
+        _ = target_area.merge(target_input);
+
+        previous_tag
+    }
+
+    /// Clear the reserved field and consume the projection.
+    ///
+    /// Returns the previous tag. Zero may be unassigned, so the cleared image
+    /// must be validated again before it can be projected as a tag.
+    ///
+    /// ```compile_fail
+    /// use core::ptr::NonNull;
+    /// use nekor_sync::atomic::tagged::{Masked, TaggedMut};
+    ///
+    /// let mut address = 0_usize;
+    /// let tag = Masked::<3>::new(1).expect("tag fits");
+    /// let view = TaggedMut::<0, 1, NonNull<u32>, Masked<3>>::new(&mut address, tag);
+    /// let _previous = view.clear();
+    /// let _ = view.value();
+    /// ```
+    #[inline]
+    pub fn clear(self) -> T::Value {
+        let previous_tag = self.value();
+
+        let Self(mut target_area, _) = self;
+
+        // SAFETY: The sealed extractor's unsigned output always represents zero.
+        let target_input = unsafe { <usize as Extract<N, M>>::Output::try_from(usize::MIN).unwrap_unchecked() };
+
+        _ = target_area.merge(target_input);
+
+        previous_tag
     }
 }
 
-impl<P, T> Clone for TaggedPointer<P, T>
+impl<'value, const N: usize, const M: usize, P, T> Counterpart for Tagged<'value, N, M, P, T>
 where
+    usize: Extract<N, M>,
+    P: Maskable,
+    T: Tag,
+{
+    type Immut = Self;
+    type Mut = TaggedMut<'value, N, M, P, T>;
+}
+
+impl<'value, const N: usize, const M: usize, P, T> Counterpart for TaggedMut<'value, N, M, P, T>
+where
+    usize: Extract<N, M>,
+    P: Maskable,
+    T: Tag,
+{
+    type Immut = Tagged<'value, N, M, P, T>;
+    type Mut = Self;
+}
+
+impl<const N: usize, const M: usize, P, T> Clone for Tagged<'_, N, M, P, T>
+where
+    usize: Extract<N, M>,
+    P: Maskable,
     T: Tag,
 {
     #[inline]
@@ -561,219 +726,26 @@ where
     }
 }
 
-impl<P, T> Copy for TaggedPointer<P, T> where T: Tag {}
-
-impl<P, T> fmt::Debug for TaggedPointer<P, T>
+impl<const N: usize, const M: usize, P, T> Copy for Tagged<'_, N, M, P, T>
 where
+    usize: Extract<N, M>,
+    P: Maskable,
     T: Tag,
 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("TaggedPointer").finish_non_exhaustive()
-    }
-}
-
-impl<P, T> PartialEq for TaggedPointer<P, T>
-where
-    T: Tag,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let &Self { tagged: ref left, .. } = self;
-
-        let &Self { tagged: ref right, .. } = other;
-
-        ptr::eq(left.as_ptr(), right.as_ptr())
-    }
-}
-
-impl<P, T> Eq for TaggedPointer<P, T> where T: Tag {}
-
-/// The result of a tagged-pointer compare-and-exchange operation.
-///
-/// Both the success and failure cases contain the optional value observed
-/// before the attempted exchange.
-pub type CompareExchangeResult<P, T> = Result<Option<TaggedPointer<P, T>>, Option<TaggedPointer<P, T>>>;
-
-/// A nullable atomic [`TaggedPointer`].
-///
-/// Null represents the absence of a pointer. Every non-null value is stored in
-/// the representation produced by `TaggedPointer<P, T>`.
-///
-/// This type delegates progress and ordering properties to [`AtomicPtr`]. It
-/// does not make platform atomics wait-free and does not prevent pointer ABA.
-#[repr(transparent)]
-// NOTE(invariant): The atomic word is null or holds a tagged pointer produced with this `P` and
-// `T`.
-pub struct AtomicTaggedPointer<P, T>
-where
-    T: Tag,
-{
-    /// The null or tagged pointer representation.
-    pointer: AtomicPtr<P>,
-
-    /// The encoded tag type.
-    marker: marker::PhantomData<T>,
-}
-
-impl<P, T> AtomicTaggedPointer<P, T>
-where
-    T: Tag,
-    T::Type: TagEncoding<T>,
-{
-    /// Constructs an atomic pointer initialized to null.
-    #[inline]
-    #[must_use]
-    pub const fn null() -> Self {
-        let pointer = AtomicPtr::new(ptr::null_mut());
-        let marker = marker::PhantomData;
-
-        Self { pointer, marker }
-    }
-
-    /// Constructs an atomic pointer initialized with an optional tagged value.
-    #[inline]
-    #[must_use]
-    pub fn new(target_pointer: Option<TaggedPointer<P, T>>) -> Self {
-        let pointer = AtomicPtr::new(Self::encode(target_pointer));
-        let marker = marker::PhantomData;
-
-        Self { pointer, marker }
-    }
-
-    /// Loads the current optional tagged pointer.
-    #[inline]
-    #[must_use]
-    pub fn load(&self, target_order: Ordering) -> Option<TaggedPointer<P, T>> {
-        let &Self { ref pointer, .. } = self;
-
-        Self::decode(pointer.load(target_order))
-    }
-
-    /// Stores an optional tagged pointer.
-    #[inline]
-    pub fn store(&self, target_pointer: Option<TaggedPointer<P, T>>, target_order: Ordering) {
-        let &Self { ref pointer, .. } = self;
-
-        pointer.store(Self::encode(target_pointer), target_order);
-    }
-
-    /// Exchanges the current optional tagged pointer.
-    #[inline]
-    pub fn swap(
-        &self,
-        target_pointer: Option<TaggedPointer<P, T>>,
-        target_order: Ordering,
-    ) -> Option<TaggedPointer<P, T>> {
-        let &Self { ref pointer, .. } = self;
-
-        let previous_pointer = pointer.swap(Self::encode(target_pointer), target_order);
-
-        Self::decode(previous_pointer)
-    }
-
-    /// Compares and exchanges an optional tagged pointer.
-    ///
-    /// # Errors
-    ///
-    /// Returns the observed optional value when it differs from `current`.
-    #[inline]
-    pub fn compare_exchange(
-        &self,
-        current: Option<TaggedPointer<P, T>>,
-        new: Option<TaggedPointer<P, T>>,
-        success: Ordering,
-        failure: Ordering,
-    ) -> CompareExchangeResult<P, T> {
-        let &Self { ref pointer, .. } = self;
-
-        match pointer.compare_exchange(Self::encode(current), Self::encode(new), success, failure) {
-            Ok(previous) => Ok(Self::decode(previous)),
-            Err(observed) => Err(Self::decode(observed)),
-        }
-    }
-
-    /// Weakly compares and exchanges an optional tagged pointer.
-    ///
-    /// # Errors
-    ///
-    /// Returns the observed optional value when the operation fails or differs
-    /// from `current`. The operation may fail spuriously.
-    #[inline]
-    pub fn compare_exchange_weak(
-        &self,
-        current: Option<TaggedPointer<P, T>>,
-        new: Option<TaggedPointer<P, T>>,
-        success: Ordering,
-        failure: Ordering,
-    ) -> CompareExchangeResult<P, T> {
-        let &Self { ref pointer, .. } = self;
-
-        match pointer.compare_exchange_weak(Self::encode(current), Self::encode(new), success, failure) {
-            Ok(previous) => Ok(Self::decode(previous)),
-            Err(observed) => Err(Self::decode(observed)),
-        }
-    }
-
-    /// Determines whether the current atomic value is null.
-    #[inline]
-    #[must_use]
-    pub fn is_null(&self, target_order: Ordering) -> bool {
-        let &Self { ref pointer, .. } = self;
-
-        pointer.load(target_order).is_null()
-    }
-
-    /// Encodes an optional tagged pointer as a nullable raw pointer.
-    #[inline]
-    fn encode(target_pointer: Option<TaggedPointer<P, T>>) -> *mut P {
-        target_pointer.map_or(ptr::null_mut(), |target_pointer| {
-            let TaggedPointer { tagged, .. } = target_pointer;
-
-            tagged.as_ptr()
-        })
-    }
-
-    /// Decodes a nullable raw pointer from this trusted atomic container.
-    #[inline]
-    fn decode(target_pointer: *mut P) -> Option<TaggedPointer<P, T>> {
-        NonNull::new(target_pointer).map(|tagged_pointer| {
-            // NOTE: The atomic representation invariant guarantees that every
-            // non-null value was written from `TaggedPointer<P, T>`.
-            TaggedPointer {
-                tagged: tagged_pointer,
-                marker: marker::PhantomData,
-            }
-        })
-    }
-}
-
-impl<P, T> Default for AtomicTaggedPointer<P, T>
-where
-    T: Tag,
-    T::Type: TagEncoding<T>,
-{
-    #[inline]
-    fn default() -> Self {
-        Self::null()
-    }
-}
-
-impl<P, T> fmt::Debug for AtomicTaggedPointer<P, T>
-where
-    T: Tag,
-{
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("AtomicTaggedPointer").finish_non_exhaustive()
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use core::{ptr::NonNull, sync::atomic::Ordering};
+    use core::{mem, ptr::NonNull};
+
+    use nekor_bitwise::{bit::BitAtExtractor, field::multi, prelude::Counterpart};
 
     use super::{
-        AtomicTaggedPointer, Bitfield, BitfieldSet, Field, Maskable, Masked, Tag, TagBitfield, TagEncoding, TagField,
-        TaggedPointer,
+        Bitfield, BitfieldSet, Encoding, Field, Maskable, Masked, Tag, TagBitfield, TagField, Tagged, TaggedMut,
     };
+
+    /// The field used by `TestTag`.
+    type TestTagField<'value> = multi::Field<'value, 0, 1, usize>;
 
     #[derive(Debug, Clone, Copy, Eq, PartialEq)]
     #[repr(usize)]
@@ -789,7 +761,7 @@ mod tests {
         type Type = TagField;
         type Value = Self;
 
-        const MASK: usize = 0b11;
+        const MASK: usize = TestTagField::mask();
     }
 
     // SAFETY: The mask is one contiguous two-bit field. Every encoded variant
@@ -822,7 +794,8 @@ mod tests {
         type Type = TagBitfield;
         type Value = BitfieldSet<Self>;
 
-        const MASK: usize = 0b101;
+        const MASK: usize = BitAtExtractor::<{ Self::First as usize }, usize>::single()
+            | BitAtExtractor::<{ Self::Third as usize }, usize>::single();
     }
 
     // SAFETY: Each discriminant is a valid `usize` bit index. Index conversion
@@ -844,6 +817,241 @@ mod tests {
     #[repr(C, align(8))]
     struct AlignedBytes(pub [u8; 4]);
 
+    /// Pointee alignment supplying the positioned test field.
+    #[repr(C, align(128))]
+    struct AlignedImage(pub u8);
+
+    /// Pointee alignment supplying a field with a `u32` output.
+    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    #[repr(C, align(262144))]
+    struct WideImage(pub u8);
+
+    /// A three-bit field beginning above the low address bits.
+    type Positioned<'value, T> = Tagged<'value, 4, 6, NonNull<AlignedImage>, T>;
+
+    /// The mutable counterpart of the positioned test field.
+    type PositionedMut<'value, T> = <Positioned<'value, T> as Counterpart>::Mut;
+
+    /// A field domain with no assigned zero encoding.
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    #[repr(usize)]
+    enum NonzeroTag {
+        One = 1,
+        Three = 3,
+    }
+
+    // SAFETY: Both logical values fit the two-bit domain and round-trip through `TagField`.
+    unsafe impl Tag for NonzeroTag {
+        type Type = TagField;
+        type Value = Self;
+
+        const MASK: usize = TestTagField::mask();
+    }
+
+    // SAFETY: Conversion accepts exactly the two assigned nonzero discriminants.
+    unsafe impl Field for NonzeroTag {
+        fn value(self) -> usize {
+            self as usize
+        }
+
+        fn from_value(target_value: usize) -> Option<Self> {
+            match target_value {
+                target_value if target_value == Self::One as usize => Some(Self::One),
+                target_value if target_value == Self::Three as usize => Some(Self::Three),
+                _ => None,
+            }
+        }
+    }
+
+    /// A numeric domain whose decoder deliberately normalizes spare bits.
+    #[derive(Clone, Copy)]
+    enum AliasTag {}
+
+    // SAFETY: Every `Masked<1>` value encodes within the mask and round-trips.
+    // Accepting additional raw patterns does not change that encoding contract.
+    unsafe impl Tag for AliasTag {
+        type Type = super::TagMasked;
+        type Value = Masked<1>;
+
+        const MASK: usize = 1;
+    }
+
+    impl Encoding<AliasTag> for super::TagMasked {
+        #[inline]
+        fn encode(target_value: Masked<1>) -> Option<usize> {
+            Some(target_value.unwrap())
+        }
+
+        #[inline]
+        fn decode(encoded: usize) -> Option<Masked<1>> {
+            Masked::new(encoded & AliasTag::MASK)
+        }
+    }
+
+    /// Projection validation does not rely on a decoder rejecting spare bits.
+    #[test]
+    fn projection_rejects_spare_bits_before_decoding() {
+        let mut image = 0b010;
+
+        assert!(<super::TagMasked as Encoding<AliasTag>>::decode(image).is_some());
+        assert!(Tagged::<0, 2, NonNull<AlignedBytes>, AliasTag>::wrap(&image).is_none());
+        assert!(TaggedMut::<0, 2, NonNull<AlignedBytes>, AliasTag>::wrap(&mut image).is_none());
+        assert_eq!(image, 0b010);
+    }
+
+    /// Positioned extraction and mutation preserve address bits on both sides.
+    #[test]
+    fn positioned_projection_preserves_other_bits() {
+        let mut image = 0xa58b;
+
+        assert_eq!(Positioned::<TestTag>::mask(), 0x70);
+        assert_eq!(
+            Positioned::<TestTag>::wrap(&image).expect("zero tag").value(),
+            TestTag::Zero
+        );
+
+        let mut view = PositionedMut::<TestTag>::new(&mut image, TestTag::Three);
+
+        assert_eq!(view.value(), TestTag::Three);
+        assert_eq!(view.merge(TestTag::One), TestTag::Three);
+        assert_eq!(view.value(), TestTag::One);
+        assert_eq!(view.clear(), TestTag::One);
+        assert_eq!(image, 0xa58b);
+
+        let _view = PositionedMut::<TestTag>::new(&mut image, TestTag::Three);
+
+        assert_eq!(image, 0xa5bb);
+    }
+
+    /// Checked wrapping rejects spare field bits without changing the image.
+    #[test]
+    fn projection_rejects_unassigned_and_spare_bits() {
+        for mut image in [0xa5ab, 0xa5cb] {
+            let original = image;
+
+            assert!(Positioned::<TestTag>::wrap(&image).is_none());
+            assert!(PositionedMut::<TestTag>::wrap(&mut image).is_none());
+            assert_eq!(image, original);
+
+            let view = PositionedMut::<TestTag>::new(&mut image, TestTag::One);
+
+            assert_eq!(view.value(), TestTag::One);
+            assert_eq!(image, 0xa59b);
+        }
+    }
+
+    /// Sparse tags reject holes and initialization replaces the entire field.
+    #[test]
+    fn sparse_projection_preserves_assigned_set() {
+        let mut image = 0xa5ab;
+
+        assert!(Positioned::<TestBit>::wrap(&image).is_none());
+        assert!(PositionedMut::<TestBit>::wrap(&mut image).is_none());
+
+        let mut set = BitfieldSet::<TestBit>::single(TestBit::First).expect("assigned bit");
+
+        assert!(set.insert(TestBit::Third));
+
+        let view = PositionedMut::<TestBit>::new(&mut image, set);
+
+        assert_eq!(view.value(), set);
+        assert_eq!(image, 0xa5db);
+        assert_eq!(
+            PositionedMut::<TestBit>::wrap(&mut image)
+                .expect("assigned set")
+                .clear(),
+            set
+        );
+        assert_eq!(image, 0xa58b);
+    }
+
+    /// Consuming a projection permits clearing even when zero is unassigned.
+    #[test]
+    fn clear_consumes_nonzero_tag_projection() {
+        let mut image = 0xa58b;
+
+        assert!(Positioned::<NonzeroTag>::wrap(&image).is_none());
+
+        let mut view = PositionedMut::<NonzeroTag>::new(&mut image, NonzeroTag::One);
+
+        assert_eq!(view.merge(NonzeroTag::Three), NonzeroTag::One);
+        assert_eq!(view.clear(), NonzeroTag::Three);
+        assert_eq!(image, 0xa58b);
+        assert!(PositionedMut::<NonzeroTag>::wrap(&mut image).is_none());
+    }
+
+    /// Numeric tags retain their checked domain through field operations.
+    #[test]
+    fn masked_projection_checks_numeric_domain() {
+        let mut image = 0xa5ab;
+        let tag = Masked::<0b101>::new(0b101).expect("numeric tag fits");
+
+        assert!(Positioned::<Masked<0b101>>::wrap(&image).is_none());
+
+        let mut view = PositionedMut::<Masked<0b101>>::new(&mut image, tag);
+        let zero = Masked::new(0).expect("zero fits");
+
+        assert_eq!(view.value(), tag);
+        assert_eq!(view.merge(zero), tag);
+        assert_eq!(view.clear(), zero);
+        assert_eq!(image, 0xa58b);
+    }
+
+    /// Field-output conversion also covers tags wider than `u16`.
+    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    #[test]
+    fn projection_supports_wider_output() {
+        const MASK: usize = multi::Field::<0, 16, usize>::mask();
+
+        let mut image = 0x8000_0000;
+        let tag = Masked::<MASK>::new(0x1_2345).expect("wide tag fits");
+        let view = TaggedMut::<0, 16, NonNull<WideImage>, Masked<MASK>>::new(&mut image, tag);
+
+        assert_eq!(view.value(), tag);
+        assert_eq!(view.clear(), tag);
+        assert_eq!(image, 0x8000_0000);
+    }
+
+    /// The projections add no storage beyond their borrowed field.
+    #[test]
+    fn projection_layout_matches_field() {
+        assert_eq!(mem::size_of::<Positioned<'_, TestTag>>(), mem::size_of::<&usize>());
+        assert_eq!(
+            mem::size_of::<PositionedMut<'_, TestTag>>(),
+            mem::size_of::<&mut usize>()
+        );
+        assert_eq!(mem::align_of::<Positioned<'_, TestTag>>(), mem::align_of::<&usize>());
+    }
+
+    /// Address-image projection leaves provenance with the mapped pointer.
+    #[test]
+    fn projection_round_trips_pointer_provenance() {
+        let mut payload = AlignedImage(7);
+        let pointer = NonNull::from(&mut payload);
+        let packed = pointer.as_ptr().map_addr(|mut address| {
+            let _view = PositionedMut::<TestTag>::new(&mut address, TestTag::Three);
+
+            address
+        });
+        let recovered = packed.map_addr(|mut address| {
+            let view = PositionedMut::<TestTag>::wrap(&mut address).expect("packed tag");
+
+            assert_eq!(view.clear(), TestTag::Three);
+
+            address
+        });
+
+        assert_eq!(recovered, pointer.as_ptr());
+
+        // SAFETY: Address mapping preserves the original mutable pointer's provenance,
+        // and clearing the field recovers its live, aligned allocation address.
+        unsafe { recovered.write(AlignedImage(42)) };
+
+        let AlignedImage(value) = payload;
+
+        assert_eq!(value, 42);
+    }
+
     #[test]
     fn masked_value_checks_bits() {
         assert_eq!(Masked::<0b11>::new(0b10).map(Masked::unwrap), Some(0b10));
@@ -853,7 +1061,20 @@ mod tests {
 
     #[test]
     fn field_encoding_rejects_unassigned_pattern() {
-        assert_eq!(<TagField as TagEncoding<TestTag>>::decode(0b10), None);
+        assert_eq!(<TagField as Encoding<TestTag>>::decode(0b10), None);
+        assert_eq!(<TagField as Encoding<TestTag>>::decode(0b100), None);
+        assert_eq!(<TagField as Encoding<TestTag>>::decode(usize::MAX), None);
+    }
+
+    #[test]
+    fn field_encoding_round_trips_assigned_values() {
+        for target_tag in [TestTag::Zero, TestTag::One, TestTag::Three] {
+            let encoded =
+                <TagField as Encoding<TestTag>>::encode(target_tag).expect("assigned field value is encodable");
+
+            assert_eq!(encoded, target_tag.value());
+            assert_eq!(<TagField as Encoding<TestTag>>::decode(encoded), Some(target_tag));
+        }
     }
 
     #[test]
@@ -892,152 +1113,7 @@ mod tests {
         assert_eq!(<*const AlignedBytes as Maskable>::MASK, 0b111);
         assert_eq!(<*mut AlignedBytes as Maskable>::MASK, 0b111);
         assert_eq!(<NonNull<AlignedBytes> as Maskable>::MASK, 0b111);
-        assert!(TaggedPointer::<AlignedBytes, TestTag>::pointee_supports_tag());
-        assert!(!TaggedPointer::<u8, TestTag>::pointee_supports_tag());
-    }
-
-    #[test]
-    fn tagged_pointer_round_trips_pointer_and_tag() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let target_pointer = NonNull::from_mut(&mut target_value);
-        let tagged_pointer = TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::Three);
-
-        assert!(tagged_pointer.is_some());
-
-        let Some(tagged_pointer) = tagged_pointer else {
-            return;
-        };
-
-        let split = tagged_pointer.split();
-
-        assert!(split.is_some());
-
-        let Some((decoded_pointer, decoded_tag)) = split else {
-            return;
-        };
-
-        assert_eq!(decoded_pointer, target_pointer);
-        assert_eq!(decoded_tag, TestTag::Three);
-    }
-
-    #[test]
-    fn tagged_pointer_round_trips_bitfield_set() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let target_pointer = NonNull::from_mut(&mut target_value);
-        let mut target_set = BitfieldSet::<TestBit>::empty();
-
-        assert!(target_set.insert(TestBit::First));
-        assert!(target_set.insert(TestBit::Third));
-
-        let tagged_pointer = TaggedPointer::<AlignedBytes, TestBit>::new(target_pointer, target_set);
-
-        assert!(tagged_pointer.is_some());
-
-        let Some(tagged_pointer) = tagged_pointer else {
-            return;
-        };
-
-        let split = tagged_pointer.split();
-
-        assert_eq!(split, Some((target_pointer, target_set)));
-    }
-
-    #[test]
-    fn erased_pointer_uses_actual_address_alignment() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let erased_pointer = NonNull::from_mut(&mut target_value).cast::<()>();
-        let tagged_pointer = TaggedPointer::<(), TestTag>::new(erased_pointer, TestTag::One);
-
-        assert!(tagged_pointer.is_some());
-        assert!(!TaggedPointer::<(), TestTag>::pointee_supports_tag());
-    }
-
-    #[test]
-    fn insufficiently_aligned_address_is_rejected() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let base_pointer = NonNull::from_mut(&mut target_value).cast::<u8>();
-
-        // SAFETY: The four-byte array contains the requested one-byte offset.
-        let offset_pointer = unsafe { base_pointer.as_ptr().add(1) };
-
-        let Some(offset_pointer) = NonNull::new(offset_pointer) else {
-            return;
-        };
-
-        assert!(TaggedPointer::<u8, TestTag>::new(offset_pointer, TestTag::One).is_none());
-    }
-
-    #[test]
-    fn retagging_preserves_pointer() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let target_pointer = NonNull::from_mut(&mut target_value);
-        let original = TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::One);
-
-        assert!(original.is_some());
-
-        let Some(original) = original else {
-            return;
-        };
-
-        let retagged = original.retag(TestTag::Three);
-
-        assert!(retagged.is_some());
-
-        let Some(retagged) = retagged else {
-            return;
-        };
-
-        assert_eq!(retagged.pointer(), target_pointer);
-        assert_eq!(retagged.tag(), Some(TestTag::Three));
-    }
-
-    #[test]
-    fn atomic_tagged_pointer_supports_null_and_swap() {
-        let mut target_value = AlignedBytes([0; 4]);
-        let target_pointer = NonNull::from_mut(&mut target_value);
-        let tagged_pointer = TaggedPointer::<AlignedBytes, TestTag>::new(target_pointer, TestTag::One);
-
-        assert!(tagged_pointer.is_some());
-
-        let Some(tagged_pointer) = tagged_pointer else {
-            return;
-        };
-
-        let target_atomic = AtomicTaggedPointer::null();
-
-        assert!(target_atomic.is_null(Ordering::SeqCst));
-        assert_eq!(target_atomic.swap(Some(tagged_pointer), Ordering::SeqCst), None);
-        assert_eq!(target_atomic.load(Ordering::SeqCst), Some(tagged_pointer));
-        assert_eq!(target_atomic.swap(None, Ordering::SeqCst), Some(tagged_pointer));
-        assert!(target_atomic.is_null(Ordering::SeqCst));
-    }
-
-    #[test]
-    fn atomic_tagged_pointer_compares_complete_representation() {
-        let mut first_value = AlignedBytes([0; 4]);
-        let mut second_value = AlignedBytes([0; 4]);
-        let first = TaggedPointer::<AlignedBytes, TestTag>::new(NonNull::from_mut(&mut first_value), TestTag::One);
-        let second = TaggedPointer::<AlignedBytes, TestTag>::new(NonNull::from_mut(&mut second_value), TestTag::Three);
-
-        assert!(first.is_some());
-        assert!(second.is_some());
-
-        let Some(first) = first else {
-            return;
-        };
-
-        let Some(second) = second else {
-            return;
-        };
-
-        let target_atomic = AtomicTaggedPointer::new(Some(first));
-        let failed = target_atomic.compare_exchange(Some(second), None, Ordering::SeqCst, Ordering::SeqCst);
-
-        assert_eq!(failed, Err(Some(first)));
-        assert_eq!(
-            target_atomic.compare_exchange(Some(first), Some(second), Ordering::SeqCst, Ordering::SeqCst,),
-            Ok(Some(first))
-        );
-        assert_eq!(target_atomic.load(Ordering::SeqCst), Some(second));
+        assert_eq!(<NonNull<u8> as Maskable>::MASK, usize::MIN);
+        assert_eq!(<NonNull<()> as Maskable>::MASK, usize::MIN);
     }
 }
