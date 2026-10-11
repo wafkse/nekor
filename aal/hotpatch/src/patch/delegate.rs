@@ -76,6 +76,30 @@ pub unsafe trait Delegator: Pod {
     ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>;
 }
 
+/// A trait that describes a [`Delegator`] whose implementations remain safe
+/// under eventual instruction-stream coherence.
+///
+/// Each [`Delegator`] has a patchsite that diverts calls to a selected [`Delegated`]
+/// implementation. Updating the patchsite atomically guarantees that execution
+/// observes either the previous or the new implementation. A CPU may keep
+/// executing the previous one from its I-cache until the new diversion becomes
+/// visible. Since both implementations have the same input and output types,
+/// the interface remains valid even when CPUs observe different delegates.
+/// This permits patching without first quiescing every caller.
+///
+/// # Safety
+///
+/// For an eventual delegator to be deemed safe, it must satisfy all of the
+/// following requirements:
+///
+/// * Every selectable [`Delegated`] implementation must remain safe to call while earlier
+///   implementations may still be observed.
+/// * Concurrent execution of different implementations must preserve the delegator's safety
+///   invariants, including those involving shared state or related patchsites.
+///
+/// Matching input and output types alone does not guarantee these properties.
+pub unsafe trait Eventual: Delegator {}
+
 /// A [`Delegator`] that encompasses a single [`Delegated`] and a target value.
 #[derive(Debug, Copy, Clone)]
 // NOTE(invariant): The uninhabited field prevents constructing a value of this namespace type.

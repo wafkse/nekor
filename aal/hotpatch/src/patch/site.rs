@@ -8,7 +8,7 @@ use nekor_bitwise::prelude::{Counterpart, Field};
 
 use crate::patch::{
     choose::Chosen,
-    delegate::{Delegated, Delegator},
+    delegate::{Delegated, Delegator, Eventual},
     pod::Pod,
 };
 
@@ -194,15 +194,23 @@ where
     ///
     /// # Safety
     ///
-    /// This method is unsafe because it assumes that no other thread will see a
-    /// stale reference to the [`Delegator`] after the patch.
+    /// The [`Eventual`] contract permits callers to continue executing either
+    /// diversion while the new instruction stream becomes visible. The caller
+    /// must ensure that patch storage is writable and that the architecture's
+    /// cross-modifying-code publication requirements are met.
+    /// The caller must also admit the selected delegate on every CPU that may
+    /// execute it. Any previous delegate must remain safe to execute while
+    /// its diversion can still be observed.
     ///
     /// # Errors
     ///
     /// Returns the previously installed diversion when another contender
     /// changes the patchsite before this operation completes.
     #[inline]
-    pub unsafe fn stale(self: Pin<&'static Self>, target_chosen: Chosen<D, I, O>) -> Result<Diversion, Diversion> {
+    pub unsafe fn stale(self: Pin<&'static Self>, target_chosen: Chosen<D, I, O>) -> Result<Diversion, Diversion>
+    where
+        D: Eventual,
+    {
         let Self(atomic_variable, ..) = self.get_ref();
 
         let target_template = Chosen::template(target_chosen);
@@ -251,7 +259,8 @@ where
     /// "Rust" ABI instead. This is safe as it is a simple trampoline.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.trampoline"))]
     #[unsafe(naked)]
-    // FIXME(unstable): Use "custom" ABI when available.
+    // TODO(unstable): Declare this naked trampoline with the "custom" ABI
+    // when stable. Patch::run must still cast it to a Rust ABI function pointer.
     pub unsafe extern "sysv64-unwind" fn trampoline(
         _target_value: <T::Target as Delegated>::Input,
     ) -> <T::Target as Delegated>::Output {
@@ -266,9 +275,16 @@ where
     /// Run the target [`Delegated::implementation`] for this [`Patch`].
     #[inline]
     pub fn run(target_value: <T::Target as Delegated>::Input) -> <T::Target as Delegated>::Output {
-        // SAFETY: This is safe, as it is a trampoline to a function with the
-        // correct parameters and ABI.
-        unsafe { Self::trampoline(target_value) }
+        // SAFETY: The naked trampoline only jumps into the Rust ABI delegate.
+        // Calling it through a Rust ABI function pointer preserves the input
+        // and output representation across that jump.
+        let trampoline: fn(DelegatedInput<T>) -> DelegatedOutput<T> = unsafe {
+            mem::transmute(
+                Self::trampoline as unsafe extern "sysv64-unwind" fn(DelegatedInput<T>) -> DelegatedOutput<T>,
+            )
+        };
+
+        trampoline(target_value)
     }
 
     /// The patchsite of the [`Delegator`] and [`Pod`] association.

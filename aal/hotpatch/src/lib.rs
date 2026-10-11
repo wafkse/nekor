@@ -22,7 +22,7 @@ pub mod prelude {
 
     pub use crate::patch::{
         choose::Chosen,
-        delegate::{Delegated, Delegator, Logical, Single},
+        delegate::{Delegated, Delegator, Eventual, Logical, Single},
         pod::Pod,
         site::Patch,
     };
