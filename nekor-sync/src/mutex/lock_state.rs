@@ -2,20 +2,13 @@
 //!
 //! [`Mutex`]: super::Mutex
 
-use core::{
-    num::NonZero,
-    sync::atomic::{
-        AtomicUsize,
-        Ordering::{AcqRel, Relaxed, Release},
-    },
-};
+use core::{num::NonZero, ops::ControlFlow, sync::atomic::AtomicUsize};
 
-use nekor_aal_signal::prelude::{Monitor, Monitored};
+use nekor_aal_signal::monitor::{Attempt, Fastlane, Polling};
 use nekor_backoff::prelude::{Backoff, Retry};
 
 use crate::atomic::bitmap::{
     AtomicBitmap,
-    at::At,
     conditional::{Status, Unset},
     mode::{
         cooperative::{Cooperative, Snapshot},
@@ -33,15 +26,15 @@ pub enum Observed {
     Occupied(NonZero<usize>),
 }
 
-/// A new-type that describes an occupied slot in an [`LockState`].
-#[derive(Debug, Clone, Copy)]
-// NOTE(invariant): The nonzero bitmask contains exactly one set bit for the referenced lock state.
+/// A reserved turn in a [`LockState`].
+#[derive(Debug)]
+// NOTE(invariant): `Waiting` uniquely owns a set bit in its `LockState`, reserved by an `AcqRel`
+// CAS.
 pub struct Waiting<'a>(&'a LockState, NonZero<usize>);
 
-/// A wait token, used to prove that the turn has been taken for the current
-/// thread of execution.
+/// Proof that a [`LockState`] reservation holds the turn.
 #[repr(transparent)]
-// NOTE(invariant): The nonzero bitmask contains exactly one set bit for the acquired turn.
+// NOTE(invariant): The mask contains exactly one set bit identifying the acquired turn.
 pub struct Waited(NonZero<usize>);
 
 impl Waiting<'_> {
@@ -54,39 +47,26 @@ impl Waiting<'_> {
     #[inline]
     #[must_use]
     pub unsafe fn wait(self) -> Waited {
-        let Self(&LockState(ref bitqueue_state, ref owner_state), queue_bitmask) = self;
+        let Self(&LockState(ref bitqueue_state), queue_bitmask) = self;
 
         let bitmask_value = NonZero::get(queue_bitmask);
 
-        // NOTE: queue bitmask has a single bit set, so we can subtract one to
-        // get all the LSBs to wait for.
-        let target_cond = Unset(bitmask_value.wrapping_sub(1));
+        match bitmask_value {
+            // NOTE: The `AcqRel` CAS from `0` to `1` already acquired the
+            // emptying release. Later reservations cannot precede this bit.
+            1 => Waited(queue_bitmask),
+            _ => {
+                // NOTE: Subtracting one selects all earlier reservations.
+                let target_cond = Unset(bitmask_value.wrapping_sub(1));
 
-        'a: loop {
-            match AtomicBitmap::condition(bitqueue_state, target_cond) {
-                Status::Unmet => () = AtomicBitmap::wait(bitqueue_state),
-                Status::Satisfied(..) => {
-                    // NOTE: Linearize the queue state.
-                    break 'a 'b: loop {
-                        let target_monitor = Monitor::engage(owner_state);
-
-                        if owner_state
-                            .compare_exchange_weak(
-                                usize::MIN,
-                                bitmask_value,
-                                AcqRel,
-                                // NOTE: We are not using the error snapshot,
-                                // so relaxed ordering is sufficient.
-                                Relaxed,
-                            )
-                            .is_ok()
-                        {
-                            break 'b Waited(queue_bitmask);
-                        }
-                        Monitored::wait(target_monitor);
-                    };
-                },
-            }
+                Polling::<_, Fastlane>::of(bitqueue_state.value()).until(|_| {
+                    match AtomicBitmap::condition(bitqueue_state, target_cond) {
+                        Status::Unmet => Attempt::Pending,
+                        // NOTE: `Acquire` synchronizes with the lower holders' releases.
+                        Status::Satisfied(..) => Attempt::Ready(Waited(queue_bitmask)),
+                    }
+                })
+            },
         }
     }
 }
@@ -95,22 +75,23 @@ impl Waiting<'_> {
 ///
 /// # Fairness
 ///
-/// The algorithm used maintains perfect acquisition order for up to
-/// [`usize::BITS`] simultaneous lock contenders.
+/// The algorithm serves up to [`usize::BITS`] outstanding reservations in
+/// their reservation order.
 ///
-/// In the case that the number of contenders breaches this boundary, the order
-/// becomes effectively undefined and first-come-first-serve for all contenders
-/// beyond [`usize::BITS`].
+/// Contenders without a reservation have no ordering guarantee. When the
+/// highest bit is occupied, they wait until the bitmap becomes empty.
 #[derive(Debug)]
-// NOTE(invariant): The bitmap tracks waiting turns and the monitored owner records the active turn.
-pub struct LockState(AtomicBitmap, Monitor<AtomicUsize>);
+// NOTE(invariant): Reservations form a contiguous interval. New bits append above it,
+// and only the lowest holder may clear its bit. An occupied top bit prevents
+// reuse of lower positions until the bitmap is empty.
+pub struct LockState(AtomicBitmap);
 
 impl LockState {
     /// Construct a [`LockState`] in a desolate state.
     #[inline]
     #[must_use]
     pub const fn desolate() -> Self {
-        Self(AtomicBitmap::zeroed(), Monitor::new(AtomicUsize::new(usize::MIN)))
+        Self(AtomicBitmap::zeroed())
     }
 
     /// Construct a [`LockState`] in a state where exactly `N` future contenders
@@ -118,19 +99,16 @@ impl LockState {
     #[inline]
     #[must_use]
     pub const fn enqueued<const N: usize>() -> Self {
-        Self(
-            AtomicBitmap::raw(AtomicUsize::new(
-                const {
-                    const BITS: usize = usize::BITS as usize;
+        Self(AtomicBitmap::raw(AtomicUsize::new(
+            const {
+                const BITS: usize = usize::BITS as usize;
 
-                    match N {
-                        BITS => usize::MAX,
-                        _ => (1 << N) - 1,
-                    }
-                },
-            )),
-            const { Monitor::new(AtomicUsize::new(usize::MIN)) },
-        )
+                match N {
+                    BITS => usize::MAX,
+                    _ => (1 << N) - 1,
+                }
+            },
+        )))
     }
 
     /// Take a snapshot of the immediate [`LockState`], determining whether it
@@ -147,82 +125,85 @@ impl LockState {
 }
 
 impl LockState {
-    /// Acquire a ticket for this [`LockState`], yielding a [`Waiting`] instance
-    /// that can be used to wait for our ticket to be granted access to the
-    /// lock.
+    /// Acquire a [`Waiting`] reservation for this [`LockState`].
     ///
-    /// Particularly, this function will busy-wait until the ticket is granted,
-    /// without regard for the number of attempts or any other factors.
-    ///
-    /// For an alternative with a bounded attempt limit, see
-    /// [`Self::acquire_with_state`].
+    /// This polls briefly before engaging the monitor. For bounded attempts,
+    /// see [`Self::acquire_with_state`].
     pub fn acquire(&self) -> Waiting<'_> {
-        // FIXME(backoff): This needs to be benchmarked to find appropiate
-        // parameters.
-        let acquisition_state = &mut Retry::unlimited(Backoff::minimal());
+        let &Self(ref target_state) = self;
 
-        Self::acquire_with_state(self, acquisition_state)
-            .unwrap_or_else(|| unreachable!("unlimited acquisition cannot exhaust retries"))
+        let mut polling = Polling::<_, Fastlane>::of(target_state.value());
+
+        polling.until(|_| {
+            let mut retry = Retry::oneshot(Backoff::minimal());
+
+            match self.acquire_with_state(&mut retry) {
+                Some(reservation) => Attempt::Ready(reservation),
+                None => Attempt::Pending,
+            }
+        })
     }
 
-    /// Attempt to acquire the ticket for this [`LockState`], for the purpose of
-    /// waiting for the lock to become available.
+    /// Attempt to reserve a turn using a [`Retry`] state.
     ///
-    /// Particularly, this function will busy-wait until:
+    /// Each CAS or saturated access consumes an attempt.
     ///
-    /// - A ticket slot is granted to us.
-    /// - The imposed limit is reached.
+    /// # Failure
     ///
-    /// The [`Retry`] state required deems each attempt as an access to a
-    /// possibly-contended resource, not a complete acquisition attempt.
+    /// Returns [`None`] when the retry limit is reached.
     #[inline]
     pub fn acquire_with_state(&self, retry_state: &mut Retry) -> Option<Waiting<'_>> {
         let &Self(ref target_state, ..) = self;
 
-        let full_backoff = &mut Backoff::state(Backoff::minimal());
-
         loop {
-            let bit_selected = AtomicBitmap::at_leftmost(target_state)
-                .map_or_else(|| Some(AtomicBitmap::static_at::<0>(target_state)), At::left);
+            // NOTE: Append above the highest live bit, never into lower vacancies.
+            let target_closure = |target_snapshot| {
+                if let usize::MIN = target_snapshot {
+                    Some(u32::MIN)
+                } else {
+                    usize::BITS.checked_sub(target_snapshot.leading_zeros())
+                }
+            };
 
-            if let Some(locked_target) = bit_selected.as_ref() {
+            if let Some(locked_target) = AtomicBitmap::at_predicate(target_state, target_closure).as_ref() {
+                // NOTE: The `Exclusive` CAS uses this `Acquire` snapshot.
+                // It linearizes a successful reservation. Failure requires reselection.
                 match locked_target.one_with::<Exclusive>(retry_state) {
                     Outcome::Success(..) => {
                         break Some(Waiting(
                             self,
-                            // SAFETY: An integer with at least one bit set
-                            // cannot be zero.
-                            unsafe { NonZero::new_unchecked(1 << At::index(locked_target)) },
+                            // SAFETY: Setting an in-bounds bit produces a nonzero mask.
+                            unsafe { NonZero::new_unchecked(1 << locked_target.index()) },
                         ));
                     },
                     Outcome::Failure(Reason::Contended | Reason::Unchanged, ..) => (),
                     Outcome::Failure(Reason::Limited, ..) => break None,
                 }
             } else {
-                // All slots are occupied, so retain backoff state across
-                // retries until a slot becomes available.
-                Backoff::cycle(full_backoff);
+                // NOTE: An occupied top bit selects `usize::BITS`, so append
+                // waits for an empty bitmap. This still consumes a `Retry` attempt.
+                match Retry::attempt(retry_state) {
+                    ControlFlow::Continue(backoff_cycle) => {
+                        backoff_cycle();
+                    },
+                    ControlFlow::Break(..) => break None,
+                }
             }
         }
     }
 
-    /// Release the target [`Waited`] slot from this [`LockState`].
-    ///
-    /// This yields the [`Observed`] state of the slot that was released, but
-    /// previous to the release operation.
+    /// Release a [`Waited`] turn and return the previous [`Observed`] state.
     ///
     /// # Safety
     ///
     /// The provided [`Waited`] structure must be from this same [`LockState`].
     #[inline]
     pub unsafe fn release(&self, Waited(allocated_slot): Waited) -> Observed {
-        let &Self(ref lock_state, ref owner_state) = self;
+        let &Self(ref lock_state) = self;
 
         let Snapshot(observed_state) = lock_state
             .at(usize::trailing_zeros(NonZero::get(allocated_slot)))
             .zero::<Cooperative>();
-
-        Monitor::access(owner_state).store(usize::MIN, Release);
 
         NonZero::new(observed_state).map_or(Observed::Desolate, Observed::Occupied)
     }
@@ -231,59 +212,152 @@ impl LockState {
 #[cfg(test)]
 mod tests {
     use alloc::sync::Arc;
-    use core::sync::atomic::{AtomicUsize, Ordering, fence};
-    use std::{sync::Barrier, thread};
+    use core::{
+        hint, iter,
+        sync::atomic::{AtomicUsize, Ordering, fence},
+        time::Duration,
+    };
+    use std::{
+        sync::{Barrier, mpsc},
+        thread,
+    };
 
     use super::*;
 
-    /// Test basic acquire and release cycle
+    /// Bit-zero acquisition observes the previous holder's payload.
+    #[test]
+    fn empty_reservation_acquires_previous_payload() {
+        let lock_state = Arc::new(LockState::desolate());
+        let payload = Arc::new(AtomicUsize::new(usize::MIN));
+        let reservation = lock_state.acquire();
+
+        // SAFETY: This reservation belongs to `lock_state`.
+        let waited = unsafe { reservation.wait() };
+
+        let reader_state = Arc::clone(&lock_state);
+        let reader_payload = Arc::clone(&payload);
+
+        let reader = thread::spawn(move || {
+            // NOTE: The `Relaxed` snapshot does not publish the payload.
+            while matches!(reader_state.snapshot(), Observed::Occupied(..)) {
+                hint::spin_loop();
+            }
+
+            let reservation = reader_state.acquire();
+
+            let Waiting(_, bitmask) = &reservation;
+
+            assert_eq!(bitmask.get(), 1);
+
+            // SAFETY: This reservation belongs to `reader_state`.
+            let waited = unsafe { reservation.wait() };
+
+            assert_eq!(reader_payload.load(Ordering::Relaxed), 41);
+
+            // SAFETY: This turn belongs to `reader_state`.
+            let _: Observed = unsafe { reader_state.release(waited) };
+        });
+
+        // NOTE: Write after spawning, so only `LockState` publishes the payload.
+        payload.store(41, Ordering::Relaxed);
+
+        // SAFETY: This turn belongs to `lock_state`.
+        let _: Observed = unsafe { lock_state.release(waited) };
+
+        reader.join().expect("reader thread panicked");
+    }
+
+    /// Bit zero keeps its turn after another reservation appends.
+    #[test]
+    fn bit_zero_keeps_turn_after_append() {
+        let lock_state = LockState::desolate();
+        let first = lock_state.acquire();
+        let second = lock_state.acquire();
+
+        assert_eq!(
+            lock_state.snapshot(),
+            Observed::Occupied(NonZero::new(3).expect("two live bits"))
+        );
+
+        // SAFETY: The first reservation belongs to `lock_state`.
+        let first = unsafe { first.wait() };
+
+        let Waited(first_bitmask) = &first;
+
+        assert_eq!(first_bitmask.get(), 1);
+
+        // SAFETY: The first turn belongs to `lock_state`.
+        let _: Observed = unsafe { lock_state.release(first) };
+
+        // SAFETY: The second reservation belongs to `lock_state`.
+        let second = unsafe { second.wait() };
+
+        let Waited(second_bitmask) = &second;
+
+        assert_eq!(second_bitmask.get(), 2);
+
+        // SAFETY: The second turn belongs to `lock_state`.
+        let _: Observed = unsafe { lock_state.release(second) };
+
+        assert_eq!(lock_state.snapshot(), Observed::Desolate);
+    }
+
+    /// Saturation consumes an attempt without wrapping.
+    #[test]
+    fn bounded_saturation_consumes_one_attempt() {
+        let lock_state = LockState::enqueued::<{ usize::BITS as usize }>();
+        let mut retry = Retry::oneshot(Backoff::minimal());
+
+        assert!(lock_state.acquire_with_state(&mut retry).is_none());
+        assert_eq!(retry.backoff_state_mut().cycle(), Some(NonZero::<usize>::MIN));
+        assert!(lock_state.acquire_with_state(&mut retry).is_none());
+        assert_eq!(retry.backoff_state_mut().cycle(), Some(NonZero::<usize>::MIN));
+        assert_eq!(lock_state.snapshot(), Observed::Occupied(NonZero::<usize>::MAX));
+    }
+
+    /// Acquire and release a turn.
     #[test]
     fn basic_acquire_release() {
         let lock_state = LockState::desolate();
 
-        // Acquire a slot
         let waiting = lock_state.acquire();
 
-        // SAFETY: wait returns a Waited token for this lock
+        // SAFETY: `Waiting` belongs to this `LockState`.
         let waited = unsafe { waiting.wait() };
 
-        // SAFETY: waited is from this same lock_state
+        // SAFETY: `waited` belongs to `lock_state`.
         let observed = unsafe { lock_state.release(waited) };
 
-        // The pre-release snapshot includes the slot held by this thread.
+        // NOTE: The pre-release snapshot includes this thread's slot.
         assert!(matches!(observed, Observed::Occupied(_)));
     }
 
-    /// Test that snapshot returns a valid Observed enum
+    /// Snapshots produce a valid [`Observed`] state.
     #[test]
     fn snapshot_returns_valid_observed() {
         let lock_state = LockState::desolate();
 
-        // Snapshot should return a valid Observed value (but we can't rely on
-        // specific values due to Relaxed ordering)
         match lock_state.snapshot() {
             Observed::Desolate | Observed::Occupied(_) => {},
         }
 
         let waiting = lock_state.acquire();
-        // SAFETY: wait returns token for this lock
+        // SAFETY: `waiting` was acquired from `lock_state`.
         let waited = unsafe { waiting.wait() };
 
-        // Snapshot still returns valid values
         match lock_state.snapshot() {
             Observed::Desolate | Observed::Occupied(_) => {},
         }
 
-        // SAFETY: waited is from this lock_state
+        // SAFETY: `waited` belongs to `lock_state`.
         let _: Observed = unsafe { lock_state.release(waited) };
 
-        // Still valid after release
         match lock_state.snapshot() {
             Observed::Desolate | Observed::Occupied(_) => {},
         }
     }
 
-    /// Test that multiple threads can acquire different slots
+    /// Concurrent acquisitions reserve distinct slots.
     #[test]
     fn multiple_threads_acquire_different_slots() {
         let lock_state = Arc::new(LockState::desolate());
@@ -301,22 +375,18 @@ mod tests {
 
                 barrier.wait(); // Ensure all have acquired
 
-                // Wait for main thread to check snapshot
                 snapshot_barrier.wait();
 
-                // Now wait and release
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
 
-        // Wait for all threads to acquire
+        // NOTE: All reservations are live when the snapshot barrier opens.
         snapshot_barrier.wait();
 
-        // Verify snapshot returns a valid value (Relaxed ordering means we
-        // can't make specific assertions about the state)
         match lock_state.snapshot() {
             Observed::Desolate | Observed::Occupied(_) => {},
         }
@@ -326,7 +396,7 @@ mod tests {
         }
     }
 
-    /// Test that all threads can successfully acquire, wait, and release
+    /// All contenders acquire and release.
     #[test]
     fn all_threads_successfully_acquire_wait_release() {
         let lock_state = Arc::new(LockState::desolate());
@@ -340,13 +410,12 @@ mod tests {
             handles.push(thread::spawn(move || {
                 let waiting = lock_state.acquire();
 
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
 
-                // Increment counter while holding lock
                 counter.fetch_add(1, Ordering::SeqCst);
 
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
@@ -357,11 +426,10 @@ mod tests {
 
         fence(Ordering::Acquire);
 
-        // All 8 threads should have successfully acquired and incremented
         assert_eq!(counter.load(Ordering::SeqCst), 8);
     }
 
-    /// Test mutual exclusion: only one thread proceeds at a time
+    /// Only one reservation holds the turn.
     #[test]
     fn mutual_exclusion_only_one_thread_at_a_time() {
         let lock_state = Arc::new(LockState::desolate());
@@ -379,22 +447,18 @@ mod tests {
 
                 barrier.wait();
 
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
 
-                // Increment active count
                 let count = active_count.fetch_add(1, Ordering::SeqCst);
 
-                // Verify we're the only one
                 assert_eq!(count, 0, "multiple threads in critical section!");
 
-                // Do some work
                 thread::yield_now();
 
-                // Decrement before releasing
                 active_count.fetch_sub(1, Ordering::SeqCst);
 
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
@@ -404,58 +468,49 @@ mod tests {
         }
     }
 
-    /// Test that slots can be reused after release
+    /// Released slots can be reused.
     #[test]
     fn slots_are_reused_after_release() {
         let lock_state = LockState::desolate();
 
-        // Acquire and release multiple times
         for _ in 0..10 {
             let waiting = lock_state.acquire();
-            // SAFETY: waiting is from this lock_state
+            // SAFETY: `waiting` was acquired from `lock_state`.
             let waited = unsafe { waiting.wait() };
-            // SAFETY: waited is from this lock_state
+            // SAFETY: `waited` belongs to `lock_state`.
             let _: Observed = unsafe { lock_state.release(waited) };
         }
 
-        // Should still work - slots are being reused
         let waiting = lock_state.acquire();
-        // SAFETY: waiting is from this lock_state
+        // SAFETY: `waiting` was acquired from `lock_state`.
         let waited = unsafe { waiting.wait() };
-        // SAFETY: waited is from this lock_state
+        // SAFETY: `waited` belongs to `lock_state`.
         let _: Observed = unsafe { lock_state.release(waited) };
     }
 
-    /// Test that unlimited acquire always succeeds (when slots available)
+    /// Unbounded acquisition succeeds when slots are available.
     #[test]
     fn unlimited_acquire_always_succeeds() {
         let lock_state = LockState::desolate();
 
-        // Should succeed multiple times
         for _ in 0..5 {
             let waiting = lock_state.acquire();
-            // SAFETY: waiting is from this lock_state
+            // SAFETY: `waiting` was acquired from `lock_state`.
             let waited = unsafe { waiting.wait() };
-            // SAFETY: waited is from this lock_state
+            // SAFETY: `waited` belongs to `lock_state`.
             let _: Observed = unsafe { lock_state.release(waited) };
         }
     }
 
-    /// Test enqueued constructor creates proper initial state
+    /// Construct a pre-enqueued [`LockState`].
     #[test]
     fn enqueued_constructor() {
         let lock_state = LockState::enqueued::<3>();
 
-        // The constructor should create state with 3 bits, but due to Relaxed
-        // ordering in snapshot(), we can't reliably assert the exact value
-        // The important test is that it compiles and runs without panicking
         lock_state.snapshot();
-
-        // We can verify the underlying bitmap directly if needed for testing
-        // but snapshot() itself doesn't provide strong guarantees
     }
 
-    /// Test that many threads can cycle through the lock
+    /// Contenders reuse the lock across turns.
     #[test]
     fn many_threads_cycle_through_lock() {
         let lock_state = Arc::new(LockState::desolate());
@@ -468,15 +523,14 @@ mod tests {
 
             handles.push(thread::spawn(move || {
                 let waiting = lock_state.acquire();
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
 
-                // Increment counter while holding lock
                 let value = counter.load(Ordering::SeqCst);
 
                 counter.store(value + 1, Ordering::SeqCst);
 
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
@@ -485,19 +539,14 @@ mod tests {
             handle.join().expect("worker thread panicked");
         }
 
-        // Fence to ensure we see all writes before reading counter (for Miri)
         fence(Ordering::Acquire);
 
-        // All 20 threads should have incremented the counter
-        // Fence to ensure we see all writes before checking results (for Miri)
         fence(Ordering::Acquire);
 
-        // The execution order should match the acquisition order
-        // All 20 threads should have incremented the counter
         assert_eq!(counter.load(Ordering::SeqCst), 20);
     }
 
-    /// Test sequential acquire and wait pattern
+    /// Reservations are served in acquisition order.
     #[test]
     fn sequential_acquire_and_wait() {
         let lock_state = LockState::desolate();
@@ -506,57 +555,48 @@ mod tests {
         let w2 = lock_state.acquire();
         let w3 = lock_state.acquire();
 
-        // All should have different slots
         let Observed::Occupied(bits) = lock_state.snapshot() else {
             unreachable!("three acquired slots must leave an occupied state")
         };
         assert_eq!(bits.get().count_ones(), 3);
 
-        // First thread waits and gets the lock
-        // SAFETY: w1 is from this lock_state
+        // SAFETY: `w1` was acquired from `lock_state`.
         let waited1 = unsafe { w1.wait() };
 
-        // Release first
-        // SAFETY: waited1 is from this lock_state
+        // SAFETY: `waited1` belongs to `lock_state`.
         let _: Observed = unsafe { lock_state.release(waited1) };
 
-        // Second thread can now proceed
-        // SAFETY: w2 is from this lock_state
+        // SAFETY: `w2` was acquired from `lock_state`.
         let waited2 = unsafe { w2.wait() };
 
-        // SAFETY: waited2 is from this lock_state
+        // SAFETY: `waited2` belongs to `lock_state`.
         let _: Observed = unsafe { lock_state.release(waited2) };
 
-        // Third thread can now proceed
-        // SAFETY: w3 is from this lock_state
+        // SAFETY: `w3` was acquired from `lock_state`.
         let waited3 = unsafe { w3.wait() };
 
-        // SAFETY: waited3 is from this lock_state
+        // SAFETY: `waited3` belongs to `lock_state`.
         let _: Observed = unsafe { lock_state.release(waited3) };
     }
 
-    /// Test that release returns a valid Observed value
+    /// Release returns a valid [`Observed`] state.
     #[test]
     fn release_returns_valid_observed() {
         let lock_state = LockState::desolate();
 
         let waiting = lock_state.acquire();
-        // SAFETY: waiting is from this lock_state
+        // SAFETY: `waiting` was acquired from `lock_state`.
         let waited = unsafe { waiting.wait() };
 
-        // SAFETY: waited is from this lock_state
+        // SAFETY: `waited` belongs to `lock_state`.
         let observed = unsafe { lock_state.release(waited) };
 
-        // Release returns the previous state (from Cooperative mode snapshot)
-        // which is a valid Observed value
         match observed {
-            Observed::Desolate | Observed::Occupied(_) => {
-                // Both are valid - depends on what other bits were set
-            },
+            Observed::Desolate | Observed::Occupied(_) => {},
         }
     }
 
-    /// Test that multiple threads can all acquire and release successfully
+    /// All simultaneous contenders complete their turns.
     #[test]
     fn multiple_threads_acquire_release_successfully() {
         let lock_state = Arc::new(LockState::desolate());
@@ -574,13 +614,12 @@ mod tests {
 
                 barrier.wait();
 
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
 
-                // Increment counter while holding lock
                 counter.fetch_add(1, Ordering::SeqCst);
 
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
@@ -589,14 +628,12 @@ mod tests {
             handle.join().expect("worker thread panicked");
         }
 
-        // Fence to ensure we see all writes (for Miri)
         fence(Ordering::Acquire);
 
-        // All 6 threads should have successfully acquired and incremented
         assert_eq!(counter.load(Ordering::SeqCst), 6);
     }
 
-    /// Test concurrent acquire attempts
+    /// Concurrent acquisition attempts complete.
     #[test]
     fn concurrent_acquire_attempts() {
         let lock_state = Arc::new(LockState::desolate());
@@ -611,16 +648,14 @@ mod tests {
 
             handles.push(thread::spawn(move || {
                 barrier.wait();
-                // All try to acquire simultaneously
 
                 let waiting = lock_state.acquire();
 
                 success_count.fetch_add(1, Ordering::SeqCst);
 
-                // Wait and release
-                // SAFETY: waiting is from this lock_state
+                // SAFETY: `waiting` was acquired from `lock_state`.
                 let waited = unsafe { waiting.wait() };
-                // SAFETY: waited is from this lock_state
+                // SAFETY: `waited` belongs to `lock_state`.
                 let _: Observed = unsafe { lock_state.release(waited) };
             }));
         }
@@ -629,10 +664,141 @@ mod tests {
             handle.join().expect("worker thread panicked");
         }
 
-        // Fence to ensure all operations are visible (for Miri)
         fence(Ordering::Acquire);
 
-        // All should succeed in getting a slot
         assert_eq!(success_count.load(Ordering::SeqCst), 10);
+    }
+
+    /// The highest bit prevents reuse until the bitmap empties.
+    #[test]
+    fn highest_bit_prevents_overtaking_until_empty() {
+        let lock_state = LockState::desolate();
+        let reservations: Vec<_> = iter::repeat_with(|| lock_state.acquire())
+            .take(usize::BITS as usize)
+            .collect();
+
+        assert_eq!(
+            lock_state.snapshot(),
+            Observed::Occupied(NonZero::new(usize::MAX).expect("nonzero"))
+        );
+
+        for reservation in reservations {
+            // SAFETY: This reservation belongs to `lock_state`.
+            let waited = unsafe { reservation.wait() };
+
+            let Waited(released_bit) = &waited;
+
+            let released_bit = released_bit.get();
+            // SAFETY: This token belongs to `lock_state`.
+            let _: Observed = unsafe { lock_state.release(waited) };
+
+            if released_bit != 1_usize << (usize::BITS - 1) {
+                let mut retry = Retry::oneshot(Backoff::minimal());
+                assert!(lock_state.acquire_with_state(&mut retry).is_none());
+            }
+        }
+
+        let reservation = lock_state.acquire();
+
+        let Waiting(_, bit) = &reservation;
+        assert_eq!(bit.get(), 1);
+        // SAFETY: This reservation belongs to `lock_state`.
+        let waited = unsafe { reservation.wait() };
+        // SAFETY: This token belongs to `lock_state`.
+        let _: Observed = unsafe { lock_state.release(waited) };
+    }
+
+    /// Simultaneous reservations receive distinct bits.
+    #[test]
+    fn simultaneous_reservations_have_unique_bits() {
+        let lock_state = Arc::new(LockState::desolate());
+        let start = Arc::new(Barrier::new(9));
+        let reserved = Arc::new(Barrier::new(9));
+        let mut handles = vec![];
+
+        for _ in 0..8 {
+            let lock_state = Arc::clone(&lock_state);
+            let start = Arc::clone(&start);
+            let reserved = Arc::clone(&reserved);
+
+            handles.push(thread::spawn(move || {
+                start.wait();
+
+                let reservation = lock_state.acquire();
+
+                let Waiting(_, bit) = &reservation;
+
+                let bit = bit.get();
+
+                reserved.wait();
+
+                // SAFETY: This reservation belongs to `lock_state`.
+                let waited = unsafe { reservation.wait() };
+                // SAFETY: This token belongs to `lock_state`.
+                let _: Observed = unsafe { lock_state.release(waited) };
+
+                bit
+            }));
+        }
+
+        start.wait();
+        reserved.wait();
+
+        let mut bits = 0;
+
+        for handle in handles {
+            let bit = handle.join().expect("worker thread panicked");
+            assert_eq!(bits & bit, 0);
+            bits |= bit;
+        }
+        assert_eq!(bits.count_ones(), 8);
+    }
+
+    #[test]
+    fn saturated_waiter_reserves_after_last_release() {
+        let lock_state = Arc::new(LockState::desolate());
+        let mut reservations: Vec<_> = iter::repeat_with(|| lock_state.acquire())
+            .take(usize::BITS as usize)
+            .collect();
+        let highest = reservations.pop().expect("highest reservation exists");
+
+        let (sender, receiver) = mpsc::channel();
+
+        let waiter_state = Arc::clone(&lock_state);
+
+        let waiter = thread::spawn(move || {
+            let reservation = waiter_state.acquire();
+
+            let Waiting(_, bit) = &reservation;
+
+            let bit = bit.get();
+
+            sender.send(bit).expect("receiver remains present");
+
+            // SAFETY: This reservation belongs to `waiter_state`.
+            let waited = unsafe { reservation.wait() };
+            // SAFETY: This token belongs to `waiter_state`.
+            let _: Observed = unsafe { waiter_state.release(waited) };
+        });
+
+        for reservation in reservations {
+            // SAFETY: This reservation belongs to `lock_state`.
+            let waited = unsafe { reservation.wait() };
+            // SAFETY: This token belongs to `lock_state`.
+            let _: Observed = unsafe { lock_state.release(waited) };
+        }
+
+        assert!(receiver.recv_timeout(Duration::from_millis(20)).is_err());
+
+        // SAFETY: This reservation belongs to `lock_state`.
+        let waited = unsafe { highest.wait() };
+        // SAFETY: This token belongs to `lock_state`.
+        let _: Observed = unsafe { lock_state.release(waited) };
+
+        assert_eq!(
+            receiver.recv_timeout(Duration::from_secs(2)).expect("waiter timed out"),
+            1
+        );
+        waiter.join().expect("waiter thread panicked");
     }
 }
