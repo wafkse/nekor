@@ -1,7 +1,4 @@
-//! An atomic bitmap composed of a single [`AtomicUsize`].
-//!
-//! [`AtomicBitmap`] is an atomic type that provides bit-level atomic operations
-//! on a single [`AtomicUsize`].
+//! Atomic operations on a single [`AtomicUsize`] bitmap.
 
 use core::{
     num::NonZero,
@@ -12,6 +9,7 @@ use core::{
 };
 
 use nekor_aal_signal::prelude::{Monitor, Monitored};
+use nekor_backoff::backoff::BackoffState;
 
 use crate::atomic::bitmap::{
     at::At,
@@ -27,13 +25,10 @@ pub mod typeutil;
 
 pub mod conditional;
 
-/// An atomic bitmap composed of a single [`AtomicUsize`].
-///
-/// This is an atomic type that provides bit-level atomic operations on a single
-/// [`AtomicUsize`].
+/// An atomic bitmap backed by a single [`AtomicUsize`].
 #[repr(transparent)]
 #[derive(Debug)]
-// NOTE(invariant): The monitor encloses the atomic word used by all bitmap operations.
+// NOTE(invariant): None.
 pub struct AtomicBitmap(Monitor<AtomicUsize>);
 
 impl AtomicBitmap {
@@ -52,7 +47,7 @@ impl AtomicBitmap {
 }
 
 impl AtomicBitmap {
-    // TODO: Migrate to Selected
+    // TODO: Migrate to `Selected`.
 
     /// Attempt to engage with a specific bit in the [`AtomicBitmap`].
     ///
@@ -200,8 +195,7 @@ impl AtomicBitmap {
                 At(
                     target_value,
                     target_snapshot,
-                    // NOTE(underflow): Will never underflow as
-                    // `usize::leading_zeros` is never >= `usize::BITS`.
+                    // NOTE: A nonzero value has fewer than `usize::BITS` leading zeros.
                     usize::BITS - 1 - usize::leading_zeros(target_snapshot),
                 )
             })
@@ -225,7 +219,10 @@ impl AtomicBitmap {
 
         let target_snapshot = target_value.load(Acquire);
 
-        target_closure(target_snapshot).and_then(|target_index| Self::try_at(self, target_index))
+        target_closure(target_snapshot).and_then(|target_index| {
+            // SAFETY: Selection and CAS use the same `Acquire` snapshot.
+            unsafe { Self::try_at_with(self, target_index, target_snapshot) }
+        })
     }
 
     /// Engage with a compile-time constant bit index.
@@ -268,10 +265,21 @@ impl AtomicBitmap {
 }
 
 impl AtomicBitmap {
-    /// Engage the monitor on the [`AtomicBitmap`].
+    /// Borrow the bitmap's [`Monitor`] without engaging it.
     ///
-    /// This provides a way to make use of the associated [`Monitored`]
-    /// utilities for busy-waiting.
+    /// Use [`Polling::of`] or [`Polling::with_backoff`] to construct polling state.
+    ///
+    /// [`Polling::of`]: nekor_aal_signal::monitor::Polling::of
+    /// [`Polling::with_backoff`]: nekor_aal_signal::monitor::Polling::with_backoff
+    #[inline]
+    #[must_use]
+    pub const fn value(&self) -> &Monitor<AtomicUsize> {
+        let &Self(ref target_value) = self;
+
+        target_value
+    }
+
+    /// Engage the bitmap's monitor and return a [`Monitored`] token.
     #[inline]
     pub fn monitor(&self) -> Monitored<'_, AtomicUsize> {
         let &Self(ref target_value) = self;
@@ -279,23 +287,17 @@ impl AtomicBitmap {
         Monitor::engage(target_value)
     }
 
-    /// Busy-wait until one of the following conditions occur:
-    ///
-    /// - The [`AtomicBitmap`] is mutated.
-    /// - The thread of execution is interrupted.
-    /// - The thread of execution is spuriously woken.
-    ///
-    /// This implies that, if a wake is issued, the underlying atomic bitmap may
-    /// have not been mutated at all.
+    /// Engage the monitor and wait for a possible write.
     ///
     /// # Remarks
     ///
-    /// This makes use of the existing [`Monitor`] utilities.
+    /// Interrupts and spurious wakeups may return without a write. Recheck the
+    /// condition after waiting. Retain the [`BackoffState`] across calls.
     #[inline]
-    pub fn wait(&self) {
+    pub fn wait(&self, backoff_state: &mut BackoffState) {
         let &Self(ref target_value) = self;
 
-        Monitored::wait(Monitor::engage(target_value));
+        Monitored::wait(Monitor::engage(target_value), backoff_state);
     }
 
     /// Determine whether the target [`Condition`] is satisfied by the
@@ -310,15 +312,11 @@ impl AtomicBitmap {
         C::determine(target_condition, target_value.load(Acquire))
     }
 
-    /// Snapshot the current value of the [`AtomicBitmap`].
+    /// Snapshot the bitmap using `Relaxed` ordering.
     ///
     /// # Remarks
     ///
-    /// This has no validity in terms of the immediately-after atomic bitmap,
-    /// and should therefore not be relied upon for regular synchronization.
-    ///
-    /// This does not create any happens-before relationship with posterior
-    /// atomic operations.
+    /// The snapshot may become stale and does not establish synchronization.
     #[inline]
     pub fn snapshot(&self) -> usize {
         let &Self(ref target_value) = self;
@@ -332,4 +330,62 @@ const fn _assert_atomic_bitmap_is_send_sync()
 where
     AtomicBitmap: Send + Sync,
 {
+}
+
+#[cfg(test)]
+mod tests {
+    use nekor_backoff::prelude::{Backoff, Retry};
+
+    use super::{
+        AtomicBitmap,
+        mode::{
+            cooperative::{Cooperative, Snapshot},
+            exclusive::{Exclusive, Outcome, Reason},
+        },
+    };
+
+    /// [`Polling`] and [`AtomicBitmap`] observe the same atomic word.
+    ///
+    /// [`Polling`]: nekor_aal_signal::monitor::Polling
+    #[test]
+    fn polling_borrows_bitmap_monitor() {
+        use core::sync::atomic::Ordering::{AcqRel, Acquire};
+
+        use nekor_aal_signal::monitor::{Attempt, Immediate, Polling};
+
+        let bitmap = AtomicBitmap::zeroed();
+        let mut polling = Polling::<_, Immediate>::with_backoff(bitmap.value(), Backoff::minimal());
+
+        let previous = polling.until(|value| match value.compare_exchange(0, 1, AcqRel, Acquire) {
+            Ok(previous) => Attempt::Ready(previous),
+            Err(..) => Attempt::Pending,
+        });
+
+        assert_eq!(previous, 0);
+        assert_eq!(bitmap.snapshot(), 1);
+    }
+
+    #[test]
+    fn predicate_candidate_keeps_its_selection_snapshot() {
+        let bitmap = AtomicBitmap::zeroed();
+        let candidate = bitmap
+            .at_predicate(|snapshot| {
+                assert_eq!(snapshot, 0);
+
+                let _: Snapshot = bitmap.at(0).one::<Cooperative>();
+                let _: Snapshot = bitmap.at(1).one::<Cooperative>();
+                let _: Snapshot = bitmap.at(0).zero::<Cooperative>();
+
+                Some(0)
+            })
+            .expect("empty snapshot selected bit zero");
+
+        let mut retry = Retry::oneshot(Backoff::minimal());
+
+        assert!(matches!(
+            candidate.one_with::<Exclusive>(&mut retry),
+            Outcome::Failure(Reason::Contended, ..)
+        ));
+        assert_eq!(bitmap.snapshot(), 2);
+    }
 }

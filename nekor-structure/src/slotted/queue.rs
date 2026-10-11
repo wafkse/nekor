@@ -79,7 +79,10 @@ where
                         while AtomicBitmap::condition(initialization_state, Unset(1 << reserve_index.array()))
                             == Status::Unmet
                         {
-                            Monitored::wait(AtomicBitmap::monitor(initialization_state));
+                            Monitored::wait(
+                                AtomicBitmap::monitor(initialization_state),
+                                backoff_state.backoff_state_mut(),
+                            );
                         }
 
                         break Some(Self {
