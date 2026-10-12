@@ -277,8 +277,8 @@ impl RawGateDescriptor {
     /// Constructs a raw gate-descriptor image.
     #[inline]
     #[must_use]
-    pub const fn new(low: u64, high: u64) -> Self {
-        Self(GateDescriptorLow::raw(low), GateDescriptorHigh::raw(high))
+    pub const fn new(gate_low: u64, gate_high: u64) -> Self {
+        Self(GateDescriptorLow::raw(gate_low), GateDescriptorHigh::raw(gate_high))
     }
 
     /// Returns the low descriptor word.
