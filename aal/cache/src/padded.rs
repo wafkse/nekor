@@ -16,7 +16,7 @@ use core::{
 ///
 /// | Architecture | Cache Line Size | Notes |
 /// |--------------|-----------------|-------|
-/// | `x86_64` | 64 bytes | x86-64 architecture |
+/// | `x86_64` | 64 bytes | x86-64 architecture, albeit a spatial prefetcher may request more than one cacheline |
 /// | aarch64 | 128 bytes | ARM `big.LITTLE` "big" cores have 128-byte cache lines |
 /// | powerpc64 | 128 bytes | Standard cache line size |
 /// | arm | 32 bytes | `ARMv7` and earlier |
