@@ -257,12 +257,23 @@ mod tests {
     }
 
     #[test]
+    fn conversion() {
+        assert_eq!(Delay::ticks(NonZero::<usize>::MIN, 0), 1);
+        assert_eq!(
+            Delay::ticks(NonZero::<usize>::MAX, u64::MAX),
+            Relaxation::TIMESTAMP_LIMIT
+        );
+    }
+
+    #[test]
+    #[cfg(not(miri))]
     fn hint() {
         <Pause as Delegated>::implementation(Delay::Hint);
         <Tpause as Delegated>::implementation(Delay::Hint);
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn timed() {
         // SAFETY: The host test environment admits `RDTSC`.
         black_box(unsafe { Pause::measure() });
@@ -271,42 +282,42 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn stalled() {
-        let target_quantum_count = NonZero::<usize>::new(4).expect("nonzero quantum count");
-        let mut target_sample_count = 0;
+        let quantum_count = NonZero::<usize>::new(4).expect("nonzero quantum count");
+        let mut sample_count = 0;
 
-        Pause::wait::<1, 3>(target_quantum_count, 1, || {
-            target_sample_count += 1;
+        Pause::wait::<1, 3>(quantum_count, 1, || {
+            sample_count += 1;
 
             42
         });
 
-        assert_eq!(target_sample_count, 2, "the remainder needs no further counter read");
+        assert_eq!(sample_count, 2, "the remainder needs no further counter read");
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn remainder() {
-        let target_quantum_count = NonZero::<usize>::new(2).expect("nonzero quantum count");
-        let mut target_sample_count = 0;
+        let quantum_count = NonZero::<usize>::new(2).expect("nonzero quantum count");
+        let mut sample_count = 0;
 
-        Pause::wait::<1, 3>(target_quantum_count, 1, || {
-            target_sample_count += 1;
+        Pause::wait::<1, 3>(quantum_count, 1, || {
+            sample_count += 1;
 
             42
         });
 
-        assert_eq!(
-            target_sample_count, 1,
-            "a partial batch exhausts the budget without polling"
-        );
+        assert_eq!(sample_count, 1, "a partial batch exhausts the budget without polling");
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn elapsed() {
-        let target_quantum_count = NonZero::<usize>::new(10).expect("nonzero quantum count");
+        let quantum_count = NonZero::<usize>::new(10).expect("nonzero quantum count");
         let mut target_timestamp = [100, 101, 104].into_iter();
 
-        Pause::wait::<1, 3>(target_quantum_count, 4, || {
+        Pause::wait::<1, 3>(quantum_count, 4, || {
             target_timestamp.next().expect("the wait must stop at its target")
         });
 
@@ -314,41 +325,31 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn backward() {
-        let target_quantum_count = NonZero::<usize>::new(4).expect("nonzero quantum count");
-        let mut target_sample_count = 0;
+        let quantum_count = NonZero::<usize>::new(4).expect("nonzero quantum count");
+        let mut sample_count = 0;
 
-        Pause::wait::<1, 3>(target_quantum_count, 10, || {
-            target_sample_count += 1;
+        Pause::wait::<1, 3>(quantum_count, 10, || {
+            sample_count += 1;
 
-            if target_sample_count == 1 { 100 } else { 80 }
+            if sample_count == 1 { 100 } else { 80 }
         });
 
-        assert_eq!(
-            target_sample_count, 2,
-            "absolute counter movement must satisfy the target"
-        );
+        assert_eq!(sample_count, 2, "absolute counter movement must satisfy the target");
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn zero() {
-        let mut target_sample_count = 0;
+        let mut sample_count = 0;
 
         Pause::wait::<1, 0>(NonZero::<usize>::MIN, 1, || {
-            target_sample_count += 1;
+            sample_count += 1;
 
             42
         });
 
-        assert_eq!(target_sample_count, 0);
-    }
-
-    #[test]
-    fn conversion() {
-        assert_eq!(Delay::ticks(NonZero::<usize>::MIN, 0), 1);
-        assert_eq!(
-            Delay::ticks(NonZero::<usize>::MAX, u64::MAX),
-            Relaxation::TIMESTAMP_LIMIT
-        );
+        assert_eq!(sample_count, 0);
     }
 }
