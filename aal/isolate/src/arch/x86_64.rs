@@ -61,7 +61,6 @@ macro_rules! area {
                 >]:concatenate);
         );
     };
-
 }
 
 // TODO: Change these sizes to be macro-guided. Determine whether sizes should
@@ -71,6 +70,8 @@ macro_rules! area {
 // TODO: The stack space used by this is too big. Move to per-xstate crate
 // features. Then, calculate the xsave state size for it. Or make the kernel
 // assign it a dynamic size. (Make it an UnsafeCell<[u8]> wrapper)
+// Recent changes UCG made UnsafeCell's non-Freeze contents accessible via pointers, so
+// this is architecturally valid as well
 
 // On-stack, we use the dynamic size, and for Isolates, we hold a complete xsave
 // area context for the enabled features. (move from size-oriented to
@@ -207,9 +208,16 @@ impl IRetFrame {
 /// An architectural context for the `x86-64` architecture.
 ///
 /// This contains all the captured state from an individual thread of execution.
+///
+/// # What is an architectural context?
+///
+/// An architectural context is the structure that principally identifies a particular execution
+/// context in Nekor.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C, align(8))]
-// NOTE(invariant): Stored registers and the interrupt frame retain the saved context layout.
+// NOTE(invariant): The instruction-level implementation of GPR context switches make use of this
+// layout, exactly.
 pub struct Context {
     // NOTE: The extended segment register base addresses can either be sourced through a `rdmsr`
     // or `rd{gs,fs}base` from the `FSGSBASE` extension, which both require either a scratch
