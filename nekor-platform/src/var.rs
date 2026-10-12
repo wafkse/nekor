@@ -175,7 +175,7 @@ pub use crate::{integer, string};
 
 #[cfg(test)]
 mod tests {
-    use nekor_platform::var::{self, VarInteger, VarString};
+    use crate::var::{self, VarInteger, VarString};
 
     #[test]
     fn integer_type_is_inferred_in_const_and_runtime_contexts() {
