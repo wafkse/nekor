@@ -8,6 +8,8 @@ pub mod line;
 
 pub mod padded;
 
+pub mod memoize;
+
 pub mod prelude {
     //! The prelude module of this crate.
 
