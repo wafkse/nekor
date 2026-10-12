@@ -36,10 +36,9 @@ impl Signal {
     #[inline]
     #[must_use]
     pub const fn state(target_state: State) -> Self {
-        let target_state = if matches!(target_state, State::Set) {
-            Present::Yes
-        } else {
-            Present::No
+        let target_state = match target_state {
+            State::Set => Present::Yes,
+            State::Cleared => Present::No,
         };
 
         Self::Detected(target_state)
