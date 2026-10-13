@@ -49,7 +49,8 @@ pub mod list;
 use core::sync::atomic::AtomicUsize;
 use core::{
     fmt,
-    mem::ManuallyDrop,
+    mem::{self, ManuallyDrop},
+    num::NonZero,
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
     task::{RawWaker, RawWakerVTable, Waker},
@@ -57,28 +58,27 @@ use core::{
 
 use nekor_bitwise::{
     field::multi,
-    prelude::{Counterpart, Extract},
+    pointer::{Bijection, Tag, TaggedPtr, taggable},
+    prelude::Counterpart,
 };
-use nekor_sync::atomic::tagged::{Field, Tag, TagField, Tagged};
 
 use crate::{schedule::Scheduler, task::Task};
 
-/// The first address bit reserved for a [`WakeClass`] tag.
-const CLASS_FIRST: usize = 0;
-
-/// The last address bit reserved for a [`WakeClass`] tag.
-const CLASS_LAST: usize = 2;
-
-/// The raw address field checked before a [`WakeClass`] tag is installed.
-type WakeClassBits<'value> = multi::Field<'value, CLASS_FIRST, CLASS_LAST, usize>;
-
-/// The logical [`WakeClass`] projected from a tagged address.
-///
-/// [`NonNull<Task>`] supplies alignment capacity, not the actual pointee identity.
-type WakeClassField<'value> = Tagged<'value, CLASS_FIRST, CLASS_LAST, NonNull<Task>, WakeClass>;
+/// The address field reserved for a [`WakeClass`] code.
+type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
 
 /// The mutable counterpart of [`WakeClassField`].
 type WakeClassFieldMut<'value> = <WakeClassField<'value> as Counterpart>::Mut;
+
+/// The alignment carrier for erased wake data.
+///
+/// The decoded wake class determines the actual pointee type used by its callback.
+#[repr(align(8))]
+// NOTE(invariant): None.
+struct WakeData;
+
+/// A non-null erased data pointer paired with its supported wake class.
+type WakePointer = TaggedPtr<NonNull<WakeData>, WakeClass>;
 
 /// The virtual function table associated with task [`Waker`] instances.
 pub static VTABLE: RawWakerVTable = const {
@@ -192,37 +192,56 @@ impl WakeClass {
     }
 }
 
-// SAFETY: The three-bit mask reserves one contiguous low-bit field. The
-// logical value is exactly one `WakeClass` selected by `TagField`.
-unsafe impl Tag for WakeClass {
-    type Type = TagField;
-    type Value = Self;
-
-    const MASK: usize = <usize as Extract<CLASS_FIRST, CLASS_LAST>>::BITSET_MASK;
-}
-
-// SAFETY: Every encoded class fits the reserved field. Decoding accepts exactly
-// the assigned discriminants and inverts each encoded class.
-unsafe impl Field for WakeClass {
+// SAFETY: Adding one to each discriminant assigns a distinct nonzero code.
+// Decoding accepts exactly those codes and inverts the encoding.
+unsafe impl Bijection for WakeClass {
     #[inline]
-    fn value(self) -> usize {
-        self as usize
+    fn encode(target_value: Self) -> NonZero<usize> {
+        // SAFETY: The supported discriminants are zero and, in tests, one, so their
+        // assigned codes are respectively one and two.
+        unsafe { NonZero::new_unchecked(target_value as usize + 1) }
     }
 
     #[inline]
-    fn from_value(target_value: usize) -> Option<Self> {
-        match target_value {
-            target_value if target_value == Self::Task as usize => Some(Self::Task),
+    fn decode(target_value: NonZero<usize>) -> Option<Self> {
+        match target_value.get() {
+            1 => Some(Self::Task),
             #[cfg(test)]
-            target_value if target_value == Self::Test as usize => Some(Self::Test),
+            2 => Some(Self::Test),
             _ => None,
         }
     }
 }
 
-// NOTE: The task wake class uses a `Task` data pointer. The explicit
-// task alignment guarantees support for every bit required by `WakeClass`.
-const _: usize = WakeClassField::mask();
+// SAFETY: `WakeClassField` reserves a contiguous low field containing every assigned code.
+// Its mutable counterpart replaces that field and preserves all other address bits.
+unsafe impl Tag for WakeClass {
+    const MASK: usize = WakeClassField::mask();
+
+    #[inline]
+    fn read(target_value: usize) -> usize {
+        usize::from(WakeClassField::wrap(&target_value).value())
+    }
+
+    #[inline]
+    fn write(mut target_value: usize, target_code: usize) -> usize {
+        let target_code = WakeClassField::wrap(&target_code).value();
+
+        _ = WakeClassFieldMut::wrap(&mut target_value).merge(target_code);
+
+        target_value
+    }
+}
+
+taggable! (
+    unsafe impl Taggable<WakeClass> for WakeData;
+);
+
+// NOTE: Every valid task address satisfies the erased wake-data alignment.
+const _: () = assert!(
+    mem::align_of::<Task>() >= mem::align_of::<WakeData>(),
+    "task alignment must satisfy the erased wake-data alignment"
+);
 
 /// A validated static wake target from the kernel's supported class set.
 ///
@@ -231,9 +250,9 @@ const _: usize = WakeClassField::mask();
 /// resource.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-// NOTE(invariant): The class field decodes to a valid `WakeClass`. Clearing it recovers a
-// non-null static data pointer valid for that class's vtable.
-pub struct WakeTarget(NonNull<()>);
+// NOTE(invariant): The recovered data pointer has static lifetime and is valid for the
+// stored wake class's vtable.
+pub struct WakeTarget(WakePointer);
 
 impl WakeTarget {
     /// Validates and encodes a supported waker.
@@ -245,21 +264,55 @@ impl WakeTarget {
     #[must_use]
     pub fn new(target_waker: &Waker) -> Option<Self> {
         let target_class = WakeClass::from_vtable(target_waker.vtable())?;
-        let target_data = NonNull::new(target_waker.data().cast_mut())?;
-        let target_address = target_data.as_ptr().addr();
+        let target_data = NonNull::new(target_waker.data().cast_mut().cast::<WakeData>())?;
 
-        match WakeClassBits::wrap(&target_address).value() {
-            0 => {
-                let tagged_target = target_data.as_ptr().map_addr(|mut target_address| {
-                    _ = WakeClassFieldMut::new(&mut target_address, target_class);
+        WakePointer::checked(target_data, target_class).map(Self)
+    }
 
-                    target_address
-                });
+    /// Lowers this target to the packed pointer stored in an atomic wake slot.
+    #[inline]
+    fn raw(self) -> NonNull<()> {
+        let Self(tagged_target) = self;
 
-                NonNull::new(tagged_target).map(Self)
-            },
-            _ => None,
-        }
+        let (target_data, target_class) = WakePointer::split(tagged_target);
+        let target_code = WakeClass::encode(target_class);
+        let target_pointer = target_data
+            .as_ptr()
+            .map_addr(|target_address| WakeClass::write(target_address, target_code.get()));
+
+        // SAFETY: The assigned nonzero code occupies the reserved low bits, making
+        // the packed address nonzero while preserving the data pointer's provenance.
+        unsafe { NonNull::new_unchecked(target_pointer.cast::<()>()) }
+    }
+
+    /// Recovers a target claimed from an atomic wake slot.
+    ///
+    /// # Safety
+    ///
+    /// `target_pointer` must retain the address and provenance produced by [`Self::raw()`].
+    #[inline]
+    unsafe fn from_raw(target_pointer: NonNull<()>) -> Self {
+        let target_address = target_pointer.as_ptr().addr();
+
+        // SAFETY: The caller retains the packed address from `raw`, whose reserved
+        // field contains an assigned nonzero code from `WakeClass::encode`.
+        let target_code = unsafe { NonZero::new_unchecked(WakeClass::read(target_address)) };
+
+        // SAFETY: The `Bijection` contract guarantees that decoding the assigned
+        // code returns the original class independently of the calling context.
+        let target_class = unsafe { WakeClass::decode(target_code).unwrap_unchecked() };
+        let target_address = WakeClass::write(target_address, 0);
+        let target_data = target_pointer.as_ptr().with_addr(target_address).cast::<WakeData>();
+
+        // SAFETY: Clearing the reserved bits recovers the original `NonNull` data
+        // pointer guaranteed by `TaggedPtr` and retained by the caller's contract.
+        let target_data = unsafe { NonNull::new_unchecked(target_data) };
+
+        // SAFETY: The pointer came from a validated target, so clearing its tag recovers
+        // the original aligned data address with its provenance intact.
+        let tagged_target = unsafe { WakePointer::new(target_data, target_class) };
+
+        Self(tagged_target)
     }
 
     /// Invokes this target's class-specific wake-by-reference behavior.
@@ -267,13 +320,10 @@ impl WakeTarget {
     fn wake_by_ref(self) -> bool {
         let Self(tagged_target) = self;
 
-        let mut target_address = tagged_target.as_ptr().addr();
-        let target_class = WakeClassFieldMut::wrap(&mut target_address)
-            .expect("WakeTarget contains a valid wake class")
-            .clear();
-        let target_data = tagged_target.as_ptr().map_addr(|_| target_address);
+        let (target_data, target_class) = WakePointer::split(tagged_target);
+        let target_data = target_data.as_ptr().cast::<()>().cast_const();
 
-        let raw_waker = RawWaker::new(target_data.cast_const(), target_class.vtable());
+        let raw_waker = RawWaker::new(target_data, target_class.vtable());
 
         // SAFETY: The `WakeTarget` invariant proves that the decoded data and
         // selected vtable form a valid static waker. `ManuallyDrop` preserves
@@ -330,7 +380,7 @@ impl AtomicWaker {
     pub fn arm(&self, target_waker: WakeTarget) -> bool {
         let Self(target_slot) = self;
 
-        let WakeTarget(tagged_target) = target_waker;
+        let tagged_target = target_waker.raw();
 
         !target_slot.swap(tagged_target.as_ptr(), Ordering::SeqCst).is_null()
     }
@@ -373,8 +423,9 @@ impl AtomicWaker {
 
         match NonNull::new(claimed_target) {
             Some(claimed_target) => {
-                // NOTE: Only validated `WakeTarget` values are stored in this slot.
-                WakeTarget(claimed_target).wake_by_ref()
+                // SAFETY: Only pointers lowered from valid `WakeTarget` values are stored
+                // in this slot, and the atomic exchange preserves their provenance.
+                unsafe { WakeTarget::from_raw(claimed_target) }.wake_by_ref()
             },
             None => false,
         }
@@ -391,15 +442,17 @@ impl fmt::Debug for AtomicWaker {
 mod tests {
     use alloc::{boxed::Box, vec::Vec};
     use core::{
-        mem, ptr,
+        mem,
+        num::NonZero,
+        ptr::{self, NonNull},
         sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
         task::Waker,
     };
     use std::thread;
 
-    use nekor_sync::atomic::tagged::{Encoding, Tag, TagField};
+    use nekor_bitwise::pointer::{Bijection, Tag};
 
-    use super::{AtomicWaker, TEST_VTABLE, WakeClass, WakeClassField, WakeTarget};
+    use super::{AtomicWaker, TEST_VTABLE, WakeClass, WakeData, WakePointer, WakeTarget};
 
     /// Static data for the counter wake class.
     #[repr(C, align(8))]
@@ -433,7 +486,7 @@ mod tests {
         }
     }
 
-    /// Erased data retains its provenance through local field packing and decoding.
+    /// Erased data retains its address and provenance through tagged pointer recovery.
     #[test]
     fn packed_target_round_trips_erased_data() {
         let counter = AlignedCounter::new();
@@ -441,30 +494,97 @@ mod tests {
 
         let WakeTarget(tagged_pointer) = target;
 
-        let target_address = tagged_pointer.as_ptr().addr();
-
-        assert!(matches!(
-            WakeClassField::wrap(&target_address)
-                .expect("packed counter has an assigned wake class")
-                .value(),
-            WakeClass::Test
-        ));
-        assert!(target.wake_by_ref());
-
+        let (target_data, target_class) = WakePointer::split(tagged_pointer);
         let AlignedCounter(counter_value) = counter;
 
+        assert!(matches!(target_class, WakeClass::Test));
+        assert_eq!(
+            target_data.as_ptr().cast::<AtomicUsize>().cast_const(),
+            ptr::from_ref(counter_value)
+        );
+        assert!(target.wake_by_ref());
         assert_eq!(counter_value.load(Ordering::SeqCst), 1);
     }
 
-    /// The local field does not make unassigned classes valid.
+    /// Supported classes have distinct nonzero codes with inverse decoding.
+    #[test]
+    fn wake_class_codes_round_trip() {
+        for target_class in [WakeClass::Task, WakeClass::Test] {
+            let target_code = WakeClass::encode(target_class);
+            let decoded_class = WakeClass::decode(target_code).expect("wake class code is assigned");
+
+            let target_address = WakeClass::write(0, target_code.get());
+
+            assert_eq!(target_code.get(), target_class as usize + 1);
+            assert_eq!(decoded_class as usize, target_class as usize);
+            assert_eq!(WakeClass::read(target_address), target_code.get());
+        }
+    }
+
+    /// Unassigned nonzero patterns are rejected by the wake-class bijection.
     #[test]
     fn wake_class_rejects_unassigned_values() {
-        for target_value in 2..=WakeClass::MASK {
-            assert!(<TagField as Encoding<WakeClass>>::decode(target_value).is_none());
-            assert!(WakeClassField::wrap(&target_value).is_none());
+        for target_value in 3..=WakeClass::MASK {
+            let target_code = NonZero::new(target_value).expect("unassigned code is nonzero");
+
+            assert!(WakeClass::decode(target_code).is_none());
         }
 
-        assert!(<TagField as Encoding<WakeClass>>::decode(usize::MAX).is_none());
+        assert!(WakeClass::decode(NonZero::<usize>::MAX).is_none());
+    }
+
+    /// Atomic lowering retains the nonzero tag and the original static data pointer.
+    #[test]
+    fn packed_target_round_trips_atomic_storage() {
+        let counter = AlignedCounter::new();
+        let target = counter.target();
+        let target_pointer = target.raw();
+
+        assert_eq!(WakeClass::read(target_pointer.as_ptr().addr()), 2);
+
+        // SAFETY: This pointer was lowered from a valid target immediately above.
+        let recovered_target = unsafe { WakeTarget::from_raw(target_pointer) };
+        let WakeTarget(tagged_pointer) = recovered_target;
+        let (target_data, target_class) = WakePointer::split(tagged_pointer);
+        let AlignedCounter(counter_value) = counter;
+
+        assert!(matches!(target_class, WakeClass::Test));
+        assert_eq!(
+            target_data.as_ptr().cast::<AtomicUsize>().cast_const(),
+            ptr::from_ref(counter_value)
+        );
+        assert!(recovered_target.wake_by_ref());
+        assert_eq!(counter_value.load(Ordering::SeqCst), 1);
+    }
+
+    /// The task class uses a nonzero code while preserving the original pointer.
+    #[test]
+    fn task_class_has_nonzero_packed_address_bits() {
+        let counter = AlignedCounter::new();
+        let target_data = NonNull::from(counter).cast::<WakeData>();
+        let tagged_pointer = WakePointer::checked(target_data, WakeClass::Task).expect("aligned data pointer");
+
+        assert!(matches!(WakePointer::tag(tagged_pointer), WakeClass::Task));
+        assert_eq!(WakeClass::encode(WakePointer::tag(tagged_pointer)).get(), 1);
+        assert_eq!(WakePointer::pointer(tagged_pointer), target_data);
+    }
+
+    /// Actual address alignment is checked before a wake pointer can be tagged.
+    #[test]
+    fn misaligned_wake_data_is_rejected() {
+        let counter = AlignedCounter::new();
+        let target_data = NonNull::from(counter).cast::<WakeData>();
+        let target_pointer = target_data.as_ptr().wrapping_byte_add(1);
+        let target_data = NonNull::new(target_pointer).expect("offset static counter address is non-null");
+
+        assert!(WakePointer::checked(target_data, WakeClass::Test).is_none());
+    }
+
+    /// A foreign null-data waker has no supported wake target.
+    #[test]
+    fn foreign_null_waker_is_rejected() {
+        assert!(Waker::noop().data().is_null());
+        assert!(WakeTarget::new(Waker::noop()).is_none());
     }
 
     /// Cancellation and repeated claiming preserve the null registration state.
