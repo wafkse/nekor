@@ -3,5 +3,3 @@
 pub mod bitmap;
 
 pub mod sequence;
-
-pub mod tagged;

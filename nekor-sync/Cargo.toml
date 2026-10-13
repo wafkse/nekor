@@ -18,7 +18,6 @@ nekor-aal-cache = { workspace = true }
 nekor-primitive = { workspace = true }
 nekor-bitwise = { workspace = true }
 nekor-backoff = { workspace = true }
-tokel = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
