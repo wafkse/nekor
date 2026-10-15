@@ -17,9 +17,9 @@ Additionally, Nekor plans to:
 
 - Provide exhaustive test fixtures for all major kernel components.
 - Run all test cases under Miri.
-- Perform model checking with Kani on critical algorithmic code paths.
+- Perform model checking with Creusot on critical algorithmic code paths.
 
-Test cases and Miri runs are performed in every CI cycle. Due to longer execution times, Kani is run on each git tag (and thus release candidate).
+Test cases and Miri runs are performed in every CI cycle. Due to longer execution times, Creusot is run on each git tag (and thus release candidate).
 
 This is the required feature baseline for the first usable release.
 
