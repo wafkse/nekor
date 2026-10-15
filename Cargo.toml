@@ -36,6 +36,7 @@ members = [
   "nekor-structure",
   "nekor-sync",
   "verte/*",
+  "virt/nekor-*",
 ]
 
 exclude = [

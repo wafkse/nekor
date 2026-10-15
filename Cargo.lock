@@ -1019,6 +1019,118 @@ name = "nekor-uefi"
 version = "0.1.0"
 
 [[package]]
+name = "nekor-virt"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-abi"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-access"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-address"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-arch"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-arch-x86-apic"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-arch-x86-hpet"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-arch-x86-ioapic"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-arch-x86-pic"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-batch"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-commit"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-context"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-doorbell"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-effect"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-execution"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-hypercall"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-hypervisor"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-ioport"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-kvm"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-kvm-sys"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-mapping"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-memory"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-mmio"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-peripheral"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-provide"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-stage"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-whp"
+version = "0.1.0"
+
+[[package]]
+name = "nekor-virt-whp-sys"
+version = "0.1.0"
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
