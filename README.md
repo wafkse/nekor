@@ -1,6 +1,6 @@
 # Nekor
 
-Nekor is an async-first `no-std`, `no-alloc` unikernel written in Rust.
+Nekor is an async-first `no-std`, `fixed-alloc` {explanation TBD} unikernel written in Rust.
 
 ## Goals
 
@@ -19,7 +19,7 @@ Additionally, Nekor plans to:
 - Run all test cases under Miri.
 - Perform model checking with Creusot on critical algorithmic code paths.
 
-Test cases and Miri runs are performed in every CI cycle. Due to longer execution times, Creusot is run on each git tag (and thus release candidate).
+Test cases and Miri runs are performed in every CI cycle. Due to longer execution times, Creusot is run on each git tag (and thus release candidate) {TBD}.
 
 This is the required feature baseline for the first usable release.
 
