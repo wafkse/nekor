@@ -1012,7 +1012,6 @@ dependencies = [
  "nekor-backoff",
  "nekor-bitwise",
  "nekor-primitive",
- "tokel",
 ]
 
 [[package]]
