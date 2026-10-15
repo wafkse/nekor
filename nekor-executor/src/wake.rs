@@ -45,8 +45,6 @@
 
 pub mod list;
 
-#[cfg(test)]
-use core::sync::atomic::AtomicUsize;
 use core::{
     fmt,
     mem::{self, ManuallyDrop},
@@ -62,7 +60,13 @@ use nekor_bitwise::{
     prelude::Counterpart,
 };
 
-use crate::{schedule::Scheduler, task::Task};
+use crate::task::Task;
+
+// Since the never type, Allocator, the Polonius solver and universally 8-byte-aligned
+// RawWakerVTable structures are coming soon, I'd say that Nekor could set its MSRV to 1.101.
+//
+// But now that Allocator is here, I'd say that restructuring in respect to the new Rust changes is
+// a much better approach rather than keep going with out custom allocator version.
 
 /// The address field reserved for a [`WakeClass`] code.
 type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
@@ -70,24 +74,30 @@ type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
 /// The mutable counterpart of [`WakeClassField`].
 type WakeClassFieldMut<'value> = <WakeClassField<'value> as Counterpart>::Mut;
 
-/// The alignment carrier for erased wake data.
-///
-/// The decoded wake class determines the actual pointee type used by its callback.
-#[repr(align(8))]
-// NOTE(invariant): None.
-struct WakeData;
+pub mod vtable {
+    //! Holding module for the virtual pointer table functions.
+    //!
+    //! The callback functions are kept private and refer to their module's static table.
 
-/// A non-null erased data pointer paired with its supported wake class.
-type WakePointer = TaggedPtr<NonNull<WakeData>, WakeClass>;
+    use core::{
+        ptr::NonNull,
+        task::{RawWaker, RawWakerVTable},
+    };
 
-/// The virtual function table associated with task [`Waker`] instances.
-pub static VTABLE: RawWakerVTable = const {
+    use crate::{schedule::Scheduler, task::Task};
+
+    /// The virtual function table associated with task [`Waker`](core::task::Waker) instances.
+    pub static VTABLE: RawWakerVTable = const { RawWakerVTable::new(clone, wake, wake, drop) };
+
     /// Clones a task waker.
     ///
     /// # Safety
     ///
     /// `data` must have been sourced from a valid `&'static Task`.
-    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
+    #[expect(
+        private_single_call_fn,
+        reason = "sole consumer of this function is its respective virtual function table"
+    )]
     unsafe fn clone(data: *const ()) -> RawWaker {
         RawWaker::new(data, &self::VTABLE)
     }
@@ -102,53 +112,77 @@ pub static VTABLE: RawWakerVTable = const {
         let target_task = unsafe { NonNull::<Task>::new_unchecked(task.cast::<Task>().cast_mut()).as_ref() };
 
         // TODO: Preserve a durable pending indication when the run queue is busy
-        // or full.
+        // or full. This is a really hard fucking problem. Might need a major restructure.
         let _schedule_result = Scheduler::try_schedule(target_task);
     }
 
     /// Disposes of a task waker.
     ///
     /// Task wakers carry no reference count or other owned resource.
-    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
+    #[expect(
+        private_single_call_fn,
+        reason = "sole consumer of this function is its respective virtual function table"
+    )]
     const fn drop(_: *const ()) {}
 
-    RawWakerVTable::new(clone, wake, wake, drop)
-};
+    #[cfg(test)]
+    // NOTE(rationale): Wake tests share the supported counter class and its static table.
+    pub(in crate::wake) mod test {
+        //! Static callback table for aligned atomic wake counters used by wake tests.
 
-/// A test-only table for aligned atomic wake counters.
-#[cfg(test)]
-// NOTE(rationale): Wake-list tests in a sibling module need this static callback table.
-pub(in crate::wake) static TEST_VTABLE: RawWakerVTable = const {
-    /// Clones a test waker.
-    ///
-    /// # Safety
-    ///
-    /// `data` must address a static aligned `AtomicUsize`.
-    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
-    unsafe fn clone(data: *const ()) -> RawWaker {
-        RawWaker::new(data, &self::TEST_VTABLE)
+        use core::{
+            ptr::NonNull,
+            sync::atomic::{AtomicUsize, Ordering},
+            task::{RawWaker, RawWakerVTable},
+        };
+
+        /// A test-only table for aligned atomic wake counters.
+        pub(in crate::wake) static VTABLE: RawWakerVTable = const { RawWakerVTable::new(clone, wake, wake, drop) };
+
+        /// Clones a test waker.
+        ///
+        /// # Safety
+        ///
+        /// `data` must address a static aligned `AtomicUsize`.
+        #[expect(
+            private_single_call_fn,
+            reason = "sole consumer of this function is its respective virtual function table"
+        )]
+        unsafe fn clone(data: *const ()) -> RawWaker {
+            RawWaker::new(data, &self::VTABLE)
+        }
+
+        /// Increments the addressed test counter.
+        ///
+        /// # Safety
+        ///
+        /// `data` must address a static aligned `AtomicUsize`.
+        unsafe fn wake(data: *const ()) {
+            let counter_address = data.cast_mut().cast::<AtomicUsize>();
+
+            // SAFETY: The test vtable contract requires this exact static pointee.
+            let target_counter = unsafe { NonNull::new_unchecked(counter_address).as_ref() };
+
+            _ = target_counter.fetch_add(1, Ordering::SeqCst);
+        }
+
+        /// Disposes of a test waker.
+        #[expect(
+            private_single_call_fn,
+            reason = "sole consumer of this function is its respective virtual function table"
+        )]
+        const fn drop(_: *const ()) {}
     }
+}
 
-    /// Increments the addressed test counter.
-    ///
-    /// # Safety
-    ///
-    /// `data` must address a static aligned `AtomicUsize`.
-    unsafe fn wake(data: *const ()) {
-        let counter_address = data.cast_mut().cast::<AtomicUsize>();
+/// The alignment carrier for erased wake data.
+///
+/// The decoded wake class determines the actual pointee type used by its callback.
+#[repr(align(8))]
+struct WakeData;
 
-        // SAFETY: The test vtable contract requires this exact static pointee.
-        let target_counter = unsafe { NonNull::new_unchecked(counter_address).as_ref() };
-
-        let _previous_count = target_counter.fetch_add(1, Ordering::SeqCst);
-    }
-
-    /// Disposes of a test waker.
-    #[expect(private_single_call_fn, reason = "RawWakerVTable requires a named ABI callback")]
-    const fn drop(_: *const ()) {}
-
-    RawWakerVTable::new(clone, wake, wake, drop)
-};
+/// A non-null erased data pointer paired with its supported wake class.
+type WakePointer = TaggedPtr<NonNull<WakeData>, WakeClass>;
 
 /// A kernel-supported interpretation of a tagged wake-target pointer.
 ///
@@ -168,13 +202,13 @@ enum WakeClass {
 impl WakeClass {
     /// Determines the class assigned to a supported raw-waker table.
     #[inline]
-    fn from_vtable(target_table: &'static RawWakerVTable) -> Option<Self> {
-        if let Some(target) = ptr::eq(target_table, &raw const self::VTABLE).then_some(Self::Task) {
+    fn recognize(target_table: &'static RawWakerVTable) -> Option<Self> {
+        if let Some(target) = ptr::eq(target_table, &raw const vtable::VTABLE).then_some(Self::Task) {
             return Some(target);
         }
 
         #[cfg(test)]
-        if ptr::eq(target_table, &raw const self::TEST_VTABLE) {
+        if ptr::eq(target_table, &raw const vtable::test::VTABLE) {
             return Some(Self::Test);
         }
 
@@ -185,9 +219,9 @@ impl WakeClass {
     #[inline]
     const fn vtable(self) -> &'static RawWakerVTable {
         match self {
-            Self::Task => &self::VTABLE,
+            Self::Task => &vtable::VTABLE,
             #[cfg(test)]
-            Self::Test => &self::TEST_VTABLE,
+            Self::Test => &vtable::test::VTABLE,
         }
     }
 }
@@ -197,9 +231,13 @@ impl WakeClass {
 unsafe impl Bijection for WakeClass {
     #[inline]
     fn encode(target_value: Self) -> NonZero<usize> {
-        // SAFETY: The supported discriminants are zero and, in tests, one, so their
-        // assigned codes are respectively one and two.
-        unsafe { NonZero::new_unchecked(target_value as usize + 1) }
+        // SAFETY: The underlying unwrap cannot ever fail, as the the tagging enum does not have
+        // enough variants to overflow an `usize`.
+        unsafe {
+            NonZero::<usize>::MIN
+                .checked_add(target_value as usize)
+                .unwrap_unchecked()
+        }
     }
 
     #[inline]
@@ -263,7 +301,7 @@ impl WakeTarget {
     #[inline]
     #[must_use]
     pub fn new(target_waker: &Waker) -> Option<Self> {
-        let target_class = WakeClass::from_vtable(target_waker.vtable())?;
+        let target_class = WakeClass::recognize(target_waker.vtable())?;
         let target_data = NonNull::new(target_waker.data().cast_mut().cast::<WakeData>())?;
 
         WakePointer::checked(target_data, target_class).map(Self)
@@ -274,11 +312,13 @@ impl WakeTarget {
     fn raw(self) -> NonNull<()> {
         let Self(tagged_target) = self;
 
-        let (target_data, target_class) = WakePointer::split(tagged_target);
-        let target_code = WakeClass::encode(target_class);
-        let target_pointer = target_data
+        let (wake_data, wake_class) = WakePointer::split(tagged_target);
+
+        let wake_class_code = WakeClass::encode(wake_class);
+
+        let target_pointer = wake_data
             .as_ptr()
-            .map_addr(|target_address| WakeClass::write(target_address, target_code.get()));
+            .map_addr(|target_address| WakeClass::write(target_address, wake_class_code.get()));
 
         // SAFETY: The assigned nonzero code occupies the reserved low bits, making
         // the packed address nonzero while preserving the data pointer's provenance.
@@ -321,6 +361,7 @@ impl WakeTarget {
         let Self(tagged_target) = self;
 
         let (target_data, target_class) = WakePointer::split(tagged_target);
+
         let target_data = target_data.as_ptr().cast::<()>().cast_const();
 
         let raw_waker = RawWaker::new(target_data, target_class.vtable());
@@ -452,7 +493,7 @@ mod tests {
 
     use nekor_bitwise::pointer::{Bijection, Tag};
 
-    use super::{AtomicWaker, TEST_VTABLE, WakeClass, WakeData, WakePointer, WakeTarget};
+    use super::{AtomicWaker, WakeClass, WakeData, WakePointer, WakeTarget, vtable};
 
     /// Static data for the counter wake class.
     #[repr(C, align(8))]
@@ -479,8 +520,8 @@ mod tests {
 
             let target_address = ptr::from_ref(target_counter).cast::<()>();
 
-            // SAFETY: The counter is static and aligned for `TEST_VTABLE`.
-            let target_waker = unsafe { Waker::new(target_address, &TEST_VTABLE) };
+            // SAFETY: The counter is static and aligned for `vtable::test::VTABLE`.
+            let target_waker = unsafe { Waker::new(target_address, &vtable::test::VTABLE) };
 
             WakeTarget::new(&target_waker).expect("counter has supported class and alignment")
         }
@@ -495,6 +536,7 @@ mod tests {
         let WakeTarget(tagged_pointer) = target;
 
         let (target_data, target_class) = WakePointer::split(tagged_pointer);
+
         let AlignedCounter(counter_value) = counter;
 
         assert!(matches!(target_class, WakeClass::Test));
@@ -544,8 +586,11 @@ mod tests {
 
         // SAFETY: This pointer was lowered from a valid target immediately above.
         let recovered_target = unsafe { WakeTarget::from_raw(target_pointer) };
+
         let WakeTarget(tagged_pointer) = recovered_target;
+
         let (target_data, target_class) = WakePointer::split(tagged_pointer);
+
         let AlignedCounter(counter_value) = counter;
 
         assert!(matches!(target_class, WakeClass::Test));

@@ -351,7 +351,7 @@ mod tests {
     use std::{sync::Barrier, thread};
 
     use super::{LinkedNode, WaitState, WakeList, WakeNode};
-    use crate::wake::{TEST_VTABLE, WakeTarget};
+    use crate::wake::{WakeTarget, vtable};
 
     #[repr(C, align(8))]
     struct CountingWake(pub AtomicUsize);
@@ -415,7 +415,7 @@ mod tests {
 
         // SAFETY: `counter_address` points to a static aligned `AtomicUsize`, as
         // required by the test vtable.
-        let target_waker = unsafe { Waker::new(counter_address, &TEST_VTABLE) };
+        let target_waker = unsafe { Waker::new(counter_address, &vtable::test::VTABLE) };
         let target = WakeTarget::new(&target_waker);
 
         assert!(target.is_some());

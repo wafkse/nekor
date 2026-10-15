@@ -117,7 +117,7 @@ impl Task {
     pub const fn waker(&'static self) -> Waker {
         // SAFETY: `Task` (and `Waker`-related code) is thread-safe, as required
         // by the `RawWakerVTable` documentation.
-        unsafe { Waker::new(from_ref::<Self>(self).cast::<()>(), &wake::VTABLE) }
+        unsafe { Waker::new(from_ref::<Self>(self).cast::<()>(), &wake::vtable::VTABLE) }
     }
 }
 
