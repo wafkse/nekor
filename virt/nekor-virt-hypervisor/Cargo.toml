@@ -11,6 +11,10 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+nekor-virt-kvm = { version = "0.1.0", path = "../nekor-virt-kvm" }
+nekor-virt-kvm-sys = { version = "0.1.0", path = "../nekor-virt-kvm-sys" }
+nekor-virt-whp = { version = "0.1.0", path = "../nekor-virt-whp" }
+nekor-virt-whp-sys = { version = "0.1.0", path = "../nekor-virt-whp-sys" }
 
 [lints]
 workspace = true
