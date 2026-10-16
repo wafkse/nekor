@@ -1,4 +1,4 @@
-# nekor-virt-arch
+# nekor-virt-model
 
 ## Overview
 
