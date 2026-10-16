@@ -9,6 +9,8 @@ use nekor_project::{PinnedDrop, Project};
 
 #[cfg(test)]
 mod tests {
+    use core::pin;
+
     use super::*;
 
     #[derive(Project)]
@@ -135,7 +137,7 @@ mod tests {
 
     #[test]
     fn projects_named_struct_fields() {
-        let mut target_value = Box::pin(Named {
+        let mut target_value = pin::pin!(Named {
             pinned: PhantomPinned,
             value: 7,
         });
@@ -153,22 +155,22 @@ mod tests {
 
     #[test]
     fn projects_tuple_empty_and_unit_structures() {
-        let tuple = Box::pin(Tuple(PhantomPinned, 13));
+        let tuple = pin::pin!(Tuple(PhantomPinned, 13));
 
         let TupleProjection(pinned, value) = tuple.as_ref().project();
 
         let _: Pin<&PhantomPinned> = pinned;
         assert_eq!(*value, 13);
 
-        let empty = Box::pin(Empty);
+        let empty = pin::pin!(Empty);
 
         let EmptyProjection = empty.as_ref().project();
 
-        let empty_tuple = Box::pin(EmptyTuple);
+        let empty_tuple = pin::pin!(EmptyTuple);
 
         let EmptyTupleProjection = empty_tuple.as_ref().project();
 
-        let unit = Box::pin(Unit::<4>);
+        let unit = pin::pin!(Unit::<4>);
 
         let UnitProjection = unit.as_ref().project();
     }
@@ -176,7 +178,7 @@ mod tests {
     #[test]
     fn preserves_lifetime_type_const_and_where_generics() {
         let borrowed = 23_usize;
-        let mut target_value = Box::pin(Generic {
+        let mut target_value = pin::pin!(Generic {
             pinned: 17_usize,
             borrowed: &borrowed,
             bytes: [1_u8, 2, 3],
@@ -197,7 +199,7 @@ mod tests {
 
     #[test]
     fn projects_every_enum_field_shape() {
-        let ready = Box::pin(State::Ready {
+        let ready = pin::pin!(State::Ready {
             value: PhantomPinned,
             generation: 3,
         });
@@ -210,7 +212,7 @@ mod tests {
             StateProjection::Waiting(..) | StateProjection::Complete => unreachable!(),
         }
 
-        let waiting = Box::pin(State::Waiting(PhantomPinned, 5));
+        let waiting = pin::pin!(State::Waiting(PhantomPinned, 5));
 
         match waiting.as_ref().project() {
             StateProjection::Waiting(value, generation) => {
@@ -220,7 +222,7 @@ mod tests {
             StateProjection::Ready { .. } | StateProjection::Complete => unreachable!(),
         }
 
-        let complete = Box::pin(State::<PhantomPinned>::Complete);
+        let complete = pin::pin!(State::<PhantomPinned>::Complete);
         assert!(matches!(complete.as_ref().project(), StateProjection::Complete));
     }
 
@@ -239,7 +241,7 @@ mod tests {
         let dropped = AtomicBool::new(false);
 
         {
-            let _target_value = Box::pin(UnsafeOptOut {
+            let _target_value = pin::pin!(UnsafeOptOut {
                 pinned: PhantomPinned,
                 dropped: &dropped,
             });
@@ -253,7 +255,7 @@ mod tests {
         let dropped = AtomicBool::new(false);
 
         {
-            let _target_value = Box::pin(DropTarget {
+            let _target_value = pin::pin!(DropTarget {
                 pinned: PhantomPinned,
                 dropped: &dropped,
             });
