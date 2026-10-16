@@ -11,6 +11,14 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+nekor-virt-abi = { version = "0.1.0", path = "../nekor-virt-abi" }
+nekor-virt-access = { version = "0.1.0", path = "../nekor-virt-access" }
+nekor-virt-address = { version = "0.1.0", path = "../nekor-virt-address" }
+nekor-virt-model = { version = "0.1.0", path = "../nekor-virt-model" }
+nekor-virt-hypercall = { version = "0.1.0", path = "../nekor-virt-hypercall" }
+nekor-virt-hypervisor = { version = "0.1.0", path = "../nekor-virt-hypervisor" }
+nekor-virt-memory = { version = "0.1.0", path = "../nekor-virt-memory" }
+nekor-virt-provide = { version = "0.1.0", path = "../nekor-virt-provide" }
 
 [lints]
 workspace = true
