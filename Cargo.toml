@@ -35,7 +35,8 @@ members = [
   "nekor-socal",
   "nekor-structure",
   "nekor-sync",
-  "verte/*",
+  "verte/ir",
+  "verte/parse",
   "virt/nekor-*",
 ]
 
