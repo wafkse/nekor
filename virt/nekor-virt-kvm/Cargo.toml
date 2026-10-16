@@ -12,5 +12,8 @@ categories.workspace = true
 
 [dependencies]
 
+nekor-virt-kvm-sys = { version = "0.1.0", path = "../nekor-virt-kvm-sys" }
+
+
 [lints]
 workspace = true

@@ -1,9 +1,28 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 
+use nekor_virt_model::prelude::Arch;
+
 extern crate alloc;
 
-pub use nekor_virt_kvm as kvm;
-pub use nekor_virt_kvm_sys as kvm_sys;
-pub use nekor_virt_whp as whp;
-pub use nekor_virt_whp_sys as whp_sys;
+pub mod kvm {
+    //! Module for the `KVM` hypervisor.
+
+    pub use nekor_virt_kvm::*;
+}
+
+pub mod whp {
+    //! Module for the `WHP` hypervisor.
+
+    pub use nekor_virt_whp::*;
+}
+
+/// A representation of a particular hypervisor backend.
+///
+/// For example, on Linux, `KVM` is generally used. On Windows, the `WHP` (abbreviated from `Windows
+/// Hypervisor Example`) permits a usermode-managed virtual-machine.
+pub trait Backend<A>
+where
+    A: Arch,
+{
+}
