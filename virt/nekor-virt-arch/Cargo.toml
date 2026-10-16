@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+nekor-virt-arch-x86 = { version = "0.1.0", path = "../nekor-virt-arch-x86" }
 
 [lints]
 workspace = true
