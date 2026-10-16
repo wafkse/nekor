@@ -1,0 +1,4 @@
+# NOTE: We use rather complex types, and the default is flagging quite
+# simplistic types, such as: `marker::PhantomData<fn() -> (T, P, O)>`, which is
+# unacceptable.
+type-complexity-threshold = 500

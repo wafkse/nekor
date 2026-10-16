@@ -4,6 +4,7 @@
 # Ignore: local dotfiles and directories
 **/.*
 !**/.gitignore
+!**/.clippy.toml
 !/.cargo/
 !/.cargo/**
 !/.github/
