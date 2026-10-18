@@ -11,6 +11,9 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+aldebaran = { workspace = true, features = ["report-codegen", "source-storage"] }
+fack.workspace = true
+tokel.workspace = true
 
 [lints]
 workspace = true
