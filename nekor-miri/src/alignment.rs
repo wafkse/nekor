@@ -47,8 +47,7 @@ where
     let align = promise_alignment.value();
     let ptr = target_pointee.cast::<()>();
 
-    // SAFETY: Alignment has a valid shape. Miri checks the pointer's actual address.
-    unsafe { ffi::miri_promise_symbolic_alignment(ptr, align) };
+    ffi::miri_promise_symbolic_alignment(ptr, align);
 }
 
 #[cfg(test)]

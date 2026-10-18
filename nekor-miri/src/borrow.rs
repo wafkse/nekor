@@ -18,8 +18,7 @@ impl AllocationId {
         if mem::size_of_val(target_value) == usize::MIN {
             None
         } else {
-            // SAFETY: A reference to a nonzero-sized value identifies a live allocation.
-            let id = unsafe { ffi::miri_get_alloc_id(ptr::from_ref(target_value).cast::<()>()) };
+            let id = ffi::miri_get_alloc_id(ptr::from_ref(target_value).cast::<()>());
 
             Some(Self(id))
         }
@@ -30,8 +29,7 @@ impl AllocationId {
     pub fn print(&self) {
         let &Self(id) = self;
 
-        // SAFETY: The ID was obtained from the interpreter.
-        unsafe { ffi::miri_print_borrow_state(id, true) };
+        ffi::miri_print_borrow_state(id, true);
     }
 }
 
@@ -43,8 +41,7 @@ where
 {
     let id = AllocationId::of(target_value)?;
 
-    // SAFETY: A nonzero-sized live reference identifies an allocation.
-    unsafe { ffi::miri_track_alloc(ptr::from_ref(target_value).cast::<()>()) };
+    ffi::miri_track_alloc(ptr::from_ref(target_value).cast::<()>());
 
     Some(id)
 }

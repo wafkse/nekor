@@ -24,20 +24,20 @@ unsafe extern "Rust" {
     pub(crate) fn miri_static_root(ptr: *const ());
 
     /// Track the allocation containing `ptr`.
-    pub(crate) fn miri_track_alloc(ptr: *const ());
+    pub(crate) safe fn miri_track_alloc(ptr: *const ());
 
     /// Return the allocation ID for `ptr`.
     ///
     /// Miri aborts if `ptr` does not point into an allocation.
-    pub(crate) fn miri_get_alloc_id(ptr: *const ()) -> u64;
+    pub(crate) safe fn miri_get_alloc_id(ptr: *const ()) -> u64;
 
     /// Print the borrow state for an allocation.
     ///
     /// `show_unnamed` includes unnamed borrows. The output format is unstable.
-    pub(crate) fn miri_print_borrow_state(id: u64, show_unnamed: bool);
+    pub(crate) safe fn miri_print_borrow_state(id: u64, show_unnamed: bool);
 
     /// Promise the given alignment for symbolic checks.
     ///
     /// Miri rejects an unaligned pointer or an alignment that is not a power of two.
-    pub(crate) fn miri_promise_symbolic_alignment(ptr: *const (), align: usize);
+    pub(crate) safe fn miri_promise_symbolic_alignment(ptr: *const (), align: usize);
 }

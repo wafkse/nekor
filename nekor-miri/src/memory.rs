@@ -31,7 +31,9 @@ impl Allocation {
                 let layout = Layout::new::<T>();
 
                 // SAFETY: Layout guarantees a valid alignment and nonzero size was checked.
-                let pointer = NonNull::new(unsafe { ffi::miri_alloc(size.get(), layout.align()) }.cast::<u8>())?;
+                let ptr = unsafe { ffi::miri_alloc(size.get(), layout.align()) }.cast::<u8>();
+
+                let pointer = NonNull::new(ptr)?;
 
                 Some(Self { pointer, layout })
             },
@@ -76,8 +78,7 @@ impl Allocation {
     pub fn track(&self) {
         let &Self { pointer, .. } = self;
 
-        // SAFETY: This handle owns a live allocation.
-        unsafe { ffi::miri_track_alloc(pointer.as_ptr().cast_const().cast::<()>()) };
+        ffi::miri_track_alloc(pointer.as_ptr().cast_const().cast::<()>())
     }
 }
 
