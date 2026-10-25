@@ -64,7 +64,8 @@ where
             match target_atomic.compare_exchange(
                 ptr::null_mut::<T>(),
                 ptr::from_ref::<T>(target_value).cast_mut(),
-                // NOTE(atomic): Need to establish a happens-before relationship in respect to the `T` pointee.
+                // NOTE(atomic): Need to establish a happens-before relationship in respect to the
+                // `T` pointee.
                 Ordering::Release,
                 Ordering::Relaxed,
             ) {
@@ -196,7 +197,8 @@ where
             match target_atomic.compare_exchange(
                 ptr::null_mut::<T>(),
                 ptr::from_ref::<T>(target_value).cast_mut(),
-                // NOTE(atomic): Need to establish a happens-before relationship in respect to the `T` pointee.
+                // NOTE(atomic): Need to establish a happens-before relationship in respect to the
+                // `T` pointee.
                 Ordering::Release,
                 Ordering::Relaxed,
             ) {
