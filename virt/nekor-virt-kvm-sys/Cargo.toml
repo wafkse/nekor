@@ -6,11 +6,24 @@ rust-version.workspace = true
 description.workspace = true
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
+
+build = "build/build.rs"
+
+[features]
+default = ["stable"]
+lts = []
+stable = []
+internal-generate-binding = ["dep:bindgen", "dep:syn", "dep:prettyplease"]
 
 [dependencies]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+syn = { workspace = true, features = ["full"], optional = true }
+bindgen = { workspace = true, optional = true }
+prettyplease = { version = "0.3", optional = true }

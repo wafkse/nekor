@@ -1,0 +1,63 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+host := `rustc --print host-tuple`
+target := env("CARGO_BUILD_TARGET", host)
+
+# Prepare the pinned sparse checkout and export headers for the selected target.
+checkout channel triple=target:
+    bash script/checkout.bash {{ quote(channel) }} {{ quote(triple) }}
+
+# Generate in OUT_DIR, format, and copy only when the source has changed.
+generate channel triple=target: (checkout channel triple)
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    CHANNEL={{ quote(channel) }}
+    TARGET={{ quote(triple) }}
+    PACKAGE=$(cargo pkgid --locked --offline -p nekor-virt-kvm-sys)
+    VERSION=${PACKAGE##*[@#]}
+    TAG=$(git config -f checkout/version.config --get "release.$VERSION.$CHANNEL-tag")
+    COMMIT=$(git config -f checkout/version.config --get "release.$VERSION.$CHANNEL-commit")
+
+    MESSAGE=$(
+        NEKOR_KVM_CHANNEL="$CHANNEL" \
+        NEKOR_KVM_TAG="$TAG" \
+        NEKOR_KVM_COMMIT="$COMMIT" \
+        NEKOR_KVM_TARGET="$TARGET" \
+        cargo build \
+            --locked \
+            --package nekor-virt-kvm-sys \
+            --no-default-features \
+            --features internal-generate-binding \
+            --target {{ quote(host) }} \
+            --message-format json
+    )
+
+    OUTPUT=$(
+        jq --slurp --raw-output --exit-status --arg package "$PACKAGE" '
+            map(select(
+                .reason == "build-script-executed" and .package_id == $package
+            ))
+            | if length == 1 then .[0].out_dir
+              else error("expected one KVM build-script output")
+              end
+        ' <<< "$MESSAGE"
+    )
+
+    GENERATED="$OUTPUT/$TARGET/$CHANNEL.rs"
+    DESTINATION="src/$CHANNEL/$TARGET/binding.rs"
+
+    rustfmt --config-path ../../rustfmt.toml "$GENERATED"
+    mkdir -p "$(dirname "$DESTINATION")"
+
+    if ! cmp --silent "$GENERATED" "$DESTINATION"; then
+        cp "$GENERATED" "$DESTINATION"
+    fi
+
+# Regenerate both pinned interfaces.
+generate-all triple=target: (generate "lts" triple) (generate "stable" triple)
+
+# Prepare the selected bindings and compile that interface.
+build channel triple=target: (generate channel triple)
+    cargo build --locked --package nekor-virt-kvm-sys \
+        --no-default-features --features {{ quote(channel) }} --target {{ quote(triple) }}
