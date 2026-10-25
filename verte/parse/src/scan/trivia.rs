@@ -9,11 +9,13 @@ pub mod whitespace {
     };
 
     /// A whitespace token.
+    ///
+    /// This is a contiguous run of Unicode Whitespace characters.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(transparent)]
-    pub struct Space(Span);
+    pub struct Whitespace(Span);
 
-    impl<'source> Lex<'source, str> for Space {
+    impl<'source> Lex<'source, str> for Whitespace {
         type Context = ();
         type Error = Expected<char, property::Whitespace>;
         type Input<'input>
@@ -44,7 +46,7 @@ pub mod whitespace {
         }
     }
 
-    impl Spanned for Space {
+    impl Spanned for Whitespace {
         #[inline]
         fn span(&self) -> Span {
             let &Self(target_value) = self;
@@ -52,6 +54,10 @@ pub mod whitespace {
             target_value
         }
     }
+}
+
+pub mod comment {
+    //! Various comments.
 }
 
 #[cfg(test)]
