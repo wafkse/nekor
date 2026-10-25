@@ -14,13 +14,7 @@ pub mod lts;
 
 /// Raw KVM UAPI from the pinned Linux stable release.
 #[cfg(feature = "stable")]
-#[expect(
-    nonstandard_style,
-    clippy::all,
-    clippy::pedantic,
-    clippy::restriction,
-    clippy::missing_docs_in_private_items
-)]
+#[expect(nonstandard_style, clippy::all, clippy::pedantic, clippy::restriction)]
 pub mod stable;
 
 #[cfg(any(feature = "stable", feature = "lts"))]
