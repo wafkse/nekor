@@ -32,9 +32,14 @@ where
     A: Arch,
     Self: Sized,
 {
-    /// May borrow decoded operation data for `'a`.
+    /// The input to a peripheral action.
+    ///
+    /// This may borrow decoded operation data for `'a`.
     type Input<'a>;
 
+    /// The causal output of an action performed on or by the peripheral.
+    ///
+    /// This may contain a set of architectural effects.
     type Output: Effect<A>;
 
     /// A guest architectural error, such as a request to inject an exception.

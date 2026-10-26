@@ -68,5 +68,6 @@ where
     /// the effect itself.
     type Error: error::Error;
 
+    /// Stage the architectural effect in a fallible manner.
     fn stage(&mut self, effect: E) -> Result<(), Self::Error>;
 }
