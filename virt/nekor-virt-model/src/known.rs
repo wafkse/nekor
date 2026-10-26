@@ -12,6 +12,8 @@ macro_rules! known {
     ($(#[$target_meta:meta])* $target_vis:vis for $target_ident:ident) => {
         $(#[$target_meta])*
         $target_vis struct $target_ident(convert::Infallible);
+
+        impl $crate::baseline::Arch for $target_ident { }
     };
 }
 
