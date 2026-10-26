@@ -1,21 +1,17 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 
-/// Raw KVM UAPI from the pinned Linux LTS release.
-#[cfg(feature = "lts")]
-#[expect(
-    nonstandard_style,
-    clippy::all,
-    clippy::pedantic,
-    clippy::restriction,
-    clippy::missing_docs_in_private_items
-)]
-pub mod lts;
+#[doc(hidden)]
+pub mod lowlevel;
 
-/// Raw KVM UAPI from the pinned Linux stable release.
+#[cfg(any(feature = "stable", feature = "lts"))]
+#[doc(hidden)]
+pub mod generated;
+
+#[cfg(feature = "lts")]
+pub use generated::lts;
 #[cfg(feature = "stable")]
-#[expect(nonstandard_style, clippy::all, clippy::pedantic, clippy::restriction)]
-pub mod stable;
+pub use generated::stable;
 
 #[cfg(any(feature = "stable", feature = "lts"))]
 cfg_select! {

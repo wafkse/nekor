@@ -1,13 +1,11 @@
-/// Optional generation from explicitly prepared Linux userspace headers.
+/// Binding generation enabled after the selected Linux userspace headers have been exported.
 #[cfg(feature = "internal-generate-binding")]
-mod binding {
-    include!("binding.rs");
-}
+mod binding;
 
 fn main() -> Result<(), Box<dyn core::error::Error>> {
-    let target = std::env::var("TARGET")?;
+    let target_triple = std::env::var("TARGET")?;
 
-    println!("cargo:rustc-env=NEKOR_KVM_TARGET={target}");
+    println!("cargo:rustc-env=NEKOR_KVM_TARGET={target_triple}");
     println!("cargo:rerun-if-changed=build");
     println!("cargo:rerun-if-changed=checkout/version.config");
     println!("cargo:rerun-if-env-changed=NEKOR_KVM_CHANNEL");

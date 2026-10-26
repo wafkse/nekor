@@ -24,6 +24,6 @@ internal-generate-binding = ["dep:bindgen", "dep:syn", "dep:prettyplease"]
 workspace = true
 
 [build-dependencies]
-syn = { workspace = true, features = ["full"], optional = true }
+syn = { workspace = true, features = ["full", "visit-mut"], optional = true }
 bindgen = { workspace = true, optional = true }
 prettyplease = { version = "0.3", optional = true }

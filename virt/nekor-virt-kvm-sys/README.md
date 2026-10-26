@@ -19,15 +19,14 @@ Import `preferred` to use the selected kernel interface.
 ```rust
 use nekor_virt_kvm_sys::preferred as kvm;
 
-let request = kvm::KVM_GET_API_VERSION;
-let expected_version = kvm::KVM_API_VERSION;
+let api_version_request = kvm::KVM_GET_API_VERSION;
+let expected_api_version = kvm::KVM_API_VERSION;
 
-assert_eq!(expected_version, 12);
+assert_eq!(expected_api_version, 12);
 ```
 
-`request` is the ioctl number to pass to your syscall interface. Structures such
-as `kvm::kvm_run` and `kvm::kvm_userspace_memory_region` describe the corresponding
-kernel ABI. See the [Linux KVM API documentation](https://docs.kernel.org/virt/kvm/api.html)
+Structures such as `kvm::kvm_run` and `kvm::kvm_userspace_memory_region` describe
+the kernel ABI. See the [Linux KVM API documentation](https://docs.kernel.org/virt/kvm/api.html)
 for descriptor types, argument requirements, and capability checks.
 
 ## Kernel selection
@@ -47,19 +46,6 @@ They select the available definitions. Check runtime support with
 [`KVM_CHECK_EXTENSION`](https://docs.kernel.org/virt/kvm/api.html#kvm-check-extension)
 before using an optional KVM capability.
 
-## Target support
-
-Bindings are included for `x86_64-unknown-linux-gnu` and
-`aarch64-unknown-linux-gnu`, for both kernel versions. Cargo selects the binding
-for its exact target triple. Generate bindings for another target before building
-for it.
-
-Generate for the target that will run the KVM client. Cross-compilation also
-requires that target's Rust library, or nightly `build-std` support.
-
-Normal Cargo builds use the included bindings. They require neither a kernel
-checkout nor libclang.
-
 ## Regenerate
 
 Use the repository toolchain and run these commands from this crate's directory.
@@ -67,13 +53,15 @@ Install `just`, Git, GNU Make, a C compiler, rsync, jq, libclang, and rustfmt.
 
 | Command | Action |
 | --- | --- |
-| `just checkout <channel> [target]` | Prepare the pinned kernel headers. |
-| `just generate <channel> [target]` | Prepare headers and regenerate the selected binding. |
-| `just generate-all [target]` | Regenerate both kernel versions. |
-| `just build <channel> [target]` | Prepare the selected binding and build the crate. |
+| `just checkout <kernel_channel> [target_triple]` | Prepare the pinned kernel headers. |
+| `just generate <kernel_channel> [target_triple]` | Prepare headers and regenerate the selected binding pair. |
+| `just generate-all [target_triple]` | Regenerate both kernel versions. |
+| `just build <kernel_channel> [target_triple]` | Prepare the selected binding pair and build the crate. |
 
-`<channel>` is `lts` or `stable`. The target defaults to `CARGO_BUILD_TARGET`,
-then the host target if that variable is unset.
+`<kernel_channel>` is `lts` or `stable`. The target triple defaults to
+`CARGO_BUILD_TARGET`, then the host triple if that variable is unset.
+Generate for the target that will run the KVM client. Cross-compilation also
+requires that target's Rust library, or nightly `build-std` support.
 
 ```sh
 just generate stable
