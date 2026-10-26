@@ -2,3 +2,6 @@
 /checkout/stable/
 /checkout/header/
 /checkout/target/
+
+# NOTE: Unignore the `.ignore` file.
+!.ignore
