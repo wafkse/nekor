@@ -580,13 +580,11 @@ where
 
         // SAFETY:
         //
-        // The pointer is perfectly convertible to a reference - as it
+        // The pointer is perfectly convertible to a reference, as it
         // as been sourced from a reference itself.
         //
         // Furthermore, ownership is local to this list due to the
         // safety contract.
-        // SAFETY: The node pointer originated from the pinned value held by
-        // the list, and the mutable list borrow provides exclusive access.
         let target_value = unsafe { Pin::new_unchecked(node_address.as_mut()) };
 
         ptr::eq(list_address.as_ptr().cast_const(), self).then_some(target_value)
