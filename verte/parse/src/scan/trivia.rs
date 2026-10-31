@@ -13,6 +13,8 @@ pub mod whitespace {
     /// This is a contiguous run of Unicode Whitespace characters.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(transparent)]
+    // NOTE(invariant): The cursor run over the `Span` was composed of Unicode Whitespace
+    // codepoints.
     pub struct Whitespace(Span);
 
     impl<'source> Lex<'source, str> for Whitespace {
