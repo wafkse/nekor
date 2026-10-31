@@ -3,6 +3,14 @@
 use std::{fs::OpenOptions, io, os::fd::OwnedFd, path::Path};
 
 /// An owned KVM file descriptor.
+///
+/// # On KVM API Versioning
+///
+/// As the KVM API version code (`KVM_API_VERSION`) has been effectively frozen to `12` since
+/// the day the author of this code was born, this is intended to support solely that API version.
+///
+/// Note that, however, this does not check for the existence of any extensions that may be deemed
+/// ubiquitous.
 #[repr(transparent)]
 // NOTE(invariant): OwnedFd must be a KVM-backed file descriptor.
 pub struct Kvm(OwnedFd);
