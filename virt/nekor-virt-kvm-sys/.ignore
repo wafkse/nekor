@@ -1,2 +1,2 @@
-generated/lts/
-generated/stable/
+generated/lts/*/*.rs
+generated/stable/*/*.rs
