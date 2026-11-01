@@ -11,3 +11,21 @@ pub struct ScanContext<'a> {
     /// The interner storage context within this scanner context.
     storage: Storage<'a, str, String>,
 }
+
+impl<'a> ScanContext<'a> {
+    /// Retrieve the storage interner.
+    #[inline]
+    pub const fn storage(&self) -> &Storage<'a, str, String> {
+        let Self { storage, .. } = self;
+
+        storage
+    }
+
+    /// Mutably retrieve the storage interner.
+    #[inline]
+    pub const fn storage_mut(&mut self) -> &mut Storage<'a, str, String> {
+        let Self { storage, .. } = self;
+
+        storage
+    }
+}

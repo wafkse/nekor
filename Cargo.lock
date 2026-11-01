@@ -27,7 +27,7 @@ dependencies = [
 [[package]]
 name = "aldebaran"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-ansi",
  "aldebaran-baseline",
@@ -45,7 +45,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-ansi"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-print",
  "tokel",
@@ -54,7 +54,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-baseline"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-print",
  "tokel",
@@ -63,7 +63,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-grammar"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "tokel",
 ]
@@ -71,12 +71,12 @@ dependencies = [
 [[package]]
 name = "aldebaran-ice"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 
 [[package]]
 name = "aldebaran-id"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-baseline",
  "hashbrown",
@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-interner"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-id",
  "aldebaran-source",
@@ -98,7 +98,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-logic"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-logic-macro",
  "aldebaran-print",
@@ -107,9 +107,10 @@ dependencies = [
 [[package]]
 name = "aldebaran-logic-macro"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "darling",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 3.0.6",
@@ -118,7 +119,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-print"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "unicode-segmentation",
  "unicode-width 0.2.2",
@@ -127,7 +128,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-report"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-ansi",
  "aldebaran-baseline",
@@ -141,7 +142,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-report-macro"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "darling",
  "fack-codegen",
@@ -154,7 +155,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-source"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-baseline",
  "aldebaran-ice",
@@ -165,7 +166,7 @@ dependencies = [
 [[package]]
 name = "aldebaran-text"
 version = "0.1.0"
-source = "git+https://github.com/wafkse/aldebaran?tag=v0.4.0#b6800b56588ede419b251d7f1eda2a0881796369"
+source = "git+https://github.com/wafkse/aldebaran?tag=v0.6.0#a96f198e45af2cd9793a9910c391283a8606781e"
 dependencies = [
  "aldebaran-baseline",
  "aldebaran-grammar",
