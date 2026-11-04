@@ -21,7 +21,7 @@ Additionally, Nekor plans to:
 
 Test cases and Miri runs are performed in every CI cycle. Due to longer execution times, Creusot is run on each git tag (and thus release candidate) {TBD}.
 
-This is the required feature baseline for the first usable release.
+This is the required feature baseline for the first usable release, before that, this *remains explicitly Work-in-Progress*, so parts of the implementation may be incomplete or stubbed with a `TODO`.
 
 # Licensing
 
