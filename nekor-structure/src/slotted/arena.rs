@@ -15,19 +15,6 @@ use nekor_sync::atomic::bitmap::{
 
 use crate::slotted::state::{InitializationState, ReserveState, SlotIndex, SlotState};
 
-/// Find the lowest zero bit in a bitmap word.
-#[inline]
-const fn lowest_zero(target_value: usize) -> Option<u32> {
-    const USIZE_BITS: u32 = usize::BITS;
-
-    match usize::trailing_ones(target_value) {
-        // NOTE: A value with `K` trailing ones has its lowest zero at index `K`.
-        lowest_index @ 0..USIZE_BITS => Some(lowest_index),
-        // NOTE: Every bit is set.
-        USIZE_BITS.. => None,
-    }
-}
-
 /// A thread-safe arena for allocation and deallocation of values of type `T`.
 // NOTE(invariant): Reservation and initialization bits correspond positionally to the storage
 // array, and an initialized bit means that slot contains a live `T`.
@@ -87,6 +74,19 @@ where
     /// actually needed.
     #[inline]
     pub fn reserve(&self) -> Option<Reserve<'_>> {
+        /// Find the lowest zero bit in a bitmap word.
+        #[inline]
+        const fn lowest_zero(target_value: usize) -> Option<u32> {
+            const USIZE_BITS: u32 = usize::BITS;
+
+            match usize::trailing_ones(target_value) {
+                // NOTE: A value with `K` trailing ones has its lowest zero at index `K`.
+                lowest_index @ 0..USIZE_BITS => Some(lowest_index),
+                // NOTE: Every bit is set.
+                USIZE_BITS.. => None,
+            }
+        }
+
         let Self { arena_state, .. } = self;
 
         let reserve_state = SlotState::reserve(arena_state);
@@ -319,17 +319,17 @@ impl<T> Drop for InArena<'_, T> {
         // `InArena` type.
         let target_value = unsafe { MaybeUninit::assume_init_read(target_value) };
 
-        // SAFETY: This handle exclusively owns the value in the slot, and the
-        // slot cannot be reused until the initialization and reservation bits
-        // are cleared afterwards.
-        unsafe { ptr::drop_in_place(ptr::from_mut(target_value)) };
-
-        // NOTE: This mirrors the slotted teardown order: the initialization
-        // bit is cleared first, and the reservation bit is cleared by the
-        // `Reserve` field drop that follows.
+        // NOTE: We deinitialize before dropping the arena element, as their `Drop` implementation
+        // may panic.
         let _: Snapshot = InitializationState::bitmap(initialization_state)
             .at(Reserve::index(target_reserve))
             .zero::<Cooperative>();
+
+        // SAFETY: This handle exclusively owns the initialized value.
+        // The initialization bit has been cleared, but the reservation
+        // remains held until `Reserve` is dropped, preventing concurrent
+        // reuse of the slot while `T::drop` executes.
+        unsafe { ptr::drop_in_place(ptr::from_mut(target_value)) };
     }
 }
 
