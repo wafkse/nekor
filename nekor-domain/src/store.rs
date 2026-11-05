@@ -324,9 +324,9 @@ impl Static {
         impl Drop for Guard<'_> {
             #[inline]
             fn drop(&mut self) {
-                let &mut Self(target_header, disarmed) = self;
+                let &mut Self(target_header, guard_disable) = self;
 
-                if !disarmed {
+                if !guard_disable {
                     // SAFETY: The stored stage is not the `Initialized` variant.
                     unsafe { target_header.store(InitializationStage::Uninitialized) };
                 }
@@ -353,9 +353,9 @@ impl Static {
 
                 // NOTE(drop): No failure point remains, so explicitly disarm
                 // the `Guard` before it is dropped.
-                let &mut Guard(_, ref mut disarmed) = &mut target_guard;
+                let &mut Guard(.., ref mut guard_disable) = &mut target_guard;
 
-                *disarmed = true;
+                *guard_disable = true;
 
                 // SAFETY: The value associated has been initialized.
                 unsafe { value_header.store(InitializationStage::Initialized) };
@@ -432,6 +432,6 @@ mod tests {
         let st: &'static usize = Static::value(18273).anyhow();
         let st2: &'static usize = Initialized::anyhow(&Static::value(18273));
 
-        println!("{:?}, {:?}", ptr::from_ref(st), ptr::from_ref(st2));
+        println!("{:?}, {:?}, {st:?}", ptr::from_ref(st), ptr::from_ref(st2));
     }
 }
