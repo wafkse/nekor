@@ -179,13 +179,13 @@ pub struct Polling<'a, T, P: Tier> {
     monitor: &'a Monitor<T>,
 
     /// Optimistic retries remaining.
-    remaining: usize,
+    retry_count: usize,
 
     /// Backoff progression across waits.
     backoff_state: BackoffState,
 
     /// The compile-time retry tier.
-    tier: marker::PhantomData<P>,
+    marker: marker::PhantomData<P>,
 }
 
 impl<'a, T, P: Tier> Polling<'a, T, P> {
@@ -200,9 +200,9 @@ impl<'a, T, P: Tier> Polling<'a, T, P> {
     pub const fn with_backoff(monitor: &'a Monitor<T>, backoff: Backoff) -> Self {
         Self {
             monitor,
-            remaining: P::RETRIES,
+            retry_count: P::RETRIES,
             backoff_state: backoff.state(),
-            tier: marker::PhantomData,
+            marker: marker::PhantomData,
         }
     }
 
@@ -213,29 +213,31 @@ impl<'a, T, P: Tier> Polling<'a, T, P> {
     #[inline]
     pub fn until<R>(&mut self, mut target_closure: impl FnMut(&T) -> Attempt<R>) -> R {
         let &mut Self {
-            monitor,
-            ref mut remaining,
+            monitor: target_parent,
+            retry_count: ref mut remaining,
             ref mut backoff_state,
             ..
         } = self;
 
         loop {
-            match target_closure(monitor) {
+            match target_closure(target_parent) {
                 Attempt::Ready(target_outcome) => break target_outcome,
                 Attempt::Pending => (),
             }
 
             if *remaining != 0 {
                 *remaining -= 1;
+
                 hint::spin_loop();
+
                 continue;
             }
 
-            let engaged = monitor.engage();
+            let target_engaged = target_parent.engage();
 
-            match target_closure(monitor) {
-                Attempt::Ready(result) => break result,
-                Attempt::Pending => engaged.wait(backoff_state),
+            match target_closure(target_parent) {
+                Attempt::Ready(target_outcome) => break target_outcome,
+                Attempt::Pending => target_engaged.wait(backoff_state),
             }
         }
     }
@@ -351,7 +353,7 @@ mod tests {
         });
 
         assert_eq!(result, 5);
-        assert_eq!(polling.remaining, 0);
+        assert_eq!(polling.retry_count, 0);
     }
 
     #[test]
@@ -406,7 +408,7 @@ mod tests {
         });
 
         assert_eq!(result, 8);
-        assert_eq!(polling.remaining, 0);
+        assert_eq!(polling.retry_count, 0);
     }
 
     #[test]
