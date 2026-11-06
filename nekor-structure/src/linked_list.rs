@@ -477,10 +477,12 @@ where
                 // SAFETY: Reference to non-null pointer coercion is always safe.
                 let list_address = unsafe { NonNull::new_unchecked(self) };
 
+                let marker = marker::PhantomData;
+
                 Some(Inserted::<'a, T> {
-                    node_address,
                     list_address,
-                    marker: marker::PhantomData,
+                    node_address,
+                    marker,
                 })
             },
             (Some(..), ..) | (.., Some(..)) => None,
@@ -538,10 +540,12 @@ where
                 // SAFETY: Reference to non-null pointer coercion is always safe.
                 let list_address = unsafe { NonNull::new_unchecked(self) };
 
+                let marker = marker::PhantomData;
+
                 Some(Inserted::<'a, T> {
-                    node_address,
                     list_address,
-                    marker: marker::PhantomData,
+                    node_address,
+                    marker,
                 })
             },
             (Some(..), ..) | (.., Some(..)) => None,
