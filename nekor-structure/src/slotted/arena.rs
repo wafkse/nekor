@@ -74,19 +74,6 @@ where
     /// actually needed.
     #[inline]
     pub fn reserve(&self) -> Option<Reserve<'_>> {
-        /// Find the lowest zero bit in a bitmap word.
-        #[inline]
-        const fn lowest_zero(target_value: usize) -> Option<u32> {
-            const USIZE_BITS: u32 = usize::BITS;
-
-            match usize::trailing_ones(target_value) {
-                // NOTE: A value with `K` trailing ones has its lowest zero at index `K`.
-                lowest_index @ 0..USIZE_BITS => Some(lowest_index),
-                // NOTE: Every bit is set.
-                USIZE_BITS.. => None,
-            }
-        }
-
         let Self { arena_state, .. } = self;
 
         let reserve_state = SlotState::reserve(arena_state);
@@ -94,8 +81,17 @@ where
         let mut target_state = Retry::unlimited(Backoff::minimal());
 
         loop {
-            let target_slot = AtomicBitmap::at_predicate(ReserveState::bitmap(reserve_state), lowest_zero)
-                .and_then(|at_bit| SlotState::<N>::index(&at_bit).map(|slot_index| (at_bit, slot_index)));
+            let target_slot = AtomicBitmap::at_predicate(ReserveState::bitmap(reserve_state), |target_value| {
+                const USIZE_BITS: u32 = usize::BITS;
+
+                match usize::trailing_ones(target_value) {
+                    // NOTE: A value with `K` trailing ones has its lowest zero at index `K`.
+                    lowest_index @ 0..USIZE_BITS => Some(lowest_index),
+                    // NOTE: Every bit is set.
+                    USIZE_BITS.. => None,
+                }
+            })
+            .and_then(|at_bit| SlotState::<N>::index(&at_bit).map(|slot_index| (at_bit, slot_index)));
 
             match target_slot {
                 Some((at_bit, slot_index)) => match at_bit.one_with::<Exclusive>(&mut target_state) {
