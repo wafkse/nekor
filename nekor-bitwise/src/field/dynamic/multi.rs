@@ -179,41 +179,38 @@ macro_rules! constant {
     ($($target_type:ident),* $(,)?) => {
         crate::reexport::tokel::stream! {
             $(
-            impl FieldDyn<'_, $target_type> {
-                /// A const-compatible counterpart of [`FieldDyn::value()`].
-                #[inline]
-                #[must_use]
-                pub const fn const_value(&self) -> $target_type {
-                    let &Self(target_value, target_interval) = self;
+                impl FieldDyn<'_, $target_type> {
+                    /// A const-compatible counterpart of [`FieldDyn::value()`].
+                    #[inline]
+                    #[must_use]
+                    pub const fn const_value(&self) -> $target_type {
+                        let &Self(target_value, target_interval) = self;
 
-                    Extractor::<$target_type>::extract(target_value, target_interval)
-                }
-            }
-
-            impl FieldDynMut<'_, $target_type> {
-                /// A const-compatible counterpart of [`FieldDynMut::value()`].
-                #[inline]
-                #[must_use]
-                pub const fn const_value(&self) -> $target_type {
-                    let &Self(ref target_value, target_interval) = self;
-
-                    Extractor::<$target_type>::extract(target_value, target_interval)
+                        Extractor::<$target_type>::extract(target_value, target_interval)
+                    }
                 }
 
-                /// A const-compatible counterpart of [`FieldDynMut::merge()`].
-                #[inline]
-                #[must_use]
-                pub const fn const_merge(&mut self, target_input: $target_type) -> $target_type {
-                    let &mut Self(ref mut target_value, target_interval) = self;
+                impl FieldDynMut<'_, $target_type> {
+                    /// A const-compatible counterpart of [`FieldDynMut::value()`].
+                    #[inline]
+                    #[must_use]
+                    pub const fn const_value(&self) -> $target_type {
+                        let &Self(ref target_value, target_interval) = self;
 
-                    Extractor::<$target_type>::merge(target_value, target_interval, target_input)
+                        Extractor::<$target_type>::extract(target_value, target_interval)
+                    }
+
+                    /// A const-compatible counterpart of [`FieldDynMut::merge()`].
+                    #[inline]
+                    #[must_use]
+                    pub const fn const_merge(&mut self, target_input: $target_type) -> $target_type {
+                        let &mut Self(ref mut target_value, target_interval) = self;
+
+                        Extractor::<$target_type>::merge(target_value, target_interval, target_input)
+                    }
                 }
-            }
-
             )*
         }
-
-
     };
 }
 

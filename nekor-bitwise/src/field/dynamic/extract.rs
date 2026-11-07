@@ -35,65 +35,65 @@ macro_rules! extractor {
     ) => {
         crate::reexport::tokel::stream! {
             $(
-            impl Extractor<$target_type> {
-                /// The source-positioned mask of the selected interval.
-                #[inline]
-                #[must_use]
-                pub const fn mask(target_interval: Interval<$target_type>) -> $target_type {
-                    let target_width = target_interval.end() - target_interval.start() + 1;
-                    let target_mask = <$target_unsigned>::MAX >> (<$target_unsigned>::BITS - target_width);
-                    let target_mask = target_mask << target_interval.start();
+                impl Extractor<$target_type> {
+                    /// The source-positioned mask of the selected interval.
+                    #[inline]
+                    #[must_use]
+                    pub const fn mask(target_interval: Interval<$target_type>) -> $target_type {
+                        let target_width = target_interval.end() - target_interval.start() + 1;
+                        let target_mask = <$target_unsigned>::MAX >> (<$target_unsigned>::BITS - target_width);
+                        let target_mask = target_mask << target_interval.start();
 
-                    <$target_type>::from_ne_bytes(target_mask.to_ne_bytes())
+                        <$target_type>::from_ne_bytes(target_mask.to_ne_bytes())
+                    }
+
+                    /// A const-compatible counterpart of [`Extract::extract()`].
+                    #[inline]
+                    #[must_use]
+                    pub const fn extract(target_value: &$target_type, target_interval: Interval<$target_type>) -> $target_type {
+                        let target_mask = Self::mask(target_interval);
+                        let target_mask = <$target_unsigned>::from_ne_bytes(target_mask.to_ne_bytes());
+                        let target_value = <$target_unsigned>::from_ne_bytes(target_value.to_ne_bytes());
+
+                        let target_value = target_value & target_mask;
+                        let target_value = target_value >> target_interval.start();
+
+                        <$target_type>::from_ne_bytes(target_value.to_ne_bytes())
+                    }
+
+                    /// A const-compatible counterpart of [`Extract::merge()`].
+                    ///
+                    /// This returns the previous field value, discards excess input bits,
+                    /// and preserves every source bit outside the selected interval.
+                    #[inline]
+                    pub const fn merge(target_existing: &mut $target_type, target_interval: Interval<$target_type>, target_input: $target_type) -> $target_type {
+                        let existing_value = Self::extract(target_existing, target_interval);
+                        let target_mask = Self::mask(target_interval);
+                        let target_mask = <$target_unsigned>::from_ne_bytes(target_mask.to_ne_bytes());
+                        let existing_bits = <$target_unsigned>::from_ne_bytes(target_existing.to_ne_bytes());
+                        let target_value = <$target_unsigned>::from_ne_bytes(target_input.to_ne_bytes());
+
+                        let target_value = target_value << target_interval.start();
+                        let target_value = target_value & target_mask;
+                        let target_value = target_value | (existing_bits & !target_mask);
+
+                        *target_existing = <$target_type>::from_ne_bytes(target_value.to_ne_bytes());
+
+                        existing_value
+                    }
                 }
 
-                /// A const-compatible counterpart of [`Extract::extract()`].
-                #[inline]
-                #[must_use]
-                pub const fn extract(target_value: &$target_type, target_interval: Interval<$target_type>) -> $target_type {
-                    let target_mask = Self::mask(target_interval);
-                    let target_mask = <$target_unsigned>::from_ne_bytes(target_mask.to_ne_bytes());
-                    let target_value = <$target_unsigned>::from_ne_bytes(target_value.to_ne_bytes());
+                impl Extract for $target_type {
+                    #[inline]
+                    fn extract(&self, target_interval: Interval<Self>) -> Self {
+                        Extractor::<Self>::extract(self, target_interval)
+                    }
 
-                    let target_value = target_value & target_mask;
-                    let target_value = target_value >> target_interval.start();
-
-                    <$target_type>::from_ne_bytes(target_value.to_ne_bytes())
+                    #[inline]
+                    fn merge(&mut self, target_interval: Interval<Self>, target_input: Self) -> Self {
+                        Extractor::<Self>::merge(self, target_interval, target_input)
+                    }
                 }
-
-                /// A const-compatible counterpart of [`Extract::merge()`].
-                ///
-                /// This returns the previous field value, discards excess input bits,
-                /// and preserves every source bit outside the selected interval.
-                #[inline]
-                pub const fn merge(target_existing: &mut $target_type, target_interval: Interval<$target_type>, target_input: $target_type) -> $target_type {
-                    let existing_value = Self::extract(target_existing, target_interval);
-                    let target_mask = Self::mask(target_interval);
-                    let target_mask = <$target_unsigned>::from_ne_bytes(target_mask.to_ne_bytes());
-                    let existing_bits = <$target_unsigned>::from_ne_bytes(target_existing.to_ne_bytes());
-                    let target_value = <$target_unsigned>::from_ne_bytes(target_input.to_ne_bytes());
-
-                    let target_value = target_value << target_interval.start();
-                    let target_value = target_value & target_mask;
-                    let target_value = target_value | (existing_bits & !target_mask);
-
-                    *target_existing = <$target_type>::from_ne_bytes(target_value.to_ne_bytes());
-
-                    existing_value
-                }
-            }
-
-            impl Extract for $target_type {
-                #[inline]
-                fn extract(&self, target_interval: Interval<Self>) -> Self {
-                    Extractor::<Self>::extract(self, target_interval)
-                }
-
-                #[inline]
-                fn merge(&mut self, target_interval: Interval<Self>, target_input: Self) -> Self {
-                    Extractor::<Self>::merge(self, target_interval, target_input)
-                }
-            }
             )+
         }
     };

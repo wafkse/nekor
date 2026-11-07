@@ -150,118 +150,118 @@ macro_rules! bits {
         [$($target_index:literal),*] for $target_type:ident
     ) => {
         crate::reexport::tokel::stream! {
-        impl Bitwise for $target_type {
-            const BITS: u32 = Self::BITS;
-        }
-
-        impl BitOp for $target_type
-        where
-            Self: Scalar,
-        {
-            #[inline]
-            fn single(target_indice: Selected<Self>) -> Self {
-                1 << target_indice.index()
+            impl Bitwise for $target_type {
+                const BITS: u32 = Self::BITS;
             }
 
-            #[inline]
-            fn set(&mut self, target_indice: Selected<Self>, target_state: State) -> State {
-                let set_state = <Self as BitOp>::get(self, target_indice);
-
-                match target_state {
-                    State::Set => {
-                        *self |= <Self as BitOp>::single(target_indice);
-                    }
-
-                    State::Cleared => {
-                        *self &= !<Self as BitOp>::single(target_indice);
-                    }
-                }
-
-                set_state
-            }
-
-            #[inline]
-            fn get(&self, target_indice: Selected<Self>) -> State {
-                let target_bit = *self & <Self as BitOp>::single(target_indice);
-
-                match target_bit {
-                    0 => State::Cleared,
-                    _ => State::Set,
-                }
-            }
-
-        }
-
-        impl<const N: usize> BitAtExtractor<N, $target_type>
-            where $target_type: BitAt<N>
-        {
-            const TARGET_MASK: $target_type = 1 << N;
-
-            /// A const-fn version of the [`BitAt::single`] associated function.
-            #[inline]
-            pub const fn single() -> $target_type {
-                Self::TARGET_MASK
-            }
-
-            /// A const-fn version of the [`BitAt::set`] associated function.
-            #[inline]
-            pub const fn set(target_value: &mut $target_type, target_state: State) -> State {
-                let set_state = Self::get(target_value);
-
-                match target_state {
-                    State::Set => {
-                        *target_value |= Self::TARGET_MASK;
-                    }
-
-                    State::Cleared => {
-                        *target_value &= !Self::TARGET_MASK;
-                    }
-                }
-
-                set_state
-            }
-
-            /// A const-fn version of the [`BitAt::get`] associated function.
-            #[inline]
-            pub const fn get(target_value: &$target_type) -> State {
-                let target_bit = *target_value & Self::TARGET_MASK;
-
-                match target_bit {
-                    0 => State::Cleared,
-                    _ => State::Set,
-                }
-            }
-
-            /// A const-fn version of the [`BitAt::toggle`] associated function.
-            #[inline]
-            pub const fn toggle(target_value: &mut $target_type) -> State {
-                let target_state = Self::get(target_value);
-
-                Self::set(target_value, State::complement(&target_state))
-            }
-        }
-
-        $(
-            impl BitAt<{ $target_index }> for $target_type
+            impl BitOp for $target_type
             where
                 Self: Scalar,
             {
                 #[inline]
-                fn single() -> Self {
-                    BitAtExtractor::<$target_index, $target_type>::single()
+                fn single(target_indice: Selected<Self>) -> Self {
+                    1 << target_indice.index()
                 }
 
                 #[inline]
-                fn set(&mut self, target_state: State) -> State {
-                    BitAtExtractor::<$target_index, $target_type>::set(self, target_state)
+                fn set(&mut self, target_indice: Selected<Self>, target_state: State) -> State {
+                    let set_state = <Self as BitOp>::get(self, target_indice);
+
+                    match target_state {
+                        State::Set => {
+                            *self |= <Self as BitOp>::single(target_indice);
+                        }
+
+                        State::Cleared => {
+                            *self &= !<Self as BitOp>::single(target_indice);
+                        }
+                    }
+
+                    set_state
                 }
 
                 #[inline]
-                fn get(&self) -> State {
-                    BitAtExtractor::<$target_index, $target_type>::get(self)
+                fn get(&self, target_indice: Selected<Self>) -> State {
+                    let target_bit = *self & <Self as BitOp>::single(target_indice);
+
+                    match target_bit {
+                        0 => State::Cleared,
+                        _ => State::Set,
+                    }
+                }
+
+            }
+
+            impl<const N: usize> BitAtExtractor<N, $target_type>
+                where $target_type: BitAt<N>
+            {
+                const TARGET_MASK: $target_type = 1 << N;
+
+                /// A const-fn version of the [`BitAt::single`] associated function.
+                #[inline]
+                pub const fn single() -> $target_type {
+                    Self::TARGET_MASK
+                }
+
+                /// A const-fn version of the [`BitAt::set`] associated function.
+                #[inline]
+                pub const fn set(target_value: &mut $target_type, target_state: State) -> State {
+                    let set_state = Self::get(target_value);
+
+                    match target_state {
+                        State::Set => {
+                            *target_value |= Self::TARGET_MASK;
+                        }
+
+                        State::Cleared => {
+                            *target_value &= !Self::TARGET_MASK;
+                        }
+                    }
+
+                    set_state
+                }
+
+                /// A const-fn version of the [`BitAt::get`] associated function.
+                #[inline]
+                pub const fn get(target_value: &$target_type) -> State {
+                    let target_bit = *target_value & Self::TARGET_MASK;
+
+                    match target_bit {
+                        0 => State::Cleared,
+                        _ => State::Set,
+                    }
+                }
+
+                /// A const-fn version of the [`BitAt::toggle`] associated function.
+                #[inline]
+                pub const fn toggle(target_value: &mut $target_type) -> State {
+                    let target_state = Self::get(target_value);
+
+                    Self::set(target_value, State::complement(&target_state))
                 }
             }
-        )+
+
+            $(
+                impl BitAt<{ $target_index }> for $target_type
+                where
+                    Self: Scalar,
+                {
+                    #[inline]
+                    fn single() -> Self {
+                        BitAtExtractor::<$target_index, $target_type>::single()
+                    }
+
+                    #[inline]
+                    fn set(&mut self, target_state: State) -> State {
+                        BitAtExtractor::<$target_index, $target_type>::set(self, target_state)
+                    }
+
+                    #[inline]
+                    fn get(&self) -> State {
+                        BitAtExtractor::<$target_index, $target_type>::get(self)
+                    }
+                }
+            )+
         }
     };
 }
