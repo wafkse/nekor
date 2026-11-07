@@ -3,6 +3,11 @@
 use core::{marker, mem::MaybeUninit, pin::Pin, ptr};
 
 /// A base-relative pointer to an instance of `T`.
+///
+/// # Drop
+///
+/// This type posesses no [`Drop`] requirement, i.e., it has no explicit [`Drop`] trait
+/// implementation.
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
 // NOTE(invariant): Once pinned, the stored pointer value is the byte-relative offset from this
@@ -14,8 +19,13 @@ impl<T> RelPtr<T> {
     /// instance of `T`.
     ///
     /// The final value is written to a maybe-unintialized [`RelPtr`].
+    ///
+    /// # Safety
+    ///
+    /// The provided [`MaybeUninit`] is required to be non-initialized, as re-initialization
+    /// won't invoke the compiler-generated [`Drop`] implementation.
     #[inline]
-    pub fn new(target_base: Pin<&mut MaybeUninit<Self>>, target_value: *const T) -> Pin<&mut Self> {
+    pub unsafe fn new(target_base: Pin<&mut MaybeUninit<Self>>, target_value: *const T) -> Pin<&mut Self> {
         let base_address = target_base.as_ptr().addr();
 
         let target_relative = target_value.wrapping_byte_sub(base_address);
@@ -35,7 +45,7 @@ impl<T> RelPtr<T> {
 
     /// Translate a base-relative pointer to a `T` to a regular pointer.
     ///
-    /// # Safety
+    /// # Notes
     ///
     /// This operation is always safe, but using the resulting pointer is not.
     #[inline]
@@ -52,6 +62,11 @@ impl<T> RelPtr<T> {
 }
 
 /// A base-relative mutable pointer to an instance of `T`.
+///
+/// # Drop
+///
+/// This type posesses no [`Drop`] requirement, i.e., it has no explicit [`Drop`] trait
+/// implementation.
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(transparent)]
 // NOTE(invariant): Once pinned, the stored pointer value is the byte-relative offset from this
@@ -63,8 +78,13 @@ impl<T> RelPtrMut<T> {
     /// instance of `T`.
     ///
     /// The final value is written to a maybe-unintialized [`RelPtrMut`].
+    ///
+    /// # Safety
+    ///
+    /// The provided [`MaybeUninit`] is required to be non-initialized, as re-initialization
+    /// won't invoke the compiler-generated [`Drop`] implementation.
     #[inline]
-    pub fn new(target_base: Pin<&mut MaybeUninit<Self>>, target_value: *mut T) -> Pin<&mut Self> {
+    pub unsafe fn new(target_base: Pin<&mut MaybeUninit<Self>>, target_value: *mut T) -> Pin<&mut Self> {
         let base_address = target_base.as_ptr().addr();
 
         let target_relative = target_value.wrapping_byte_sub(base_address);
@@ -84,7 +104,7 @@ impl<T> RelPtrMut<T> {
 
     /// Translate a base-relative pointer to a `T` to a regular pointer.
     ///
-    /// # Safety
+    /// # Notes
     ///
     /// This operation is always safe, but using the resulting pointer is not.
     #[inline]
@@ -99,3 +119,16 @@ impl<T> RelPtrMut<T> {
         relative_pointer.wrapping_byte_add(base_address)
     }
 }
+
+// NOTE: Require that [`Drop::drop`] is insignificant for both relative-pointer structures.
+const _: () = {
+    assert!(
+        !core::mem::needs_drop::<RelPtr<u8>>(),
+        "RelPtr shouldn't require drop glue"
+    );
+
+    assert!(
+        !core::mem::needs_drop::<RelPtrMut<u8>>(),
+        "RelMutPtr shouldn't require drop glue"
+    );
+};
