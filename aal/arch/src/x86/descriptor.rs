@@ -141,7 +141,10 @@ impl DescriptorIndex {
 
         match target_index.get() {
             1..=MAX => Some(Self(target_index)),
+            // NOTE(unreachable): Not reachable, as the target index was acquired from
+            // `NonZero<u16>`.
             0 => unreachable!(),
+            // NOTE: The descriptor index is out-of-bounds.
             _ => None,
         }
     }
@@ -157,7 +160,7 @@ impl DescriptorIndex {
     #[must_use]
     pub const unsafe fn new_unchecked(target_index: u16) -> Self {
         Self(
-            // SAFETY: `DescriptorIndex::MIN` mirrors `Nonzero::MIN`.
+            // SAFETY: `DescriptorIndex::MIN` mirrors `NonZero::MIN`.
             unsafe { NonZero::new_unchecked(target_index) },
         )
     }
