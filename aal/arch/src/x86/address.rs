@@ -9,7 +9,7 @@ use crate::x86::mode::{Mode, Native};
 /// # Remarks
 ///
 /// This is a [`Mode`]-agnostic way to represent an address. This type is not
-/// meant to be a general-purpose pointer type
+/// meant to be a general-purpose pointer type.
 #[repr(transparent)]
 #[derive(Debug)]
 // NOTE(invariant): The address uses `B`'s representation and the marker prevents `Send` and `Sync`.
