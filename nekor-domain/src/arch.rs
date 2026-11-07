@@ -348,6 +348,7 @@ where
 #[unsafe(link_section = concat!(env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".offset"))]
 #[unsafe(naked)]
 // NOTE(rationale): The architecture storage symbol is shared with its parent module.
+// FIXME: Use "custom" callconv once stable.
 pub(super) unsafe extern "C" fn storage<T>() -> !
 where
     T: Store,
@@ -361,7 +362,8 @@ where
         // SAFETY(1): Relative offset to actual storage bytes.
         ".{pointer_width}byte 2f - .",
         concat!(
-            ".pushsection ", env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".typename.{id_monomorphic}", ", \"aw\", @progbits"
+            // NOTE: Apply SHF_GNU_RETAIN to the input section.
+            ".pushsection ", env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".typename.{id_monomorphic}", ", \"awR\", @progbits"
         ),
         ".balign {type_alignment}",
         "2:",
