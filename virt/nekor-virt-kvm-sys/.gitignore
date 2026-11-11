@@ -1,7 +1,9 @@
+# Ignore the checked-out auto-generated source files.
 /checkout/lts/
 /checkout/stable/
 /checkout/header/
 /checkout/target/
+/compile_commands.json
 
 # NOTE: Unignore the `.ignore` file.
 !.ignore

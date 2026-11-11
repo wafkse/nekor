@@ -7,11 +7,11 @@ use core::{fmt, slice};
 /// A zero-sized flexible array member aligned for its element type.
 ///
 /// Place it last in a `repr(C)` record. The enclosing allocation owns the trailing
-/// storage, which begins at the member offset rather than after any record tail
-/// padding. The marker neither allocates nor drops trailing elements.
+/// storage, which begins at the member offset, before any record tail padding. The marker neither
+/// allocates nor drops trailing elements.
 #[repr(C)]
 // NOTE(invariant): None.
-pub struct Fam<Element>([Element; 0]);
+pub struct Fam<Element>([Element; usize::MIN]);
 
 impl<Element> Fam<Element> {
     /// Construct the marker without allocating or initializing its trailing array.
@@ -39,13 +39,17 @@ impl<Element> Fam<Element> {
     ///
     /// # Safety
     ///
-    /// The safety requirements of [`slice::from_raw_parts()`] apply to the
-    /// trailing region for the requested element count and returned lifetime.
+    /// For soundness purposes, the following must be satisfied:
+    ///
+    /// * The trailing storage must satisfy the requirements of [`slice::from_raw_parts()`] for the
+    ///   requested element count and returned lifetime.
     #[inline]
     #[must_use]
     pub const unsafe fn slice<'value>(member_pointer: *const Self, element_count: usize) -> &'value [Element] {
-        // SAFETY: The cast preserves provenance. The caller guarantees the
-        // storage and shared borrowing requirements of `from_raw_parts`.
+        // SAFETY:
+        //
+        // * The cast preserves provenance. The caller guarantees the storage and shared borrowing
+        //   requirements of `from_raw_parts`.
         unsafe { slice::from_raw_parts(Self::pointer(member_pointer), element_count) }
     }
 
@@ -53,13 +57,17 @@ impl<Element> Fam<Element> {
     ///
     /// # Safety
     ///
-    /// The safety requirements of [`slice::from_raw_parts_mut()`] apply to the
-    /// trailing region for the requested element count and returned lifetime.
+    /// For soundness purposes, the following must be satisfied:
+    ///
+    /// * The trailing storage must satisfy the requirements of [`slice::from_raw_parts_mut()`] for
+    ///   the requested element count and returned lifetime.
     #[inline]
     #[must_use]
     pub const unsafe fn slice_mut<'value>(member_pointer: *mut Self, element_count: usize) -> &'value mut [Element] {
-        // SAFETY: The cast preserves provenance. The caller guarantees the
-        // storage and exclusive borrowing requirements of `from_raw_parts_mut`.
+        // SAFETY:
+        //
+        // * The cast preserves provenance. The caller guarantees the storage and exclusive
+        //   borrowing requirements of `from_raw_parts_mut`.
         unsafe { slice::from_raw_parts_mut(Self::pointer_mut(member_pointer), element_count) }
     }
 }
