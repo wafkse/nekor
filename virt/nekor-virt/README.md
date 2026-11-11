@@ -18,4 +18,4 @@ Backend mechanisms and individual component state remain in their owning crates.
 
 ## Status
 
-No facade API is implemented yet.
+Component and native hypervisor APIs are exposed through named namespaces.

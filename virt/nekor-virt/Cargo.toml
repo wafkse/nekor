@@ -14,10 +14,15 @@ categories.workspace = true
 nekor-virt-abi = { version = "0.1.0", path = "../nekor-virt-abi" }
 nekor-virt-access = { version = "0.1.0", path = "../nekor-virt-access" }
 nekor-virt-address = { version = "0.1.0", path = "../nekor-virt-address" }
+nekor-virt-arch = { version = "0.1.0", path = "../nekor-virt-arch" }
 nekor-virt-model = { version = "0.1.0", path = "../nekor-virt-model" }
 nekor-virt-hypercall = { version = "0.1.0", path = "../nekor-virt-hypercall" }
 nekor-virt-hypervisor = { version = "0.1.0", path = "../nekor-virt-hypervisor" }
+nekor-virt-kvm = { version = "0.1.0", path = "../nekor-virt-kvm" }
 nekor-virt-memory = { version = "0.1.0", path = "../nekor-virt-memory" }
+nekor-virt-ioport = { version = "0.1.0", path = "../nekor-virt-ioport" }
+nekor-virt-mmio = { version = "0.1.0", path = "../nekor-virt-mmio" }
+nekor-virt-whp = { version = "0.1.0", path = "../nekor-virt-whp" }
 nekor-virt-provide = { version = "0.1.0", path = "../nekor-virt-provide" }
 
 [lints]
