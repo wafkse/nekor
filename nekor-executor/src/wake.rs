@@ -65,8 +65,7 @@ use crate::task::Task;
 // Since the never type, Allocator, the Polonius solver and universally 8-byte-aligned
 // RawWakerVTable structures are coming soon, I'd say that Nekor could set its MSRV to 1.101.
 //
-// But now that Allocator is here, I'd say that restructuring in respect to the new Rust changes is
-// a much better approach rather than keep going with out custom allocator version.
+// Now that Allocator is available, I'd restructure the allocator around the current Rust APIs.
 
 /// The address field reserved for a [`WakeClass`] code.
 type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
@@ -334,7 +333,7 @@ impl WakeTarget {
     unsafe fn from_raw(target_pointer: NonNull<()>) -> Self {
         let target_address = target_pointer.as_ptr().addr();
 
-        // SAFETY: The caller retains the packed address from `raw`, whose reserved
+        // SAFETY: The caller supplies the packed address returned by `raw`, whose reserved
         // field contains an assigned nonzero code from `WakeClass::encode`.
         let target_code = unsafe { NonZero::new_unchecked(WakeClass::read(target_address)) };
 
@@ -527,7 +526,7 @@ mod tests {
         }
     }
 
-    /// Erased data retains its address and provenance through tagged pointer recovery.
+    /// Tagged pointer recovery preserves the erased data address and provenance.
     #[test]
     fn packed_target_round_trips_erased_data() {
         let counter = AlignedCounter::new();
@@ -575,7 +574,7 @@ mod tests {
         assert!(WakeClass::decode(NonZero::<usize>::MAX).is_none());
     }
 
-    /// Atomic lowering retains the nonzero tag and the original static data pointer.
+    /// Atomic lowering preserves the nonzero tag and original static data pointer.
     #[test]
     fn packed_target_round_trips_atomic_storage() {
         let counter = AlignedCounter::new();

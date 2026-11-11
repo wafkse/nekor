@@ -9,7 +9,7 @@
   is `panic=abort`, and unwinding is done via mandatory frame pointers.
 
   This is also required to force Cargo to treat userspace kernel compilation as a regular cross compile, as `config.toml` configuration applies to all crates built for the host
-  when targeting a built-in target triple. This makes sure that we only force the userspace kernel version to use our custom build configuration, rather than all crates built for the host.
+  when targeting a built-in target triple. This applies the custom build configuration only to the userspace kernel. Other crates built for the host use the host configuration.
 -#}
 {
   "arch": "x86_64",

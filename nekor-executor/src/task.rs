@@ -157,7 +157,7 @@ unsafe impl Sync for Task {}
 ///
 /// For a sole task, it is equivalent to a 1-sized [`Arena`].
 #[repr(transparent)]
-// NOTE(invariant): The arena retains at most `N` future slots with their reservation state.
+// NOTE(invariant): The arena owns at most `N` future slots and records their reservation state.
 pub struct TaskPool<F, const N: usize>(Arena<F, N>)
 where
     F: Future,

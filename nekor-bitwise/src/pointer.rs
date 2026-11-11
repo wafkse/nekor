@@ -15,7 +15,7 @@
 //! safety guarantee when constructing a [`TaggedPtr`].
 //!
 //! This module currently supports thin raw pointers and [`NonNull`]. Tagging
-//! retains pointer provenance, but does not establish a borrow, allocation
+//! preserves pointer provenance, but does not establish a borrow, allocation
 //! ownership, or permission to dereference the recovered pointer.
 
 use core::{marker::PhantomData, mem, num::NonZero, ptr::NonNull};
@@ -117,8 +117,7 @@ impl<V> Pointer for NonNull<V> {
 ///
 /// Not every nonzero integer needs to represent a tag. An enum, for example,
 /// may assign only `1` and `5`, leaving the other patterns unassigned.
-/// [`Bijection::decode()`] rejects those patterns rather than requiring dummy
-/// variants to represent them.
+/// [`Bijection::decode()`] returns `None` for unassigned patterns.
 ///
 /// The encoded pattern need not equal an enum's discriminant or a newtype's
 /// underlying value. In particular, a logical zero is permitted as long as its
@@ -186,7 +185,7 @@ pub unsafe trait Tag: Bijection {
 
 /// A pointee type whose alignment leaves sufficient address bits for `T`.
 ///
-/// This marker applies to the pointee rather than a particular pointer type.
+/// This marker describes the pointee's alignment.
 /// Its guarantee is shared by `*const Self`, `*mut Self`, and [`NonNull<Self>`](NonNull).
 /// Use [`taggable!`] to check the alignment and implement the marker.
 ///
@@ -319,7 +318,7 @@ pub use crate::taggable;
 ///
 /// Stored tag patterns are always nonzero. A raw null pointer can therefore
 /// have a nonzero tagged address, but still recover to null when its tag bits
-/// are cleared. A [`NonNull`] pointer retains its non-nullness on recovery.
+/// are cleared. Recovery of a [`NonNull`] pointer produces a non-null pointer.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 // NOTE(invariant): The reserved bits contain an assigned nonzero `T` pattern. Clearing them
@@ -398,7 +397,7 @@ where
 
     /// Recover the original pointer without changing the stored tag.
     ///
-    /// The returned pointer retains its provenance and original address. This
+    /// The returned pointer has its original address and provenance. This
     /// does not extend the lifetime of its allocation or authorize dereferencing.
     #[inline]
     #[must_use]
@@ -503,8 +502,7 @@ where
     ///
     /// # Failure
     ///
-    /// Returns `None` for zero or a value exceeding the field width. The input
-    /// is checked rather than truncated.
+    /// Returns `None` for zero or a value exceeding the field width.
     #[inline]
     #[must_use]
     pub fn checked(target_value: usize) -> Option<Self> {
@@ -753,7 +751,7 @@ mod tests {
         assert_eq!(Bits::value(TaggedPtr::tag(tagged)), 7);
     }
 
-    /// Numeric tags reject zero and overflow rather than truncating either input.
+    /// Numeric tags reject zero and values exceeding the field width.
     #[test]
     fn numeric_zero_and_overflow() {
         assert!(Bits::<2>::checked(usize::MIN).is_none());
@@ -820,7 +818,7 @@ mod tests {
         assert!(Bits::<3>::decode(overflow).is_none());
     }
 
-    /// The widest supported field retains every nonzero native address code.
+    /// Every nonzero native address code fits in the widest supported field.
     #[test]
     fn native_width_bijection() {
         type Native = Bits<{ usize::BITS as usize }>;
@@ -943,7 +941,7 @@ mod tests {
         assert_eq!(Pointer::map(nonnull, usize::MIN), None);
     }
 
-    /// Replacing sparse codes retains the non-null base and returns the previous logical state.
+    /// Replacing a sparse code preserves the non-null base and returns the previous logical state.
     #[test]
     fn nonnull_preserved_under_replace() {
         let mut value = Aligned(41);
@@ -967,7 +965,7 @@ mod tests {
         assert_eq!(Mode::read(Pointer::address(packed)), 1);
     }
 
-    /// A null base retains its tag in a nonzero packed address.
+    /// A null base and its tag form a nonzero packed address.
     #[test]
     fn null_base_with_nonzero_encoded_address() {
         let pointer = ptr::null::<Aligned>();
@@ -999,7 +997,8 @@ mod tests {
         assert_eq!(Bits::value(TaggedPtr::tag(tagged)), 7);
     }
 
-    /// Trusted construction retains provenance for reading and writing the recovered pointers.
+    /// Trusted construction preserves provenance for reading and writing through recovered
+    /// pointers.
     #[test]
     fn trusted_provenance_dereference() {
         let value = Aligned(43);
@@ -1015,7 +1014,7 @@ mod tests {
         assert_eq!(previous, Mode::Idle);
         assert_eq!(recovered, pointer);
 
-        // SAFETY: Recovery retains the provenance of the live, initialized `Aligned`.
+        // SAFETY: The recovered pointer has the provenance of the live, initialized `Aligned`.
         assert_eq!(unsafe { recovered.read() }, value);
 
         let mut value = Aligned(47);
@@ -1026,7 +1025,7 @@ mod tests {
         let tagged = unsafe { TaggedPtr::new(pointer, tag) };
         let recovered = TaggedPtr::pointer(tagged);
 
-        // SAFETY: The recovered pointer retains exclusive access to the live `Aligned`.
+        // SAFETY: The recovered pointer has exclusive access to the live `Aligned`.
         unsafe { recovered.write(Aligned(53)) };
 
         assert_eq!(value, Aligned(53));

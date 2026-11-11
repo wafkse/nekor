@@ -635,7 +635,7 @@ where
 
         // NOTE: Comparing the first field's address preserves list identity after destructuring.
         let target_list = target_handle.list_address.as_ptr();
-        // SAFETY: The handle retains a valid list pointer throughout its lifetime. Forming a
+        // SAFETY: The list pointer remains valid throughout the handle's lifetime. Forming a
         // field address does not read or write the pointee.
         let native = ptr::eq(ptr::from_mut(head_node), unsafe {
             ptr::addr_of_mut!((*target_list).head_node)
