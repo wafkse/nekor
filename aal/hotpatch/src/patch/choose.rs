@@ -11,8 +11,9 @@ use crate::patch::{
 
 /// A chosen [`Delegated`] template for a specific [`Delegator`] `D`.
 #[repr(transparent)]
-// NOTE(invariant): The function pointer has the input and output types required by `D`.
-pub struct Chosen<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
+// NOTE(invariant): The System V unwind function pointer has the input and output types required
+// by `D`.
+pub struct Chosen<D, I, O>(extern "sysv64-unwind" fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
     D: Delegator,
     D::Target: Delegated<Input = I, Output = O>;
@@ -28,7 +29,7 @@ where
     where
         U: Delegated<Input = I, Output = O>,
     {
-        Self(U::implementation, marker::PhantomData)
+        Self(U::trampoline, marker::PhantomData)
     }
 
     /// Construct a [`Template`] from this [`Chosen`].
@@ -44,10 +45,7 @@ where
     #[inline]
     #[must_use]
     pub fn patchsite() -> Pin<&'static Patchsite<D, I, O>> {
-        let target_patchsite: unsafe extern "sysv64-unwind" fn(
-            <D::Target as Delegated>::Input,
-        ) -> <D::Target as Delegated>::Output = Patch::<D, D::Value>::patchsite;
-        let target_patchsite: *const ffi::c_void = target_patchsite as *const ffi::c_void;
+        let target_patchsite = Patch::<D, D::Value>::patchsite as *const ffi::c_void;
 
         let target_address: *mut RelPtrMut<Patchsite<D, I, O>> = target_patchsite.cast_mut().cast();
 

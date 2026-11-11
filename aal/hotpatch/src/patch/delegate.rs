@@ -32,15 +32,18 @@ pub unsafe trait Delegated: Pod {
     fn implementation(target_param: Self::Input) -> Self::Output;
 
     /// A trampoline to the [`implementation`] of this [`Delegated`] that uses
-    /// the `extern "sysv64"` (System V ABI) calling convention.
+    /// the `extern "sysv64-unwind"` (System V ABI) calling convention.
     ///
     /// This is to be used for callers that cannot
     /// directly make a call to an `extern "Rust"` (native) ABI function, such
     /// as low-level architectural entry to high-level Rust code.
     ///
+    /// Patch diversions target this trampoline so the ABI and unwind contract
+    /// match the patch entry.
+    ///
     /// [`implementation`]: Delegated::implementation
     #[inline]
-    extern "sysv64" fn trampoline(target_param: Self::Input) -> Self::Output {
+    extern "sysv64-unwind" fn trampoline(target_param: Self::Input) -> Self::Output {
         Self::implementation(target_param)
     }
 }
@@ -81,9 +84,12 @@ pub unsafe trait Delegator: Pod {
 ///
 /// Each [`Delegator`] has a patchsite that diverts calls to a selected [`Delegated`]
 /// implementation. Updating the patchsite atomically guarantees that execution
-/// observes either the previous or the new implementation. A CPU may keep
-/// executing the previous one from its I-cache until the new diversion becomes
-/// visible. Since both implementations have the same input and output types,
+/// observes either the previous or the new implementation.
+///
+/// A CPU may keep executing the previous one from its I-cache until the new diversion becomes
+/// visible.
+///
+/// Since both implementations have the same input and output types,
 /// the interface remains valid even when CPUs observe different delegates.
 /// This permits patching without first quiescing every caller.
 ///
@@ -132,7 +138,7 @@ where
 /// - If it is `true`, the first [`Delegated`] (`T`) is chosen.
 /// - If it is `false`, the second [`Delegated`] (`F`) is chosen.
 #[derive(Debug, Copy, Clone)]
-// NOTE(invariant): The marker retains both delegate types while `S` selects the default branch.
+// NOTE(invariant): The marker identifies both delegate types while `S` selects the default branch.
 pub struct Logical<T, F, const S: bool>(marker::PhantomData<(T, F)>)
 where
     T: Delegated,
