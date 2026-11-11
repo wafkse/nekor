@@ -26,6 +26,9 @@ workspace = true
 [dependencies.nekor-aal-hotpatch]
 workspace = true
 
+[dependencies.nekor-aal-isolate]
+workspace = true
+
 [dependencies.nekor-aal-local]
 workspace = true
 
