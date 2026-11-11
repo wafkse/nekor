@@ -6,16 +6,16 @@ MMIO access
 
 ## Responsibilities
 
-Defines virtualization-facing memory-mapped I/O access concepts.
+Defines guest memory-mapped access descriptions shared by virtualization backends.
 
 ## Architecture
 
-Intended to describe MMIO operations at the boundary between guest execution and peripheral handling.
+Access records preserve guest physical addresses, direction, and transfer width.
 
 ## Boundaries
 
-It does not own device models, guest memory ownership, or backend dispatch.
+Device models and backend exit transport remain separate responsibilities.
 
 ## Status
 
-The crate contains scaffolding only, MMIO contracts remain planned.
+Provides shared x86 MMIO access types.

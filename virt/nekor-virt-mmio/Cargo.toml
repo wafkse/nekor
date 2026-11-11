@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+nekor-virt-address = { version = "0.1.0", path = "../nekor-virt-address" }
 
 [lints]
 workspace = true
