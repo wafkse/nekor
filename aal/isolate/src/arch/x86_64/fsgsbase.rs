@@ -1,8 +1,7 @@
 //! Module to implement accelerated read and restore of "%fs.base"
 //! and "%gs.base" extended segment register bases.
 //!
-//! This contains all the implementations to serve as an unified sub-module
-//! rather than a set of cooperating items.
+//! This module groups the implementations for both segment bases.
 
 use core::{arch, ffi};
 
@@ -82,7 +81,7 @@ unsafe impl Delegated for RdmsrDelegate {
     /// These cannot be implemented in bare Rust as the compiler can use
     /// registers that are not yet saved.
     #[unsafe(naked)]
-    extern "sysv64" fn trampoline(_: Self::Input) -> Self::Output {
+    extern "sysv64-unwind" fn trampoline(_: Self::Input) -> Self::Output {
         // SAFETY: The *Current Privilege Level* is zero, as asserted by the input type.
         arch::naked_asm!(
             "movl ${}, %ecx",
@@ -134,7 +133,7 @@ unsafe impl Delegated for RdFsgsbaseDelegate {
     /// These cannot be implemented in bare Rust as the compiler can use
     /// registers that are not yet saved.
     #[unsafe(naked)]
-    extern "sysv64" fn trampoline(_: Self::Input) -> Self::Output {
+    extern "sysv64-unwind" fn trampoline(_: Self::Input) -> Self::Output {
         // SAFETY:
         // * The `CR4.FSGSBASE` enablement bit is set (*1*).
         // * The [`Fsgsbase`] architectural feature is available.
@@ -204,7 +203,7 @@ unsafe impl Delegated for WrmsrDelegate {
     /// These cannot be implemented in bare Rust as the compiler can use
     /// registers that are not yet saved.
     #[unsafe(naked)]
-    extern "sysv64" fn trampoline(_: Self::Input) -> Self::Output {
+    extern "sysv64-unwind" fn trampoline(_: Self::Input) -> Self::Output {
         // SAFETY: The *Current Privilege Level* is zero.
         arch::naked_asm!(
             "movl ${}, %ecx",
@@ -258,7 +257,7 @@ unsafe impl Delegated for WrFsgsbaseDelegate {
     /// These cannot be implemented in bare Rust as the compiler can use
     /// registers that are not yet saved.
     #[unsafe(naked)]
-    extern "sysv64" fn trampoline(_: Self::Input) -> Self::Output {
+    extern "sysv64-unwind" fn trampoline(_: Self::Input) -> Self::Output {
         // SAFETY:
         // * The `CR4.FSGSBASE` enablement bit is set (*1*).
         // * The [`Fsgsbase`] architectural feature is available.
