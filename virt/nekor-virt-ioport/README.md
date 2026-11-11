@@ -6,16 +6,16 @@ I/O port access
 
 ## Responsibilities
 
-Defines virtualization-facing I/O port access concepts.
+Defines x86 guest port addresses and operation descriptions shared by virtualization backends.
 
 ## Architecture
 
-Intended to describe port operations at a boundary usable by peripheral and backend components.
+Access records retain direction, element width, port, and positive transfer count.
 
 ## Boundaries
 
-It does not own a specific device model or host port-I/O mechanism.
+Device emulation and backend exit handling remain in their owning components.
 
 ## Status
 
-The crate contains scaffolding only, I/O port contracts remain planned.
+Provides shared port and access types.
