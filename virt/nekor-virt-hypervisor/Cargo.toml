@@ -12,8 +12,6 @@ categories.workspace = true
 
 [dependencies]
 nekor-virt-model = { version = "0.1.0", path = "../nekor-virt-model" }
-nekor-virt-kvm = { version = "0.1.0", path = "../nekor-virt-kvm" }
-nekor-virt-whp = { version = "0.1.0", path = "../nekor-virt-whp" }
 
 [lints]
 workspace = true

@@ -2,20 +2,21 @@
 
 ## Overview
 
-Hypervisor abstraction
+Shared contracts for native hypervisor backends.
 
 ## Responsibilities
 
-Provides a home for host virtualization capability abstractions shared by backend integrations.
+Defines the backend marker used by architecture-generic code.
 
 ## Architecture
 
-Intended to keep backend-neutral host concepts distinct from Linux and Windows implementation crates.
+Native KVM and WHP APIs live in their respective crates and implement this contract for supported
+architectures.
 
 ## Boundaries
 
-It does not implement guest architecture, machine policy, or a concrete backend.
+Backend resource ownership and execution semantics remain in the native backend crates.
 
 ## Status
 
-The crate contains scaffolding only, abstractions remain planned.
+KVM implements the x86-64 backend marker. WHP has no safe backend resource type yet.

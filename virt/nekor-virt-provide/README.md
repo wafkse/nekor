@@ -10,7 +10,7 @@ Defines static access to typed architectural state.
 
 ## Architecture
 
-Intended to provide state through typed ownership and context rather than dynamic global selection.
+Intended to provide state through typed ownership and explicit context.
 
 ## Boundaries
 

@@ -7,8 +7,8 @@ use nekor_virt_model::baseline::Arch;
 
 /// A representation of a particular hypervisor backend.
 ///
-/// For example, on Linux, `KVM` is generally used. On Windows, the `WHP` (abbreviated from `Windows
-/// Hypervisor Example`) permits a usermode-managed virtual-machine.
+/// For example, Linux commonly uses `KVM`, while Windows provides the `Windows Hypervisor Platform`
+/// for userspace-managed virtual machines.
 pub trait Backend<A>
 where
     A: Arch,
