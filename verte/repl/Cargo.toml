@@ -1,0 +1,19 @@
+[package]
+name = "verte-repl"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Interactive parser REPL for Verte."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+aldebaran = { workspace = true, features = ["report-codegen", "source-storage"] }
+rustyline.workspace = true
+verte-parse = { path = "../parse" }
+
+[lints]
+workspace = true
