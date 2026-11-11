@@ -4,12 +4,16 @@
 # Ignore: local dotfiles and directories
 **/.*
 !**/.gitignore
+!**/.gitattributes
 !**/.clippy.toml
+!/.clang-format
+!/virt/nekor-virt-kvm-sys/.clangd
 !/.cargo/
 !/.cargo/**
 !/.github/
 !/.github/workflows/
 !/.github/workflows/usermode.yml
+!/.github/workflows/lint-tool.yml
 
 # Ignore: build artifacts
 */build/linker
