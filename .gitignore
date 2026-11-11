@@ -7,7 +7,7 @@
 !**/.gitattributes
 !**/.clippy.toml
 !/.clang-format
-!/virt/nekor-virt-kvm-sys/.clangd
+!/eustace/eustace-kvm-sys/.clangd
 !/.cargo/
 !/.cargo/**
 !/.github/

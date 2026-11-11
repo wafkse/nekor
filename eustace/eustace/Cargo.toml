@@ -1,0 +1,29 @@
+[package]
+name = "eustace"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+eustace-abi = { version = "0.1.0", path = "../eustace-abi" }
+eustace-access = { version = "0.1.0", path = "../eustace-access" }
+eustace-address = { version = "0.1.0", path = "../eustace-address" }
+eustace-arch = { version = "0.1.0", path = "../eustace-arch" }
+eustace-model = { version = "0.1.0", path = "../eustace-model" }
+eustace-hypercall = { version = "0.1.0", path = "../eustace-hypercall" }
+eustace-hypervisor = { version = "0.1.0", path = "../eustace-hypervisor" }
+eustace-kvm = { version = "0.1.0", path = "../eustace-kvm" }
+eustace-memory = { version = "0.1.0", path = "../eustace-memory" }
+eustace-ioport = { version = "0.1.0", path = "../eustace-ioport" }
+eustace-mmio = { version = "0.1.0", path = "../eustace-mmio" }
+eustace-whp = { version = "0.1.0", path = "../eustace-whp" }
+eustace-provide = { version = "0.1.0", path = "../eustace-provide" }
+
+[lints]
+workspace = true

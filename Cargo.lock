@@ -573,6 +573,137 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 
 [[package]]
+name = "eustace"
+version = "0.1.0"
+dependencies = [
+ "eustace-abi",
+ "eustace-access",
+ "eustace-address",
+ "eustace-arch",
+ "eustace-hypercall",
+ "eustace-hypervisor",
+ "eustace-ioport",
+ "eustace-kvm",
+ "eustace-memory",
+ "eustace-mmio",
+ "eustace-model",
+ "eustace-provide",
+ "eustace-whp",
+]
+
+[[package]]
+name = "eustace-abi"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-access"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-address"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-arch"
+version = "0.1.0"
+dependencies = [
+ "eustace-arch-x86",
+]
+
+[[package]]
+name = "eustace-arch-x86"
+version = "0.1.0"
+dependencies = [
+ "eustace-address",
+ "tokel",
+]
+
+[[package]]
+name = "eustace-hypercall"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-hypervisor"
+version = "0.1.0"
+dependencies = [
+ "eustace-model",
+]
+
+[[package]]
+name = "eustace-ioport"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-kvm"
+version = "0.1.0"
+dependencies = [
+ "eustace-address",
+ "eustace-arch",
+ "eustace-hypervisor",
+ "eustace-ioport",
+ "eustace-kvm-sys",
+ "eustace-memory",
+ "eustace-mmio",
+ "eustace-model",
+ "fack",
+ "nekor-bitwise",
+ "tokel",
+]
+
+[[package]]
+name = "eustace-kvm-sys"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "cc",
+ "nekor-bitwise",
+ "prettyplease",
+ "syn 3.0.10",
+ "walkdir",
+]
+
+[[package]]
+name = "eustace-memory"
+version = "0.1.0"
+dependencies = [
+ "eustace-address",
+]
+
+[[package]]
+name = "eustace-mmio"
+version = "0.1.0"
+dependencies = [
+ "eustace-address",
+]
+
+[[package]]
+name = "eustace-model"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-peripheral"
+version = "0.1.0"
+dependencies = [
+ "eustace-hypervisor",
+ "eustace-model",
+]
+
+[[package]]
+name = "eustace-provide"
+version = "0.1.0"
+
+[[package]]
+name = "eustace-whp"
+version = "0.1.0"
+dependencies = [
+ "eustace-whp-sys",
+]
+
+[[package]]
+name = "eustace-whp-sys"
+version = "0.1.0"
+
+[[package]]
 name = "fack"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1331,137 +1462,6 @@ dependencies = [
 
 [[package]]
 name = "nekor-uefi"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-abi",
- "nekor-virt-access",
- "nekor-virt-address",
- "nekor-virt-arch",
- "nekor-virt-hypercall",
- "nekor-virt-hypervisor",
- "nekor-virt-ioport",
- "nekor-virt-kvm",
- "nekor-virt-memory",
- "nekor-virt-mmio",
- "nekor-virt-model",
- "nekor-virt-provide",
- "nekor-virt-whp",
-]
-
-[[package]]
-name = "nekor-virt-abi"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-access"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-address"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-arch"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-arch-x86",
-]
-
-[[package]]
-name = "nekor-virt-arch-x86"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-address",
- "tokel",
-]
-
-[[package]]
-name = "nekor-virt-hypercall"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-hypervisor"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-model",
-]
-
-[[package]]
-name = "nekor-virt-ioport"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-kvm"
-version = "0.1.0"
-dependencies = [
- "fack",
- "nekor-bitwise",
- "nekor-virt-address",
- "nekor-virt-arch",
- "nekor-virt-hypervisor",
- "nekor-virt-ioport",
- "nekor-virt-kvm-sys",
- "nekor-virt-memory",
- "nekor-virt-mmio",
- "nekor-virt-model",
- "tokel",
-]
-
-[[package]]
-name = "nekor-virt-kvm-sys"
-version = "0.1.0"
-dependencies = [
- "bindgen",
- "cc",
- "nekor-bitwise",
- "prettyplease",
- "syn 3.0.10",
- "walkdir",
-]
-
-[[package]]
-name = "nekor-virt-memory"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-address",
-]
-
-[[package]]
-name = "nekor-virt-mmio"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-address",
-]
-
-[[package]]
-name = "nekor-virt-model"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-peripheral"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-hypervisor",
- "nekor-virt-model",
-]
-
-[[package]]
-name = "nekor-virt-provide"
-version = "0.1.0"
-
-[[package]]
-name = "nekor-virt-whp"
-version = "0.1.0"
-dependencies = [
- "nekor-virt-whp-sys",
-]
-
-[[package]]
-name = "nekor-virt-whp-sys"
 version = "0.1.0"
 
 [[package]]

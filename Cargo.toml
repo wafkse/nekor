@@ -40,7 +40,7 @@ members = [
   "verte/ir",
   "verte/parse",
   "verte/repl",
-  "virt/nekor-*",
+  "eustace/eustace*",
 ]
 
 exclude = [

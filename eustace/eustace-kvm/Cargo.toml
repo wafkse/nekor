@@ -1,0 +1,32 @@
+[package]
+name = "eustace-kvm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["stable"]
+stable = ["eustace-kvm-sys/stable", "dep:nekor-bitwise"]
+lts = ["eustace-kvm-sys/lts", "dep:nekor-bitwise"]
+
+[dependencies]
+eustace-address = { version = "0.1.0", path = "../eustace-address" }
+eustace-arch = { version = "0.1.0", path = "../eustace-arch" }
+eustace-ioport = { version = "0.1.0", path = "../eustace-ioport" }
+eustace-hypervisor = { version = "0.1.0", path = "../eustace-hypervisor" }
+eustace-kvm-sys = { version = "0.1.0", path = "../eustace-kvm-sys", default-features = false }
+eustace-memory = { version = "0.1.0", path = "../eustace-memory" }
+eustace-model = { version = "0.1.0", path = "../eustace-model" }
+eustace-mmio = { version = "0.1.0", path = "../eustace-mmio" }
+nekor-bitwise = { workspace = true, optional = true }
+fack.workspace = true
+tokel.workspace = true
+
+[lints]
+workspace = true
