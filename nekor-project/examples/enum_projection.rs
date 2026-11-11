@@ -45,7 +45,7 @@ fn main() {
     match state.as_ref().project() {
         StateProjection::Active { marker, generation } => {
             let _: Pin<&PhantomPinned> = marker;
-            assert_eq!(*generation, 4, "projection retains the active variant");
+            assert_eq!(*generation, 4, "projection preserves the active variant");
         },
         StateProjection::Waiting(..) | StateProjection::Complete => {
             unreachable!("projection cannot replace the active variant")

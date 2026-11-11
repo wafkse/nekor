@@ -1,7 +1,7 @@
 //! Procedural derive support for `nekor-project`.
 //!
-//! Application crates should depend on the `nekor-project` facade rather than
-//! importing this crate directly. The facade re-exports the [`Project`] derive
+//! Application crates access this derive through the `nekor-project` facade.
+//! The facade re-exports the [`Project`] derive
 //! and provides the runtime traits referenced by generated code.
 //!
 //! # Accepted input
@@ -50,7 +50,7 @@
 //! the annotated type. See the facade crate documentation for complete safety
 //! contracts and examples.
 
-use nekor_project_core::ProjectItem;
+use nekor_project_core::item::ProjectItem;
 use proc_macro::TokenStream;
 use syn::{DeriveInput, parse_macro_input};
 
