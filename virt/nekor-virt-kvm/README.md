@@ -2,20 +2,23 @@
 
 ## Overview
 
-Linux KVM backend
+Safe Linux KVM backend.
 
 ## Responsibilities
 
-Provides the Linux KVM integration for the virtualization workspace.
+Owns KVM descriptors, guest RAM mappings, vCPU execution, and exit handling.
 
 ## Architecture
 
-Intended to translate backend-neutral virtualization work into Linux KVM operations.
+Start from `prelude`, open `resource::state::Kvm`, then use `Kvm::machine` to create a machine.
 
 ## Boundaries
 
-KVM is an implementation backend, not a requirement of the guest architecture or shared ABI.
+Kernel declarations and host operations belong to
+[`nekor-virt-kvm-sys`](../nekor-virt-kvm-sys/README.md). Shared address, memory, I/O, and MMIO types
+belong to their domain crates.
 
 ## Status
 
-The crate contains scaffolding only, no KVM integration is implemented.
+The default `stable` feature selects the stable kernel pin. Use `--no-default-features --features lts`
+to select the LTS pin.
