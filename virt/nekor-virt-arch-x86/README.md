@@ -2,20 +2,23 @@
 
 ## Overview
 
-x86 arch module
+x86 architecture components
 
 ## Responsibilities
 
-Facade crate for various x86 peripherals and functionality.
+Defines shared x86 architectural values and peripheral modules.
 
 ## Architecture
 
-Intended to host x86-specific facilities to be shared.
+The `nekor-virt-arch` crate exposes these definitions through its `x86` module.
+
+The `apic`, `hpet`, `ioapic`, and `pic` modules belong to this crate.
 
 ## Boundaries
 
-x86-specific code paths.
+Hypervisor resource ownership and backend-specific execution remain separate responsibilities.
 
 ## Status
 
-Basic facade.
+Provides shared x86 values. The peripheral modules contain scaffolding only,
+their device behavior remains planned.

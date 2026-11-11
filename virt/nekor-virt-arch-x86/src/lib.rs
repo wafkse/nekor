@@ -1,12 +1,14 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 
-extern crate alloc;
+pub mod cpuid;
 
-pub extern crate nekor_virt_arch_x86_apic as apic;
+pub mod entry;
 
-pub extern crate nekor_virt_arch_x86_hpet as hpet;
+pub mod apic;
 
-pub extern crate nekor_virt_arch_x86_ioapic as ioapic;
+pub mod hpet;
 
-pub extern crate nekor_virt_arch_x86_pic as pic;
+pub mod ioapic;
+
+pub mod pic;

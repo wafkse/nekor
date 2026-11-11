@@ -11,10 +11,8 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-nekor-virt-arch-x86-apic = { version = "0.1.0", path = "../nekor-virt-arch-x86-apic" }
-nekor-virt-arch-x86-hpet = { version = "0.1.0", path = "../nekor-virt-arch-x86-hpet" }
-nekor-virt-arch-x86-ioapic = { version = "0.1.0", path = "../nekor-virt-arch-x86-ioapic" }
-nekor-virt-arch-x86-pic = { version = "0.1.0", path = "../nekor-virt-arch-x86-pic" }
+nekor-virt-address = { version = "0.1.0", path = "../nekor-virt-address" }
+tokel.workspace = true
 
 [lints]
 workspace = true
