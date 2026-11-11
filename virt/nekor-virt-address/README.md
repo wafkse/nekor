@@ -6,16 +6,16 @@ Guest addresses
 
 ## Responsibilities
 
-Defines guest address concepts used by virtualization components.
+Defines semantic guest address types shared by virtualization backends.
 
 ## Architecture
 
-Intended to keep guest addressing distinct from host addresses and other address domains.
+`Gpa` preserves the guest physical address domain without applying a machine's configured width.
 
 ## Boundaries
 
-Guest memory ownership, translation, and backend mapping are separate responsibilities.
+Machine-specific address checks and guest memory mappings belong to their owning components.
 
 ## Status
 
-The crate contains scaffolding only, address types remain planned.
+Provides the shared `Gpa` type.
