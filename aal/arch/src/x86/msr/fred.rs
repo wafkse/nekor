@@ -64,7 +64,7 @@ pub type FredConfigHandlerMut<'value> = <FredConfigHandler<'value> as Counterpar
 type FredHandlerOffset<'value> = Field<'value, 0, 11, u64>;
 
 snapshotted::snapshot!(
-    /// `IA32_FRED_CONFIG` register snapshot.
+    /// `IA32_FRED_CONFIG` model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawFredConfig for (0x0000_01D4) use FredAccess
 );
@@ -230,7 +230,7 @@ impl FredConfig {
         let address = handler.bits();
 
         match FredHandlerOffset::wrap(&address).const_value() {
-            0 => Some(Self { handler, interrupt }),
+            u16::MIN => Some(Self { handler, interrupt }),
             _ => None,
         }
     }

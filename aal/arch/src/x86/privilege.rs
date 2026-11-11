@@ -28,7 +28,7 @@ enumerate![
 enumerate![
     /// An I/O privilege level.
     ///
-    /// This is a constraint on I/O instruction execution rather than the current privilege level.
+    /// This level constrains I/O instruction execution independently of the current privilege level.
     #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
     #[non_exhaustive]
     pub enum IoPrivilegeLevel {

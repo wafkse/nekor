@@ -792,9 +792,9 @@ pub enum SystemDescriptorType {
     /// In Long Mode, this is a 64-bit TSS.
     TssBusy32 = 0xB,
 
-    /// 32-bit Call Gate.
+    /// 32-bit Call Gate in Protected Mode and 64-bit Call Gate in Long Mode.
     ///
-    /// **Note**: Not available in Long Mode.
+    /// The descriptor type encoding is `0xC` in either mode.
     CallGate32 = 0xC,
 
     /// 32-bit/64-bit Interrupt Gate.

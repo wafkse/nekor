@@ -17,7 +17,7 @@
 //! upon receiving the *IPI*, regardless of their current state.
 //!
 //! This provides faster synchronization than *`SpCS`* but is more intrusive.
-//! Cores are forcibly interrupted rather than reaching safe quiescent points.
+//! Cores are forcibly interrupted without waiting for safe quiescent points.
 //!
 //! ## When to use *`MsCS`*?
 //!

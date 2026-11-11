@@ -3,7 +3,7 @@
 //! The processor exception assignments and error-code stack shapes follow
 //! [Intel SDM, Volume 3A, Table 6-1][intel-sdm] and
 //! [AMD64 APM, Volume 2, Section 8.2 and Table 8-1][amd-apm]. AMD assigns vectors 28 through
-//! 30 to exceptions that Intel reserves. [`ExceptionVector`] retains the full
+//! 30 to exceptions that Intel reserves. [`ExceptionVector`] represents the full
 //! processor-reserved range so software can represent either architecture and
 //! future assignments without losing the raw vector.
 //!

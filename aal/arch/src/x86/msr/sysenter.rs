@@ -26,7 +26,7 @@ pub type SysEnterCsReserved<'value> = Field<'value, 16, 63, u64>;
 pub type SysEnterCsReservedMut<'value> = <SysEnterCsReserved<'value> as Counterpart>::Mut;
 
 snapshotted::snapshot!(
-    /// `IA32_SYSENTER_CS` register snapshot.
+    /// `IA32_SYSENTER_CS` model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawSysEnterCs for (0x0000_0174) use Cpl0Access
 );

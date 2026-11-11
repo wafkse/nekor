@@ -146,9 +146,7 @@ impl RawCr0 {
 impl Cr0 {
     /// Architectural reset value.
     ///
-    /// ET is fixed to 1. The architectural reset state also starts with NW
-    /// and CD set. The value is assembled through the named bit aliases rather
-    /// than duplicated as an integer literal.
+    /// ET is fixed to 1. The architectural reset state also starts with NW and CD set.
     pub const RESET: Self = {
         let mut value = u64::MIN;
         let mut et = Cr0EtMut::wrap(&mut value);

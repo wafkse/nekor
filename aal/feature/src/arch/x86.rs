@@ -8,7 +8,7 @@ use core::marker;
 
 use nekor_bitwise::prelude::{Extract, Field, For2, Size};
 use nekor_domain::{
-    arch::InitializationStage,
+    lowlevel::InitializationStage,
     store::{Static, Store},
 };
 use nekor_primitive::scalar::Scalar;

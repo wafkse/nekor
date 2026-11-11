@@ -111,7 +111,7 @@ bitflags! {
         /// Intel APX extended general-purpose register state.
         const APX = 1 << 19;
 
-        /// Retains reserved and future component identities.
+        /// Includes reserved and future component identities.
         const _ = !0;
     }
 }
@@ -119,7 +119,7 @@ bitflags! {
 /// XCR0 component bitmap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): `XstateComponents` retains every XCR0 bit, including values
+// NOTE(invariant): `XstateComponents` represents every XCR0 bit, including values
 // that require processor-specific validation before installation.
 pub struct Xcr0(XstateComponents);
 
@@ -138,68 +138,68 @@ impl Xcr0 {
     #[inline]
     #[must_use]
     pub const fn bits(self) -> u64 {
-        let Self(components) = self;
+        let Self(state_component) = self;
 
-        components.bits()
+        state_component.bits()
     }
 
     /// Borrows the selected XSTATE components.
     #[inline]
     #[must_use]
     pub const fn components(&self) -> &XstateComponents {
-        let &Self(ref components) = self;
+        let &Self(ref state_component) = self;
 
-        components
+        state_component
     }
 
     /// Mutably borrows the selected XSTATE components.
     #[inline]
     pub const fn components_mut(&mut self) -> &mut XstateComponents {
-        let &mut Self(ref mut components) = self;
+        let &mut Self(ref mut state_component) = self;
 
-        components
+        state_component
     }
 
     /// Returns whether every required XCR0 component is selected.
     #[inline]
     #[must_use]
     pub const fn contains(self, required: Self) -> bool {
-        let Self(components) = self;
+        let Self(state_component) = self;
 
-        let Self(required) = required;
+        let Self(required_component) = required;
 
-        components.contains(required)
+        state_component.contains(required_component)
     }
 
     /// Combines the selected components from both XCR0 images.
     #[inline]
     #[must_use]
     pub const fn union(self, other: Self) -> Self {
-        let Self(components) = self;
+        let Self(right_component) = self;
 
-        let Self(other) = other;
+        let Self(left_component) = other;
 
-        Self(components.union(other))
+        Self(right_component.union(left_component))
     }
 
-    /// Retains the components selected by both XCR0 images.
+    /// Select the components present in both XCR0 images.
     #[inline]
     #[must_use]
     pub const fn intersection(self, other: Self) -> Self {
-        let Self(components) = self;
+        let Self(right_component) = self;
 
-        let Self(other) = other;
+        let Self(left_component) = other;
 
-        Self(components.intersection(other))
+        Self(right_component.intersection(left_component))
     }
 
     /// Returns whether no XCR0 component is selected.
     #[inline]
     #[must_use]
     pub const fn is_empty(self) -> bool {
-        let Self(components) = self;
+        let Self(state_component) = self;
 
-        components.is_empty()
+        state_component.is_empty()
     }
 }
 
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn xcr0_retains_register_identity_around_shared_components() {
+    fn xcr0_preserves_register_identity_around_shared_components() {
         let mut provided = Xcr0::EMPTY;
         let required = Xcr0::new((XstateComponents::X87 | XstateComponents::SSE).bits());
 

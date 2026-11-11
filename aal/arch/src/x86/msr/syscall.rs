@@ -15,7 +15,7 @@ use crate::x86::{
 use crate::x86_64::paging::{La, LaMode};
 
 snapshotted::snapshot!(
-    /// `IA32_LSTAR` register snapshot.
+    /// `IA32_LSTAR` model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawLStar for (0xC000_0082) use Cpl0Access
 );
