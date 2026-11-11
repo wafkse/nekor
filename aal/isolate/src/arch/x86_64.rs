@@ -2,18 +2,17 @@
 
 pub mod context;
 
-pub mod register;
-
 pub mod xstate;
 
 pub mod fsgsbase;
 
 use core::{arch, mem};
 
-use nekor_aal_arch::x86::segmentation::{RawCodeSegment, RawDataSegment};
+use nekor_aal_arch::{
+    x86::segmentation::{RawCodeSegment, RawDataSegment},
+    x86_64::register::{Base, Gpr, Rflags},
+};
 use nekor_aal_hotpatch::prelude::Patch;
-
-use self::register::{Base, Gpr, Rflags};
 
 /// A helper macro to define a Xsave area with a feature-guided size.
 macro_rules! area {

@@ -321,6 +321,611 @@ impl Base {
     }
 }
 
+/// Invalid-operation exception mask in an x87 control word.
+pub type X87ControlWordInvalidOperationMask<'value> = Bit<'value, u16, 0>;
+
+/// Denormal-operand exception mask in an x87 control word.
+pub type X87ControlWordDenormalOperandMask<'value> = Bit<'value, u16, 1>;
+
+/// Zero-divide exception mask in an x87 control word.
+pub type X87ControlWordZeroDivideMask<'value> = Bit<'value, u16, 2>;
+
+/// Overflow exception mask in an x87 control word.
+pub type X87ControlWordOverflowMask<'value> = Bit<'value, u16, 3>;
+
+/// Underflow exception mask in an x87 control word.
+pub type X87ControlWordUnderflowMask<'value> = Bit<'value, u16, 4>;
+
+/// Precision exception mask in an x87 control word.
+pub type X87ControlWordPrecisionMask<'value> = Bit<'value, u16, 5>;
+
+/// Precision control in an x87 control word.
+pub type X87ControlWordPrecisionControl<'value> = Field<'value, 8, 9, u16>;
+
+/// Rounding control in an x87 control word.
+pub type X87ControlWordRoundingControl<'value> = Field<'value, 10, 11, u16>;
+
+/// The legacy infinity-control bit in an x87 control word.
+pub type X87ControlWordInfinityControl<'value> = Bit<'value, u16, 12>;
+
+/// Mutable counterpart to [`X87ControlWordInvalidOperationMask`].
+pub type X87ControlWordInvalidOperationMaskMut<'value> =
+    <X87ControlWordInvalidOperationMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordDenormalOperandMask`].
+pub type X87ControlWordDenormalOperandMaskMut<'value> = <X87ControlWordDenormalOperandMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordZeroDivideMask`].
+pub type X87ControlWordZeroDivideMaskMut<'value> = <X87ControlWordZeroDivideMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordOverflowMask`].
+pub type X87ControlWordOverflowMaskMut<'value> = <X87ControlWordOverflowMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordUnderflowMask`].
+pub type X87ControlWordUnderflowMaskMut<'value> = <X87ControlWordUnderflowMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordPrecisionMask`].
+pub type X87ControlWordPrecisionMaskMut<'value> = <X87ControlWordPrecisionMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordPrecisionControl`].
+pub type X87ControlWordPrecisionControlMut<'value> = <X87ControlWordPrecisionControl<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordRoundingControl`].
+pub type X87ControlWordRoundingControlMut<'value> = <X87ControlWordRoundingControl<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`X87ControlWordInfinityControl`].
+pub type X87ControlWordInfinityControlMut<'value> = <X87ControlWordInfinityControl<'value> as Counterpart>::Mut;
+
+/// A raw 16-bit x87 FPU control-word image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+// NOTE(invariant): All `u16` bit patterns remain representable and reserved control-word
+// bits are retained.
+pub struct RawX87ControlWord(u16);
+
+impl RawX87ControlWord {
+    /// Construct a raw x87 FPU control-word image.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u16) -> Self {
+        Self(target_value)
+    }
+
+    /// Return the raw x87 FPU control-word image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        let Self(target_value) = self;
+
+        target_value
+    }
+
+    /// Return the invalid-operation exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn invalid_operation_mask(&self) -> X87ControlWordInvalidOperationMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordInvalidOperationMask::wrap(target_value)
+    }
+
+    /// Mutably access the invalid-operation exception mask.
+    #[inline]
+    pub const fn invalid_operation_mask_mut(&mut self) -> X87ControlWordInvalidOperationMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordInvalidOperationMaskMut::wrap(target_value)
+    }
+
+    /// Return the denormal-operand exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn denormal_operand_mask(&self) -> X87ControlWordDenormalOperandMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordDenormalOperandMask::wrap(target_value)
+    }
+
+    /// Mutably access the denormal-operand exception mask.
+    #[inline]
+    pub const fn denormal_operand_mask_mut(&mut self) -> X87ControlWordDenormalOperandMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordDenormalOperandMaskMut::wrap(target_value)
+    }
+
+    /// Return the zero-divide exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn zero_divide_mask(&self) -> X87ControlWordZeroDivideMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordZeroDivideMask::wrap(target_value)
+    }
+
+    /// Mutably access the zero-divide exception mask.
+    #[inline]
+    pub const fn zero_divide_mask_mut(&mut self) -> X87ControlWordZeroDivideMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordZeroDivideMaskMut::wrap(target_value)
+    }
+
+    /// Return the overflow exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn overflow_mask(&self) -> X87ControlWordOverflowMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordOverflowMask::wrap(target_value)
+    }
+
+    /// Mutably access the overflow exception mask.
+    #[inline]
+    pub const fn overflow_mask_mut(&mut self) -> X87ControlWordOverflowMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordOverflowMaskMut::wrap(target_value)
+    }
+
+    /// Return the underflow exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn underflow_mask(&self) -> X87ControlWordUnderflowMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordUnderflowMask::wrap(target_value)
+    }
+
+    /// Mutably access the underflow exception mask.
+    #[inline]
+    pub const fn underflow_mask_mut(&mut self) -> X87ControlWordUnderflowMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordUnderflowMaskMut::wrap(target_value)
+    }
+
+    /// Return the precision exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn precision_mask(&self) -> X87ControlWordPrecisionMask<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordPrecisionMask::wrap(target_value)
+    }
+
+    /// Mutably access the precision exception mask.
+    #[inline]
+    pub const fn precision_mask_mut(&mut self) -> X87ControlWordPrecisionMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordPrecisionMaskMut::wrap(target_value)
+    }
+
+    /// Return the precision-control field.
+    #[inline]
+    #[must_use]
+    pub const fn precision_control(&self) -> X87ControlWordPrecisionControl<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordPrecisionControl::wrap(target_value)
+    }
+
+    /// Mutably access the precision-control field.
+    #[inline]
+    pub const fn precision_control_mut(&mut self) -> X87ControlWordPrecisionControlMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordPrecisionControlMut::wrap(target_value)
+    }
+
+    /// Return the rounding-control field.
+    #[inline]
+    #[must_use]
+    pub const fn rounding_control(&self) -> X87ControlWordRoundingControl<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordRoundingControl::wrap(target_value)
+    }
+
+    /// Mutably access the rounding-control field.
+    #[inline]
+    pub const fn rounding_control_mut(&mut self) -> X87ControlWordRoundingControlMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordRoundingControlMut::wrap(target_value)
+    }
+
+    /// Return the legacy infinity-control bit.
+    #[inline]
+    #[must_use]
+    pub const fn infinity_control(&self) -> X87ControlWordInfinityControl<'_> {
+        let &Self(ref target_value) = self;
+
+        X87ControlWordInfinityControl::wrap(target_value)
+    }
+
+    /// Mutably access the legacy infinity-control bit.
+    #[inline]
+    pub const fn infinity_control_mut(&mut self) -> X87ControlWordInfinityControlMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        X87ControlWordInfinityControlMut::wrap(target_value)
+    }
+}
+
+/// Invalid-operation status flag in MXCSR.
+pub type MxcsrInvalidOperationFlag<'value> = Bit<'value, u32, 0>;
+
+/// Denormal-operand status flag in MXCSR.
+pub type MxcsrDenormalOperandFlag<'value> = Bit<'value, u32, 1>;
+
+/// Zero-divide status flag in MXCSR.
+pub type MxcsrZeroDivideFlag<'value> = Bit<'value, u32, 2>;
+
+/// Overflow status flag in MXCSR.
+pub type MxcsrOverflowFlag<'value> = Bit<'value, u32, 3>;
+
+/// Underflow status flag in MXCSR.
+pub type MxcsrUnderflowFlag<'value> = Bit<'value, u32, 4>;
+
+/// Precision status flag in MXCSR.
+pub type MxcsrPrecisionFlag<'value> = Bit<'value, u32, 5>;
+
+/// Denormals-are-zeros flag in MXCSR.
+pub type MxcsrDaz<'value> = Bit<'value, u32, 6>;
+
+/// Invalid-operation exception mask in MXCSR.
+pub type MxcsrInvalidOperationMask<'value> = Bit<'value, u32, 7>;
+
+/// Denormal-operand exception mask in MXCSR.
+pub type MxcsrDenormalOperandMask<'value> = Bit<'value, u32, 8>;
+
+/// Zero-divide exception mask in MXCSR.
+pub type MxcsrZeroDivideMask<'value> = Bit<'value, u32, 9>;
+
+/// Overflow exception mask in MXCSR.
+pub type MxcsrOverflowMask<'value> = Bit<'value, u32, 10>;
+
+/// Underflow exception mask in MXCSR.
+pub type MxcsrUnderflowMask<'value> = Bit<'value, u32, 11>;
+
+/// Precision exception mask in MXCSR.
+pub type MxcsrPrecisionMask<'value> = Bit<'value, u32, 12>;
+
+/// Rounding-control field in MXCSR.
+pub type MxcsrRoundingControl<'value> = Field<'value, 13, 14, u32>;
+
+/// Flush-to-zero flag in MXCSR.
+pub type MxcsrFtz<'value> = Bit<'value, u32, 15>;
+
+/// Mutable counterpart to [`MxcsrInvalidOperationFlag`].
+pub type MxcsrInvalidOperationFlagMut<'value> = <MxcsrInvalidOperationFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrDenormalOperandFlag`].
+pub type MxcsrDenormalOperandFlagMut<'value> = <MxcsrDenormalOperandFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrZeroDivideFlag`].
+pub type MxcsrZeroDivideFlagMut<'value> = <MxcsrZeroDivideFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrOverflowFlag`].
+pub type MxcsrOverflowFlagMut<'value> = <MxcsrOverflowFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrUnderflowFlag`].
+pub type MxcsrUnderflowFlagMut<'value> = <MxcsrUnderflowFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrPrecisionFlag`].
+pub type MxcsrPrecisionFlagMut<'value> = <MxcsrPrecisionFlag<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrDaz`].
+pub type MxcsrDazMut<'value> = <MxcsrDaz<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrInvalidOperationMask`].
+pub type MxcsrInvalidOperationMaskMut<'value> = <MxcsrInvalidOperationMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrDenormalOperandMask`].
+pub type MxcsrDenormalOperandMaskMut<'value> = <MxcsrDenormalOperandMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrZeroDivideMask`].
+pub type MxcsrZeroDivideMaskMut<'value> = <MxcsrZeroDivideMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrOverflowMask`].
+pub type MxcsrOverflowMaskMut<'value> = <MxcsrOverflowMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrUnderflowMask`].
+pub type MxcsrUnderflowMaskMut<'value> = <MxcsrUnderflowMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrPrecisionMask`].
+pub type MxcsrPrecisionMaskMut<'value> = <MxcsrPrecisionMask<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrRoundingControl`].
+pub type MxcsrRoundingControlMut<'value> = <MxcsrRoundingControl<'value> as Counterpart>::Mut;
+
+/// Mutable counterpart to [`MxcsrFtz`].
+pub type MxcsrFtzMut<'value> = <MxcsrFtz<'value> as Counterpart>::Mut;
+
+/// A raw 32-bit MXCSR control and status register image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+// NOTE(invariant): All `u32` bit patterns remain representable and reserved MXCSR bits are
+// retained.
+pub struct RawMxcsr(u32);
+
+impl RawMxcsr {
+    /// Construct a raw MXCSR image without validating its reserved bits.
+    #[inline]
+    #[must_use]
+    pub const fn new(target_value: u32) -> Self {
+        Self(target_value)
+    }
+
+    /// Return the raw MXCSR image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> u32 {
+        let Self(target_value) = self;
+
+        target_value
+    }
+
+    /// Return the invalid-operation status flag.
+    #[inline]
+    #[must_use]
+    pub const fn invalid_operation_flag(&self) -> MxcsrInvalidOperationFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrInvalidOperationFlag::wrap(target_value)
+    }
+
+    /// Mutably access the invalid-operation status flag.
+    #[inline]
+    pub const fn invalid_operation_flag_mut(&mut self) -> MxcsrInvalidOperationFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrInvalidOperationFlagMut::wrap(target_value)
+    }
+
+    /// Return the denormal-operand status flag.
+    #[inline]
+    #[must_use]
+    pub const fn denormal_operand_flag(&self) -> MxcsrDenormalOperandFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrDenormalOperandFlag::wrap(target_value)
+    }
+
+    /// Mutably access the denormal-operand status flag.
+    #[inline]
+    pub const fn denormal_operand_flag_mut(&mut self) -> MxcsrDenormalOperandFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrDenormalOperandFlagMut::wrap(target_value)
+    }
+
+    /// Return the zero-divide status flag.
+    #[inline]
+    #[must_use]
+    pub const fn zero_divide_flag(&self) -> MxcsrZeroDivideFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrZeroDivideFlag::wrap(target_value)
+    }
+
+    /// Mutably access the zero-divide status flag.
+    #[inline]
+    pub const fn zero_divide_flag_mut(&mut self) -> MxcsrZeroDivideFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrZeroDivideFlagMut::wrap(target_value)
+    }
+
+    /// Return the overflow status flag.
+    #[inline]
+    #[must_use]
+    pub const fn overflow_flag(&self) -> MxcsrOverflowFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrOverflowFlag::wrap(target_value)
+    }
+
+    /// Mutably access the overflow status flag.
+    #[inline]
+    pub const fn overflow_flag_mut(&mut self) -> MxcsrOverflowFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrOverflowFlagMut::wrap(target_value)
+    }
+
+    /// Return the underflow status flag.
+    #[inline]
+    #[must_use]
+    pub const fn underflow_flag(&self) -> MxcsrUnderflowFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrUnderflowFlag::wrap(target_value)
+    }
+
+    /// Mutably access the underflow status flag.
+    #[inline]
+    pub const fn underflow_flag_mut(&mut self) -> MxcsrUnderflowFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrUnderflowFlagMut::wrap(target_value)
+    }
+
+    /// Return the precision status flag.
+    #[inline]
+    #[must_use]
+    pub const fn precision_flag(&self) -> MxcsrPrecisionFlag<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrPrecisionFlag::wrap(target_value)
+    }
+
+    /// Mutably access the precision status flag.
+    #[inline]
+    pub const fn precision_flag_mut(&mut self) -> MxcsrPrecisionFlagMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrPrecisionFlagMut::wrap(target_value)
+    }
+
+    /// Return the denormals-are-zeros flag.
+    #[doc(alias = "denormals_are_zeros")]
+    #[inline]
+    #[must_use]
+    pub const fn daz(&self) -> MxcsrDaz<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrDaz::wrap(target_value)
+    }
+
+    /// Mutably access the denormals-are-zeros flag.
+    #[doc(alias = "denormals_are_zeros_mut")]
+    #[inline]
+    pub const fn daz_mut(&mut self) -> MxcsrDazMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrDazMut::wrap(target_value)
+    }
+
+    /// Return the invalid-operation exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn invalid_operation_mask(&self) -> MxcsrInvalidOperationMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrInvalidOperationMask::wrap(target_value)
+    }
+
+    /// Mutably access the invalid-operation exception mask.
+    #[inline]
+    pub const fn invalid_operation_mask_mut(&mut self) -> MxcsrInvalidOperationMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrInvalidOperationMaskMut::wrap(target_value)
+    }
+
+    /// Return the denormal-operand exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn denormal_operand_mask(&self) -> MxcsrDenormalOperandMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrDenormalOperandMask::wrap(target_value)
+    }
+
+    /// Mutably access the denormal-operand exception mask.
+    #[inline]
+    pub const fn denormal_operand_mask_mut(&mut self) -> MxcsrDenormalOperandMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrDenormalOperandMaskMut::wrap(target_value)
+    }
+
+    /// Return the zero-divide exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn zero_divide_mask(&self) -> MxcsrZeroDivideMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrZeroDivideMask::wrap(target_value)
+    }
+
+    /// Mutably access the zero-divide exception mask.
+    #[inline]
+    pub const fn zero_divide_mask_mut(&mut self) -> MxcsrZeroDivideMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrZeroDivideMaskMut::wrap(target_value)
+    }
+
+    /// Return the overflow exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn overflow_mask(&self) -> MxcsrOverflowMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrOverflowMask::wrap(target_value)
+    }
+
+    /// Mutably access the overflow exception mask.
+    #[inline]
+    pub const fn overflow_mask_mut(&mut self) -> MxcsrOverflowMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrOverflowMaskMut::wrap(target_value)
+    }
+
+    /// Return the underflow exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn underflow_mask(&self) -> MxcsrUnderflowMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrUnderflowMask::wrap(target_value)
+    }
+
+    /// Mutably access the underflow exception mask.
+    #[inline]
+    pub const fn underflow_mask_mut(&mut self) -> MxcsrUnderflowMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrUnderflowMaskMut::wrap(target_value)
+    }
+
+    /// Return the precision exception mask.
+    #[inline]
+    #[must_use]
+    pub const fn precision_mask(&self) -> MxcsrPrecisionMask<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrPrecisionMask::wrap(target_value)
+    }
+
+    /// Mutably access the precision exception mask.
+    #[inline]
+    pub const fn precision_mask_mut(&mut self) -> MxcsrPrecisionMaskMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrPrecisionMaskMut::wrap(target_value)
+    }
+
+    /// Return the rounding-control field.
+    #[inline]
+    #[must_use]
+    pub const fn rounding_control(&self) -> MxcsrRoundingControl<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrRoundingControl::wrap(target_value)
+    }
+
+    /// Mutably access the rounding-control field.
+    #[inline]
+    pub const fn rounding_control_mut(&mut self) -> MxcsrRoundingControlMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrRoundingControlMut::wrap(target_value)
+    }
+
+    /// Return the flush-to-zero flag.
+    #[inline]
+    #[must_use]
+    pub const fn ftz(&self) -> MxcsrFtz<'_> {
+        let &Self(ref target_value) = self;
+
+        MxcsrFtz::wrap(target_value)
+    }
+
+    /// Mutably access the flush-to-zero flag.
+    #[inline]
+    pub const fn ftz_mut(&mut self) -> MxcsrFtzMut<'_> {
+        let &mut Self(ref mut target_value) = self;
+
+        MxcsrFtzMut::wrap(target_value)
+    }
+}
+
 /// Breakpoint condition zero sampled in [`RawDr6`].
 pub type Dr6Bp0<'value> = Bit<'value, u64, 0>;
 
@@ -645,9 +1250,7 @@ impl RawRflags {
 impl Rflags {
     /// Architectural reset value.
     ///
-    /// The processor defines bit 1 as reserved and fixed to 1 in the
-    /// reset state. The value is constructed through [`FlagReserved`] rather
-    /// than duplicating that architectural bit position as an integer shift.
+    /// The processor defines bit 1 as reserved and fixed to 1 in the reset state.
     pub const RESET: Self = {
         let mut target_value = u64::MIN;
         let mut reserved = FlagReservedMut::wrap(&mut target_value);
@@ -962,6 +1565,7 @@ impl Rflags {
         FlagIdMut::wrap(target_value)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use nekor_bitwise::prelude::{Counterpart, State};
