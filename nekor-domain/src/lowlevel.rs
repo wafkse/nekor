@@ -403,7 +403,7 @@ pub(in crate::lowlevel) mod miri {
 
     use nekor_miri::memory::Allocation;
 
-    use crate::{arch::Container, store::Store};
+    use crate::{lowlevel::Container, store::Store};
 
     /// A slab allocator for specializing Miri support into the `nekor-domain`
     /// subsystem.
