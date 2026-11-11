@@ -7,8 +7,8 @@
 use core::{cell::UnsafeCell, hint, mem::MaybeUninit, ptr::NonNull};
 
 use crate::{
-    arch::{Container, Header, InitializationStage},
     domain::Domain,
+    lowlevel::{Container, Header, InitializationStage},
     prelude::Preset,
 };
 
@@ -429,9 +429,9 @@ mod tests {
 
     #[test]
     fn testme() {
-        let st: &'static usize = Static::value(18273).anyhow();
-        let st2: &'static usize = Initialized::anyhow(&Static::value(18273));
+        let st: &'static usize = Static::value(1337).anyhow();
+        let st2: &'static usize = Initialized::anyhow(&Static::value(6767)); // haha funny, kms
 
-        println!("{:?}, {:?}, {st:?}", ptr::from_ref(st), ptr::from_ref(st2));
+        println!("{:?}, {:?}, {st2:?}", ptr::from_ref(st), ptr::from_ref(st2));
     }
 }

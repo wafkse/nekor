@@ -8,6 +8,23 @@
 /* NOTE: This is the ad-hoc section command for all read-write data. */
 SECTIONS {
   /*
+    NOTE: Keep patch code and metadata together in writable RAM supplied by
+    the host loader. The patch slots make this section executable.
+
+    Page boundaries isolate its protection requirements from ordinary data.
+  */
+  {{ kernel.patch["section-name"] }}
+  ALIGN({{ arch.page.size.normal }}) :
+  AT(ADDR({{ kernel.patch["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
+    {{ kernel.patch.symbol.start }} = .;
+
+    KEEP(*(SORT_BY_NAME({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*)))
+
+    . = ALIGN({{ arch.page.size.normal }});
+    {{ kernel.patch.symbol.end }} = .;
+  }
+
+  /*
     NOTE: The domain-storage section.
 
     Since this section command is placed after the regular `.data` section, and is emitted with a
@@ -17,10 +34,8 @@ SECTIONS {
   {{ kernel.domain["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
   AT(ADDR({{ kernel.domain["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
-    /* Include `nekor-domain`-allocated per-type top-level section. */
-    KEEP(*({{ kernel.domain["section-name"] }}))
-    /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
-    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain["section-name"] }}.typename.*))))
+    /* NOTE: Each input section contains shared storage with per-type alignment. */
+    KEEP(*(SORT_BY_ALIGNMENT({{ kernel.domain["section-name"] }})))
   }
 
 

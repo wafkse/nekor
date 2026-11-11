@@ -348,8 +348,8 @@ where
 #[unsafe(link_section = concat!(env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".offset"))]
 #[unsafe(naked)]
 // NOTE(rationale): The architecture storage symbol is shared with its parent module.
-// FIXME: Use "custom" callconv once stable.
-pub(super) unsafe extern "C" fn storage<T>() -> !
+#[doc(hidden)]
+pub unsafe extern "custom" fn storage<T>()
 where
     T: Store,
 {
@@ -363,7 +363,7 @@ where
         ".{pointer_width}byte 2f - .",
         concat!(
             // NOTE: Apply SHF_GNU_RETAIN to the input section.
-            ".pushsection ", env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".typename.{id_monomorphic}", ", \"awR\", @progbits"
+            ".pushsection ", env!("KERNEL_DOMAIN_STORAGE_SECTION"), ", \"awR\", @progbits"
         ),
         ".balign {type_alignment}",
         "2:",
@@ -388,7 +388,7 @@ where
 // Revisit whether more lock-free machinery is actually benefitial in this case.
 
 #[cfg(miri)]
-pub(crate) mod miri {
+pub(in crate::lowlevel) mod miri {
     //! Specialization for Miri support.
     //!
     //! Miri is unable to interpret code uses inline assembly.
@@ -410,9 +410,8 @@ pub(crate) mod miri {
     ///
     /// This stores types by their respective [`TypeId`] only once.
     ///
-    /// In this case, it performs an `O(n)` search rather than a constant-time
-    /// dereference, but it remains unimportant as long as no divergent
-    /// logic in non-`arch` code between regular execution and Miri is present.
+    /// Lookup performs an `O(n)` search. This affects only Miri execution, provided
+    /// that regular execution and Miri follow the same logic outside this module.
     ///
     /// # Lock-free
     ///
