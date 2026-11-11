@@ -1,4 +1,4 @@
-//! Low-level architectural entry context for Context Switch code.
+//! Low-level architectural entry context markers.
 
 use core::marker;
 
