@@ -7,7 +7,7 @@ use core::mem::MaybeUninit;
 /// The wrapper deliberately does not assign meaning to the stored bytes. It can
 /// carry initialized bytes verbatim or remain uninitialized when the enclosing
 /// representation permits that state.
-#[derive(Debug)]
+#[derive(Debug, zerocopy::Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The wrapped storage may be initialized or uninitialized and is never read by
 // this abstraction without an explicit caller action.
