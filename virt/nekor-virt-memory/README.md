@@ -6,16 +6,16 @@ Guest memory
 
 ## Responsibilities
 
-Defines guest addressing, memory ownership, and mapping concepts.
+Defines guest memory extents measured in bytes and shared by virtualization backends.
 
 ## Architecture
 
-Intended to represent guest memory responsibilities independently from vCPU execution and host backends.
+Guest regions combine a `Gpa` with a nonzero size and validate that the final byte is representable.
 
 ## Boundaries
 
-It does not implement a host memory manager or a concrete hypervisor mapping operation.
+Host allocation, page alignment, and hypervisor mappings remain backend responsibilities.
 
 ## Status
 
-The crate contains scaffolding only, memory contracts remain planned.
+Provides shared guest memory size and region types.
