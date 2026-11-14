@@ -100,7 +100,7 @@ type JmpRel32Mut<'a> = <JmpRel32<'a> as Counterpart>::Mut;
 // `D`.
 pub struct Template<D>(
     // NOTE(rationale): The sibling selection module builds templates for this patch module.
-    pub(crate) fn(DelegatedInput<D>) -> DelegatedOutput<D>,
+    pub(crate) extern "sysv64-unwind" fn(DelegatedInput<D>) -> DelegatedOutput<D>,
     // NOTE(rationale): The sibling selection module constructs the typed template marker.
     pub(crate) marker::PhantomData<fn() -> D>,
 )
@@ -160,7 +160,7 @@ where
 #[derive(Debug, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The function pointer implements the input and output contract of delegator `D`.
-pub struct Patched<D, I, O>(fn(I) -> O, marker::PhantomData<fn() -> D>)
+pub struct Patched<D, I, O>(extern "sysv64-unwind" fn(I) -> O, marker::PhantomData<fn() -> D>)
 where
     D: Delegator,
     D::Target: Delegated<Input = I, Output = O>;
@@ -245,22 +245,26 @@ where
     T: Delegator,
     P: Pod;
 
+#[expect(clippy::missing_inline_in_public_items, reason = "naked functions cannot use inline")]
 impl<T, P> Patch<T, P>
 where
     T: Delegator,
     P: Pod,
 {
-    /// Trampoline directly into the target [`Delegated::implementation`] for
+    /// Trampoline directly into the target [`Delegated::trampoline`] for
     /// this [`Patch`].
     ///
     /// # Safety
     ///
-    /// The *fn-pointer* sourced from this item must be transmuted to use the
-    /// "Rust" ABI instead. This is safe as it is a simple trampoline.
+    /// The installed delegate must satisfy the input and output contract of
+    /// `T`. The calling CPU must satisfy its architectural requirements.
+    ///
+    /// The patch slot must divert to resident delegate code.
+    ///
+    /// Assembly callers must supply the System V ABI state for `T::Target`.
+    /// The jump preserves that state and the caller's return address.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.trampoline"))]
     #[unsafe(naked)]
-    // TODO(unstable): Declare this naked trampoline with the "custom" ABI
-    // when stable. Patch::run must still cast it to a Rust ABI function pointer.
     pub unsafe extern "sysv64-unwind" fn trampoline(
         _target_value: <T::Target as Delegated>::Input,
     ) -> <T::Target as Delegated>::Output {
@@ -275,16 +279,10 @@ where
     /// Run the target [`Delegated::implementation`] for this [`Patch`].
     #[inline]
     pub fn run(target_value: <T::Target as Delegated>::Input) -> <T::Target as Delegated>::Output {
-        // SAFETY: The naked trampoline only jumps into the Rust ABI delegate.
-        // Calling it through a Rust ABI function pointer preserves the input
-        // and output representation across that jump.
-        let trampoline: fn(DelegatedInput<T>) -> DelegatedOutput<T> = unsafe {
-            mem::transmute(
-                Self::trampoline as unsafe extern "sysv64-unwind" fn(DelegatedInput<T>) -> DelegatedOutput<T>,
-            )
-        };
-
-        trampoline(target_value)
+        // SAFETY: Every diversion targets an adapter with this System V unwind signature.
+        //
+        // Installation preserves the delegate's admission and lifetime contract.
+        unsafe { Self::trampoline(target_value) }
     }
 
     /// The patchsite of the [`Delegator`] and [`Pod`] association.
@@ -294,14 +292,12 @@ where
     /// This associated function must never be called.
     #[unsafe(link_section = concat!(env!("KERNEL_PATCH_STORAGE_SECTION"), ".delegate.offset"))]
     #[unsafe(naked)]
-    // FIXME: As we are dealing with a mixed code model, we need to have all
-    // sections and subsections under the "KERNEL_PATCH_STORAGE_SECTION" reside in
-    // RAM and not memory-mapped flash to be able to actually patch properly.
-    // Execute-in-place storage cannot satisfy these writable patching needs.
-    // FIXME(unstable): Use "custom" ABI when available.
-    pub unsafe extern "sysv64-unwind" fn patchsite(
-        _target_value: <T::Target as Delegated>::Input,
-    ) -> <T::Target as Delegated>::Output {
+    // NOTE: The platform linker scripts place all patch subsections in
+    // page-isolated writable storage.
+    //
+    // The loader must back this storage with RAM, including the relative
+    // pointers and trampolines.
+    pub unsafe extern "custom" fn patchsite() {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             use nekor_aal_agnostic::rel_ptr::RelPtrMut;
@@ -361,7 +357,7 @@ where
 
                 patchsite_symbol = sym Self::patchsite,
 
-                default_symbol = sym <T::Target as Delegated>::implementation,
+                default_symbol = sym <T::Target as Delegated>::trampoline,
 
                 X86_OPCODE_JMP_REL32 = const X86::OPCODE_JMP_REL32,
                 X86_MNEMONIC_JMP_REL32_SIZE = const X86::MNEMONIC_JMP_REL32_SIZE,
@@ -371,5 +367,125 @@ where
                 options(att_syntax)
             )
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(target_arch = "x86_64")]
+mod tests {
+    use core::{
+        any::Any,
+        sync::atomic::{AtomicBool, Ordering},
+    };
+    use std::panic;
+
+    use super::{Patch, Template, X86};
+    use crate::patch::{
+        choose::Chosen,
+        delegate::{Delegated, Single},
+    };
+
+    /// A delegate with aggregate arguments and an indirect aggregate return.
+    #[derive(Clone, Copy)]
+    struct Aggregate;
+
+    // SAFETY: Reversing an owned array has no architectural prerequisites.
+    unsafe impl Delegated for Aggregate {
+        type Input = [u64; 9];
+        type Output = [u64; 9];
+
+        #[inline(never)]
+        fn implementation(mut target_value: Self::Input) -> Self::Output {
+            target_value.reverse();
+
+            target_value
+        }
+    }
+
+    /// A delegate that resumes a Rust unwind supplied by its caller.
+    #[derive(Clone, Copy)]
+    struct Unwind;
+
+    /// A delegate whose adapter differs observably from its Rust implementation.
+    #[derive(Clone, Copy)]
+    struct Specialized;
+
+    // SAFETY: Both entry points operate on an owned integer without architectural prerequisites.
+    unsafe impl Delegated for Specialized {
+        type Input = u64;
+        type Output = u64;
+
+        #[inline]
+        fn implementation(target_value: Self::Input) -> Self::Output {
+            target_value
+        }
+
+        #[inline]
+        extern "sysv64-unwind" fn trampoline(target_value: Self::Input) -> Self::Output {
+            target_value.wrapping_add(1)
+        }
+    }
+
+    /// Records whether unwinding runs the caller's destructor.
+    struct Cleanup<'state>(pub &'state AtomicBool);
+
+    impl Drop for Cleanup<'_> {
+        #[inline]
+        fn drop(&mut self) {
+            let Self(cleaned) = self;
+
+            cleaned.store(true, Ordering::Relaxed);
+        }
+    }
+
+    // SAFETY: Resuming the owned panic payload requires no additional caller guarantees.
+    unsafe impl Delegated for Unwind {
+        type Input = Box<dyn Any + Send>;
+        type Output = ();
+
+        #[inline(never)]
+        fn implementation(target_value: Self::Input) -> Self::Output {
+            panic::resume_unwind(target_value)
+        }
+    }
+
+    #[test]
+    fn sysv_trampoline_preserves_aggregate_call_state() {
+        let target_value = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let result = Patch::<Single<Aggregate, ()>, ()>::run(target_value);
+
+        assert_eq!(result, [9, 8, 7, 6, 5, 4, 3, 2, 1]);
+
+        let patchsite = Chosen::<Single<Aggregate, ()>, [u64; 9], [u64; 9]>::patchsite();
+        let super::Patchsite(diversion, ..) = patchsite.get_ref();
+        let bytes = diversion.load(core::sync::atomic::Ordering::Relaxed).to_ne_bytes();
+
+        assert_eq!(bytes[0], X86::OPCODE_JMP_REL32);
+    }
+
+    #[test]
+    fn initial_and_selected_diversions_use_the_adapter() {
+        let initial = Patch::<Single<Specialized, ()>, ()>::run(41);
+        let chosen = Chosen::<Single<Specialized, ()>, u64, u64>::delegated::<Specialized>();
+        let Template(adapter, ..) = chosen.template();
+        let selected = adapter(41);
+
+        assert_eq!(initial, 42);
+        assert_eq!(selected, 42);
+    }
+
+    #[test]
+    fn delegate_unwinds_to_the_original_rust_caller() {
+        let cleaned = AtomicBool::new(false);
+        let result = panic::catch_unwind(|| {
+            let _cleanup = Cleanup(&cleaned);
+
+            Patch::<Single<Unwind, ()>, ()>::run(Box::new(73_u32));
+        });
+
+        let payload = result.expect_err("the delegate must resume the supplied unwind");
+
+        assert_eq!(payload.downcast_ref::<u32>(), Some(&73));
+        assert!(cleaned.load(Ordering::Relaxed));
     }
 }
