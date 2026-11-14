@@ -89,7 +89,7 @@
 //!
 //! `#[project(pin)]` is valid only on fields. Every `unsafe = Trait` clause is
 //! valid only on a struct or enum. Helper attributes on enum variants are
-//! rejected. Duplicate options are rejected rather than silently ignored.
+//! rejected. Duplicate options are also rejected.
 //!
 //! # `#[project(pin)]`
 //!

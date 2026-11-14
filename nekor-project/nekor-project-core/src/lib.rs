@@ -37,13 +37,8 @@
 
 extern crate alloc;
 
-/// Helper attribute syntax and unsafe clause targets.
 pub mod attribute;
 
-/// Source field shapes and structural pinning metadata.
 pub mod field;
 
-/// Complete item validation and token expansion.
 pub mod item;
-
-pub use item::ProjectItem;

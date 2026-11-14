@@ -229,7 +229,7 @@ impl ProjectStruct {
 ///
 /// The contained [`ProjectFields`] distinguishes named, unnamed, empty, and
 /// unit structures.
-// NOTE(invariant): `field_list` retains the validated source structure shape and field order.
+// NOTE(invariant): `field_list` matches the validated source structure shape and field order.
 pub struct ProjectStructData {
     /// Source structure fields.
     field_list: ProjectFields,
