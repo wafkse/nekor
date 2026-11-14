@@ -1,0 +1,13 @@
+# Keep the Ruff version aligned with .github/workflows/lint-tool.yml.
+required-version = "==0.17.4"
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "D"]
+
+[lint.pydocstyle]
+convention = "pep257"
+
+[format]
+line-ending = "lf"

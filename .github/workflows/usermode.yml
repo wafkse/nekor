@@ -31,9 +31,12 @@ jobs:
     lint-rust:
         uses: ./.github/workflows/lint.yml
 
+    lint-tool:
+        uses: ./.github/workflows/lint-tool.yml
+
     userspace-tests:
         name: Userspace Tests (${{ matrix.toolchain }})
-        needs: [rust-toolchains, lint-rust]
+        needs: [rust-toolchains]
         runs-on: ubuntu-26.04
         timeout-minutes: 20
         strategy:
