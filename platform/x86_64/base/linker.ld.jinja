@@ -29,8 +29,9 @@ PHDRS {
 
     This is where code that can be cross-modified resides.
 
-    This is defined as a Read-Write-Execute program segment to avoid deduplication into the regular
-    `core-normal` program segment.
+    The loader must copy this segment's file image into writable RAM.
+
+    Read-only firmware mappings cannot be used for patch storage.
   */
   code-patchsite PT_LOAD FLAGS(7); /* RWX -> RX (W^X enforced post-boot) */
 
@@ -152,13 +153,13 @@ SECTIONS {
   AT(ADDR({{ kernel.patch["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
       {{ kernel.patch.symbol.start }} = .;
 
-      /* NOTE: Make sure only executable code is included. */
-      KEEP(INPUT_SECTION_FLAGS(SHF_ALLOC & SHF_EXECINSTR) *(SORT_BY_NAME({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*)))
+      /* NOTE: Include patch code, relative-pointer storage, and every other patch subsection. */
+      KEEP(*(SORT_BY_NAME({{ kernel.patch["section-name"] }} {{ kernel.patch["section-name"] }}.*)))
 
       /* NOTE: Make sure that the boundaries of the section are fully page-aligned. */
       . = ALIGN({{ arch.page.size.normal }});
       {{ kernel.patch.symbol.end }} = .;
-  } :code-patchsite :code-normal
+  } :code-patchsite
 
   /* NOTE: End of code sections. */
 
@@ -238,10 +239,8 @@ SECTIONS {
   {{ kernel.domain["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
   AT(ADDR({{ kernel.domain["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
-    /* Include `nekor-domain`-allocated per-type top-level section. */
-    KEEP(*({{ kernel.domain["section-name"] }}))
-    /* Sort by alignment helps save space by storing all cache-padded types in the same sequence. */
-    KEEP(*(SORT_BY_ALIGNMENT(SORT_BY_NAME({{ kernel.domain["section-name"] }}.typename.*))))
+    /* NOTE: Each input section contains shared storage with per-type alignment. */
+    KEEP(*(SORT_BY_ALIGNMENT({{ kernel.domain["section-name"] }})))
   }
 
   /* NOTE: This zeroed section is page-aligned to allow for lazy page allocation. */

@@ -11,8 +11,8 @@ use core::{
 };
 
 use crate::{
-    arch::{Container, InitializationStage},
     domain::{Adapter, Domain},
+    lowlevel::{Container, InitializationStage},
     prelude::Preset,
     store::{Static, Store},
 };
