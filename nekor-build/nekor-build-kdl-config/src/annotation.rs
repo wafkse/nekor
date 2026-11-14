@@ -31,7 +31,7 @@ impl fmt::Display for Annotation {
     }
 }
 
-/// A KDL annotation attached to a node rather than to one of its values.
+/// A KDL annotation attached to a node.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): The wrapped annotation is interpreted specifically as a node annotation.
 pub struct NodeAnnotation(Annotation);

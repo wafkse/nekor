@@ -60,8 +60,7 @@ impl ExponentialBase {
 /// # Platform Wait Quanta
 ///
 /// A *Platform Wait Quantum* is a platform-defined unit of requested processor
-/// relaxation. Backoff delays are expressed as a count of these units, rather
-/// than as a duration in nanoseconds or a number of failed attempts.
+/// relaxation. A backoff delay specifies how many quanta to request.
 ///
 /// In other words, requesting more quanta asks for more relaxation, but does
 /// not promise a particular elapsed time. A quantum is not a guaranteed minimum
