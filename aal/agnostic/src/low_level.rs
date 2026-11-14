@@ -96,5 +96,25 @@ pub struct LowLevel<T>(
     marker::PhantomData<*mut ()>,
 );
 
+impl<T> LowLevel<T> {
+    /// Borrow the payload established by the architectural entry.
+    #[inline]
+    #[must_use]
+    pub const fn value(&self) -> &T {
+        let Self(target_value, ..) = self;
+
+        target_value
+    }
+
+    /// Consume the entry proof and extract its payload.
+    #[inline]
+    #[must_use]
+    pub fn take(self) -> T {
+        let Self(target_value, ..) = self;
+
+        target_value
+    }
+}
+
 // SAFETY: This is being implemented for `LowLevel`.
 unsafe impl<T> Contextual for LowLevel<T> {}
