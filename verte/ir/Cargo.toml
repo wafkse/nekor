@@ -11,6 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+aldebaran = { workspace = true, features = ["report-codegen"] }
+fack.workspace = true
+num-bigint = { version = "0.4.8", default-features = false }
+num-integer = { version = "0.1.47", default-features = false }
+num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
+num-traits = { version = "0.2.19", default-features = false }
+rustc_apfloat = "0.2.3"
 
 [lints]
 workspace = true
