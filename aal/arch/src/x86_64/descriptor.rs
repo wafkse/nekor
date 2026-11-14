@@ -1,4 +1,4 @@
-//! Long-mode descriptor-table register state.
+//! Long-mode descriptor-table registers and system descriptors.
 
 use core::{marker::PhantomData, num::NonZero};
 
@@ -56,103 +56,206 @@ pub const TASK_INDEX: DescriptorIndex = const {
     unsafe { DescriptorIndex::new_unchecked(3) }
 };
 
-/// Low sixteen bits of a task-state base value.
-type TssBaseValueLow<'value> = Field<'value, 0, 15, u64>;
+/// Low sixteen bits of a long-mode system-descriptor base value.
+pub type SystemDescriptorBaseValueLow<'value> = Field<'value, 0, 15, u64>;
 
-/// Middle-low byte of a task-state base value.
-type TssBaseValueMiddle<'value> = Field<'value, 16, 23, u64>;
+/// Mutable counterpart to [`SystemDescriptorBaseValueLow`].
+pub type SystemDescriptorBaseValueLowMut<'value> = <SystemDescriptorBaseValueLow<'value> as Counterpart>::Mut;
 
-/// Middle-high byte of a task-state base value.
-type TssBaseValueHigh<'value> = Field<'value, 24, 31, u64>;
+/// Middle-low byte of a long-mode system-descriptor base value.
+pub type SystemDescriptorBaseValueMiddle<'value> = Field<'value, 16, 23, u64>;
 
-/// Upper thirty-two bits of a task-state base value.
-type TssBaseValueUpper<'value> = Field<'value, 32, 63, u64>;
+/// Mutable counterpart to [`SystemDescriptorBaseValueMiddle`].
+pub type SystemDescriptorBaseValueMiddleMut<'value> = <SystemDescriptorBaseValueMiddle<'value> as Counterpart>::Mut;
 
-/// Low sixteen bits of a task-state limit value.
-type TssLimitValueLow<'value> = Field<'value, 0, 15, u64>;
+/// Middle-high byte of a long-mode system-descriptor base value.
+pub type SystemDescriptorBaseValueHigh<'value> = Field<'value, 24, 31, u64>;
 
-/// High four bits of a task-state limit value.
-type TssLimitValueHigh<'value> = Field<'value, 16, 19, u64>;
+/// Mutable counterpart to [`SystemDescriptorBaseValueHigh`].
+pub type SystemDescriptorBaseValueHighMut<'value> = <SystemDescriptorBaseValueHigh<'value> as Counterpart>::Mut;
 
-/// Low limit field in a long-mode task-state descriptor.
-pub type TssDescriptorLimitLow<'value> = Field<'value, 0, 15, u64>;
+/// Upper thirty-two bits of a long-mode system-descriptor base value.
+pub type SystemDescriptorBaseValueUpper<'value> = Field<'value, 32, 63, u64>;
 
-/// Mutable counterpart to [`TssDescriptorLimitLow`].
-pub type TssDescriptorLimitLowMut<'value> = <TssDescriptorLimitLow<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`SystemDescriptorBaseValueUpper`].
+pub type SystemDescriptorBaseValueUpperMut<'value> = <SystemDescriptorBaseValueUpper<'value> as Counterpart>::Mut;
 
-/// Low base field in a long-mode task-state descriptor.
-pub type TssDescriptorBaseLow<'value> = Field<'value, 16, 31, u64>;
+/// Low sixteen bits of a long-mode system-descriptor limit value.
+pub type SystemDescriptorLimitValueLow<'value> = Field<'value, 0, 15, u64>;
 
-/// Mutable counterpart to [`TssDescriptorBaseLow`].
-pub type TssDescriptorBaseLowMut<'value> = <TssDescriptorBaseLow<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`SystemDescriptorLimitValueLow`].
+pub type SystemDescriptorLimitValueLowMut<'value> = <SystemDescriptorLimitValueLow<'value> as Counterpart>::Mut;
 
-/// Middle base field in a long-mode task-state descriptor.
-pub type TssDescriptorBaseMiddle<'value> = Field<'value, 32, 39, u64>;
+/// High four bits of a long-mode system-descriptor limit value.
+pub type SystemDescriptorLimitValueHigh<'value> = Field<'value, 16, 19, u64>;
 
-/// Mutable counterpart to [`TssDescriptorBaseMiddle`].
-pub type TssDescriptorBaseMiddleMut<'value> = <TssDescriptorBaseMiddle<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`SystemDescriptorLimitValueHigh`].
+pub type SystemDescriptorLimitValueHighMut<'value> = <SystemDescriptorLimitValueHigh<'value> as Counterpart>::Mut;
 
-/// System descriptor type field in a long-mode task-state descriptor.
-pub type TssDescriptorType<'value> = Field<'value, 40, 43, u64>;
+/// Low limit field in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorLimitLow<'value> = Field<'value, 0, 15, u64>;
 
-/// Mutable counterpart to [`TssDescriptorType`].
-pub type TssDescriptorTypeMut<'value> = <TssDescriptorType<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorLimitLow`].
+pub type LongModeSystemDescriptorLimitLowMut<'value> = <LongModeSystemDescriptorLimitLow<'value> as Counterpart>::Mut;
 
-/// Descriptor privilege field in a long-mode task-state descriptor.
-pub type TssDescriptorPrivilege<'value> = Field<'value, 45, 46, u64>;
+/// Low base field in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorBaseLow<'value> = Field<'value, 16, 31, u64>;
 
-/// Mutable counterpart to [`TssDescriptorPrivilege`].
-pub type TssDescriptorPrivilegeMut<'value> = <TssDescriptorPrivilege<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorBaseLow`].
+pub type LongModeSystemDescriptorBaseLowMut<'value> = <LongModeSystemDescriptorBaseLow<'value> as Counterpart>::Mut;
 
-/// Present bit in a long-mode task-state descriptor.
-pub type TssDescriptorPresent<'value> = Bit<'value, u64, 47>;
+/// Middle base field in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorBaseMiddle<'value> = Field<'value, 32, 39, u64>;
 
-/// Mutable counterpart to [`TssDescriptorPresent`].
-pub type TssDescriptorPresentMut<'value> = <TssDescriptorPresent<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorBaseMiddle`].
+pub type LongModeSystemDescriptorBaseMiddleMut<'value> =
+    <LongModeSystemDescriptorBaseMiddle<'value> as Counterpart>::Mut;
 
-/// High limit field in a long-mode task-state descriptor.
-pub type TssDescriptorLimitHigh<'value> = Field<'value, 48, 51, u64>;
+/// System descriptor type field in a long-mode TSS, LDT, or gate descriptor.
+pub type LongModeSystemDescriptorType<'value> = Field<'value, 40, 43, u64>;
 
-/// Mutable counterpart to [`TssDescriptorLimitHigh`].
-pub type TssDescriptorLimitHighMut<'value> = <TssDescriptorLimitHigh<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorType`].
+pub type LongModeSystemDescriptorTypeMut<'value> = <LongModeSystemDescriptorType<'value> as Counterpart>::Mut;
 
-/// High byte of the low-word task-state base.
-pub type TssDescriptorBaseHigh<'value> = Field<'value, 56, 63, u64>;
+/// Descriptor privilege field in a long-mode TSS, LDT, or gate descriptor.
+pub type LongModeSystemDescriptorPrivilege<'value> = Field<'value, 45, 46, u64>;
 
-/// Mutable counterpart to [`TssDescriptorBaseHigh`].
-pub type TssDescriptorBaseHighMut<'value> = <TssDescriptorBaseHigh<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorPrivilege`].
+pub type LongModeSystemDescriptorPrivilegeMut<'value> = <LongModeSystemDescriptorPrivilege<'value> as Counterpart>::Mut;
 
-/// Upper thirty-two bits of the task-state base.
-pub type TssDescriptorBaseUpper<'value> = Field<'value, 0, 31, u64>;
+/// Present bit in a long-mode TSS, LDT, or gate descriptor.
+pub type LongModeSystemDescriptorPresent<'value> = Bit<'value, u64, 47>;
 
-/// Mutable counterpart to [`TssDescriptorBaseUpper`].
-pub type TssDescriptorBaseUpperMut<'value> = <TssDescriptorBaseUpper<'value> as Counterpart>::Mut;
+/// Mutable counterpart to [`LongModeSystemDescriptorPresent`].
+pub type LongModeSystemDescriptorPresentMut<'value> = <LongModeSystemDescriptorPresent<'value> as Counterpart>::Mut;
 
-/// Low sixty-four bits of a long-mode task-state descriptor image.
-pub type TssDescriptorLow = Partitioned<0, 63, u128>;
+/// High limit field in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorLimitHigh<'value> = Field<'value, 48, 51, u64>;
 
-/// High sixty-four bits of a long-mode task-state descriptor image.
-pub type TssDescriptorHigh = Partitioned<64, 127, u128>;
+/// Mutable counterpart to [`LongModeSystemDescriptorLimitHigh`].
+pub type LongModeSystemDescriptorLimitHighMut<'value> = <LongModeSystemDescriptorLimitHigh<'value> as Counterpart>::Mut;
 
-/// A raw 128-bit long-mode task-state-segment descriptor image.
+/// High byte of the low-word base in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorBaseHigh<'value> = Field<'value, 56, 63, u64>;
+
+/// Mutable counterpart to [`LongModeSystemDescriptorBaseHigh`].
+pub type LongModeSystemDescriptorBaseHighMut<'value> = <LongModeSystemDescriptorBaseHigh<'value> as Counterpart>::Mut;
+
+/// Upper thirty-two bits of the base in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorBaseUpper<'value> = Field<'value, 0, 31, u64>;
+
+/// Mutable counterpart to [`LongModeSystemDescriptorBaseUpper`].
+pub type LongModeSystemDescriptorBaseUpperMut<'value> = <LongModeSystemDescriptorBaseUpper<'value> as Counterpart>::Mut;
+
+/// Segment-class bit in a long-mode system descriptor.
+///
+/// The bit is cleared for TSS, LDT, and gate descriptors.
+pub type LongModeSystemDescriptorClass<'value> = Bit<'value, u64, 44>;
+
+/// Mutable counterpart to [`LongModeSystemDescriptorClass`].
+pub type LongModeSystemDescriptorClassMut<'value> = <LongModeSystemDescriptorClass<'value> as Counterpart>::Mut;
+
+/// Available-for-system-software bit in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorAvailable<'value> = Bit<'value, u64, 52>;
+
+/// Mutable counterpart to [`LongModeSystemDescriptorAvailable`].
+pub type LongModeSystemDescriptorAvailableMut<'value> = <LongModeSystemDescriptorAvailable<'value> as Counterpart>::Mut;
+
+/// Granularity bit in a long-mode TSS or LDT descriptor.
+pub type LongModeSystemDescriptorGranularity<'value> = Bit<'value, u64, 55>;
+
+/// Mutable counterpart to [`LongModeSystemDescriptorGranularity`].
+pub type LongModeSystemDescriptorGranularityMut<'value> =
+    <LongModeSystemDescriptorGranularity<'value> as Counterpart>::Mut;
+
+/// Low sixty-four bits of a long-mode system-descriptor image.
+pub type LongModeSystemDescriptorLow = Partitioned<0, 63, u128>;
+
+/// High sixty-four bits of a long-mode system-descriptor image.
+pub type LongModeSystemDescriptorHigh = Partitioned<64, 127, u128>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorLimitLow`].
+pub type TssDescriptorLimitLow<'value> = LongModeSystemDescriptorLimitLow<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorLimitLowMut`].
+pub type TssDescriptorLimitLowMut<'value> = LongModeSystemDescriptorLimitLowMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseLow`].
+pub type TssDescriptorBaseLow<'value> = LongModeSystemDescriptorBaseLow<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseLowMut`].
+pub type TssDescriptorBaseLowMut<'value> = LongModeSystemDescriptorBaseLowMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseMiddle`].
+pub type TssDescriptorBaseMiddle<'value> = LongModeSystemDescriptorBaseMiddle<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseMiddleMut`].
+pub type TssDescriptorBaseMiddleMut<'value> = LongModeSystemDescriptorBaseMiddleMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorType`].
+pub type TssDescriptorType<'value> = LongModeSystemDescriptorType<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorTypeMut`].
+pub type TssDescriptorTypeMut<'value> = LongModeSystemDescriptorTypeMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorPrivilege`].
+pub type TssDescriptorPrivilege<'value> = LongModeSystemDescriptorPrivilege<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorPrivilegeMut`].
+pub type TssDescriptorPrivilegeMut<'value> = LongModeSystemDescriptorPrivilegeMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorPresent`].
+pub type TssDescriptorPresent<'value> = LongModeSystemDescriptorPresent<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorPresentMut`].
+pub type TssDescriptorPresentMut<'value> = LongModeSystemDescriptorPresentMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorLimitHigh`].
+pub type TssDescriptorLimitHigh<'value> = LongModeSystemDescriptorLimitHigh<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorLimitHighMut`].
+pub type TssDescriptorLimitHighMut<'value> = LongModeSystemDescriptorLimitHighMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseHigh`].
+pub type TssDescriptorBaseHigh<'value> = LongModeSystemDescriptorBaseHigh<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseHighMut`].
+pub type TssDescriptorBaseHighMut<'value> = LongModeSystemDescriptorBaseHighMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseUpper`].
+pub type TssDescriptorBaseUpper<'value> = LongModeSystemDescriptorBaseUpper<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorBaseUpperMut`].
+pub type TssDescriptorBaseUpperMut<'value> = LongModeSystemDescriptorBaseUpperMut<'value>;
+
+/// TSS-specific name for [`LongModeSystemDescriptorLow`].
+pub type TssDescriptorLow = LongModeSystemDescriptorLow;
+
+/// TSS-specific name for [`LongModeSystemDescriptorHigh`].
+pub type TssDescriptorHigh = LongModeSystemDescriptorHigh;
+
+/// A raw 128-bit long-mode TSS or LDT descriptor image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
 #[repr(C)]
 // NOTE(invariant): The two partitions form one complete sixteen-byte architectural
 // system-descriptor image. Every 128-bit image remains representable.
-pub struct RawLongModeTssDescriptor(TssDescriptorLow, TssDescriptorHigh);
+pub struct RawLongModeSystemDescriptor(LongModeSystemDescriptorLow, LongModeSystemDescriptorHigh);
 
-impl RawLongModeTssDescriptor {
+impl RawLongModeSystemDescriptor {
     /// Constructs a raw descriptor image.
     #[inline]
     #[must_use]
     pub const fn new(low: u64, high: u64) -> Self {
-        Self(TssDescriptorLow::raw(low), TssDescriptorHigh::raw(high))
+        Self(
+            LongModeSystemDescriptorLow::raw(low),
+            LongModeSystemDescriptorHigh::raw(high),
+        )
     }
 
     /// Returns the low descriptor word.
     #[inline]
     #[must_use]
-    pub const fn low(&self) -> &TssDescriptorLow {
+    pub const fn low(&self) -> &LongModeSystemDescriptorLow {
         let &Self(ref low, ..) = self;
 
         low
@@ -160,7 +263,7 @@ impl RawLongModeTssDescriptor {
 
     /// Returns mutable access to the low descriptor word.
     #[inline]
-    pub const fn low_mut(&mut self) -> &mut TssDescriptorLow {
+    pub const fn low_mut(&mut self) -> &mut LongModeSystemDescriptorLow {
         let &mut Self(ref mut low, ..) = self;
 
         low
@@ -169,7 +272,7 @@ impl RawLongModeTssDescriptor {
     /// Returns the high descriptor word.
     #[inline]
     #[must_use]
-    pub const fn high(&self) -> &TssDescriptorHigh {
+    pub const fn high(&self) -> &LongModeSystemDescriptorHigh {
         let &Self(_, ref high) = self;
 
         high
@@ -177,7 +280,7 @@ impl RawLongModeTssDescriptor {
 
     /// Returns mutable access to the high descriptor word.
     #[inline]
-    pub const fn high_mut(&mut self) -> &mut TssDescriptorHigh {
+    pub const fn high_mut(&mut self) -> &mut LongModeSystemDescriptorHigh {
         let &mut Self(_, ref mut high) = self;
 
         high
@@ -186,156 +289,245 @@ impl RawLongModeTssDescriptor {
     /// Returns the low limit field.
     #[inline]
     #[must_use]
-    pub const fn limit_low(&self) -> TssDescriptorLimitLow<'_> {
+    pub const fn limit_low(&self) -> LongModeSystemDescriptorLimitLow<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorLimitLow::wrap(low.value())
+        LongModeSystemDescriptorLimitLow::wrap(low.value())
     }
 
     /// Returns mutable access to the low limit field.
     #[inline]
-    pub const fn limit_low_mut(&mut self) -> TssDescriptorLimitLowMut<'_> {
+    pub const fn limit_low_mut(&mut self) -> LongModeSystemDescriptorLimitLowMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorLimitLowMut::wrap(low.value_mut())
+        LongModeSystemDescriptorLimitLowMut::wrap(low.value_mut())
     }
 
     /// Returns the low base field.
     #[inline]
     #[must_use]
-    pub const fn base_low(&self) -> TssDescriptorBaseLow<'_> {
+    pub const fn base_low(&self) -> LongModeSystemDescriptorBaseLow<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorBaseLow::wrap(low.value())
+        LongModeSystemDescriptorBaseLow::wrap(low.value())
     }
 
     /// Returns mutable access to the low base field.
     #[inline]
-    pub const fn base_low_mut(&mut self) -> TssDescriptorBaseLowMut<'_> {
+    pub const fn base_low_mut(&mut self) -> LongModeSystemDescriptorBaseLowMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorBaseLowMut::wrap(low.value_mut())
+        LongModeSystemDescriptorBaseLowMut::wrap(low.value_mut())
     }
 
     /// Returns the middle base field.
     #[inline]
     #[must_use]
-    pub const fn base_middle(&self) -> TssDescriptorBaseMiddle<'_> {
+    pub const fn base_middle(&self) -> LongModeSystemDescriptorBaseMiddle<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorBaseMiddle::wrap(low.value())
+        LongModeSystemDescriptorBaseMiddle::wrap(low.value())
     }
 
     /// Returns mutable access to the middle base field.
     #[inline]
-    pub const fn base_middle_mut(&mut self) -> TssDescriptorBaseMiddleMut<'_> {
+    pub const fn base_middle_mut(&mut self) -> LongModeSystemDescriptorBaseMiddleMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorBaseMiddleMut::wrap(low.value_mut())
+        LongModeSystemDescriptorBaseMiddleMut::wrap(low.value_mut())
     }
 
     /// Returns the system-descriptor type field.
     #[inline]
     #[must_use]
-    pub const fn descriptor_type(&self) -> TssDescriptorType<'_> {
+    pub const fn descriptor_type(&self) -> LongModeSystemDescriptorType<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorType::wrap(low.value())
+        LongModeSystemDescriptorType::wrap(low.value())
     }
 
     /// Returns mutable access to the system-descriptor type field.
     #[inline]
-    pub const fn descriptor_type_mut(&mut self) -> TssDescriptorTypeMut<'_> {
+    pub const fn descriptor_type_mut(&mut self) -> LongModeSystemDescriptorTypeMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorTypeMut::wrap(low.value_mut())
+        LongModeSystemDescriptorTypeMut::wrap(low.value_mut())
     }
 
     /// Returns the descriptor privilege field.
     #[inline]
     #[must_use]
-    pub const fn privilege(&self) -> TssDescriptorPrivilege<'_> {
+    pub const fn privilege(&self) -> LongModeSystemDescriptorPrivilege<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorPrivilege::wrap(low.value())
+        LongModeSystemDescriptorPrivilege::wrap(low.value())
     }
 
     /// Returns mutable access to the descriptor privilege field.
     #[inline]
-    pub const fn privilege_mut(&mut self) -> TssDescriptorPrivilegeMut<'_> {
+    pub const fn privilege_mut(&mut self) -> LongModeSystemDescriptorPrivilegeMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorPrivilegeMut::wrap(low.value_mut())
+        LongModeSystemDescriptorPrivilegeMut::wrap(low.value_mut())
     }
 
     /// Returns the descriptor-present bit.
     #[inline]
     #[must_use]
-    pub const fn present(&self) -> TssDescriptorPresent<'_> {
+    pub const fn present(&self) -> LongModeSystemDescriptorPresent<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorPresent::wrap(low.value())
+        LongModeSystemDescriptorPresent::wrap(low.value())
     }
 
     /// Returns mutable access to the descriptor-present bit.
     #[inline]
-    pub const fn present_mut(&mut self) -> TssDescriptorPresentMut<'_> {
+    pub const fn present_mut(&mut self) -> LongModeSystemDescriptorPresentMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorPresentMut::wrap(low.value_mut())
+        LongModeSystemDescriptorPresentMut::wrap(low.value_mut())
     }
 
     /// Returns the high limit field.
     #[inline]
     #[must_use]
-    pub const fn limit_high(&self) -> TssDescriptorLimitHigh<'_> {
+    pub const fn limit_high(&self) -> LongModeSystemDescriptorLimitHigh<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorLimitHigh::wrap(low.value())
+        LongModeSystemDescriptorLimitHigh::wrap(low.value())
     }
 
     /// Returns mutable access to the high limit field.
     #[inline]
-    pub const fn limit_high_mut(&mut self) -> TssDescriptorLimitHighMut<'_> {
+    pub const fn limit_high_mut(&mut self) -> LongModeSystemDescriptorLimitHighMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorLimitHighMut::wrap(low.value_mut())
+        LongModeSystemDescriptorLimitHighMut::wrap(low.value_mut())
     }
 
     /// Returns the high byte of the low-word base.
     #[inline]
     #[must_use]
-    pub const fn base_high(&self) -> TssDescriptorBaseHigh<'_> {
+    pub const fn base_high(&self) -> LongModeSystemDescriptorBaseHigh<'_> {
         let &Self(ref low, ..) = self;
 
-        TssDescriptorBaseHigh::wrap(low.value())
+        LongModeSystemDescriptorBaseHigh::wrap(low.value())
     }
 
     /// Returns mutable access to the high byte of the low-word base.
     #[inline]
-    pub const fn base_high_mut(&mut self) -> TssDescriptorBaseHighMut<'_> {
+    pub const fn base_high_mut(&mut self) -> LongModeSystemDescriptorBaseHighMut<'_> {
         let &mut Self(ref mut low, ..) = self;
 
-        TssDescriptorBaseHighMut::wrap(low.value_mut())
+        LongModeSystemDescriptorBaseHighMut::wrap(low.value_mut())
     }
 
     /// Returns the upper thirty-two bits of the base.
     #[inline]
     #[must_use]
-    pub const fn base_upper(&self) -> TssDescriptorBaseUpper<'_> {
+    pub const fn base_upper(&self) -> LongModeSystemDescriptorBaseUpper<'_> {
         let &Self(_, ref high) = self;
 
-        TssDescriptorBaseUpper::wrap(high.value())
+        LongModeSystemDescriptorBaseUpper::wrap(high.value())
     }
 
     /// Returns mutable access to the upper thirty-two bits of the base.
     #[inline]
-    pub const fn base_upper_mut(&mut self) -> TssDescriptorBaseUpperMut<'_> {
+    pub const fn base_upper_mut(&mut self) -> LongModeSystemDescriptorBaseUpperMut<'_> {
         let &mut Self(_, ref mut high) = self;
 
-        TssDescriptorBaseUpperMut::wrap(high.value_mut())
+        LongModeSystemDescriptorBaseUpperMut::wrap(high.value_mut())
+    }
+
+    /// Returns the segment-class bit.
+    #[inline]
+    #[must_use]
+    pub const fn class(&self) -> LongModeSystemDescriptorClass<'_> {
+        let &Self(ref low, ..) = self;
+
+        LongModeSystemDescriptorClass::wrap(low.value())
+    }
+
+    /// Returns mutable access to the segment-class bit.
+    #[inline]
+    pub const fn class_mut(&mut self) -> LongModeSystemDescriptorClassMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        LongModeSystemDescriptorClassMut::wrap(low.value_mut())
+    }
+
+    /// Returns the available-for-system-software bit.
+    #[inline]
+    #[must_use]
+    pub const fn available(&self) -> LongModeSystemDescriptorAvailable<'_> {
+        let &Self(ref low, ..) = self;
+
+        LongModeSystemDescriptorAvailable::wrap(low.value())
+    }
+
+    /// Returns mutable access to the available-for-system-software bit.
+    #[inline]
+    pub const fn available_mut(&mut self) -> LongModeSystemDescriptorAvailableMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        LongModeSystemDescriptorAvailableMut::wrap(low.value_mut())
+    }
+
+    /// Returns the limit-granularity bit.
+    #[inline]
+    #[must_use]
+    pub const fn granularity(&self) -> LongModeSystemDescriptorGranularity<'_> {
+        let &Self(ref low, ..) = self;
+
+        LongModeSystemDescriptorGranularity::wrap(low.value())
+    }
+
+    /// Returns mutable access to the limit-granularity bit.
+    #[inline]
+    pub const fn granularity_mut(&mut self) -> LongModeSystemDescriptorGranularityMut<'_> {
+        let &mut Self(ref mut low, ..) = self;
+
+        LongModeSystemDescriptorGranularityMut::wrap(low.value_mut())
+    }
+
+    /// Returns the base bits without checking canonicality.
+    #[inline]
+    #[must_use]
+    pub const fn base(&self) -> u64 {
+        let low = self.base_low().const_value();
+        let middle = self.base_middle().const_value();
+        let high = self.base_high().const_value();
+        let upper = self.base_upper().const_value();
+        let mut target_value = u64::MIN;
+
+        SystemDescriptorBaseValueLowMut::wrap(&mut target_value).const_merge(low);
+        SystemDescriptorBaseValueMiddleMut::wrap(&mut target_value).const_merge(middle);
+        SystemDescriptorBaseValueHighMut::wrap(&mut target_value).const_merge(high);
+        SystemDescriptorBaseValueUpperMut::wrap(&mut target_value).const_merge(upper);
+
+        target_value
+    }
+
+    /// Returns the encoded limit without applying its granularity.
+    #[inline]
+    #[must_use]
+    pub const fn limit(&self) -> u64 {
+        let low = self.limit_low().const_value();
+        let high = self.limit_high().const_value();
+        let mut target_value = u64::MIN;
+
+        SystemDescriptorLimitValueLowMut::wrap(&mut target_value).const_merge(low);
+        SystemDescriptorLimitValueHighMut::wrap(&mut target_value).const_merge(high);
+
+        target_value
     }
 }
+
+/// A raw 128-bit long-mode task-state-segment descriptor image.
+pub type RawLongModeTssDescriptor = RawLongModeSystemDescriptor;
+
+/// A raw 128-bit long-mode local-descriptor-table descriptor image.
+pub type RawLongModeLdtDescriptor = RawLongModeSystemDescriptor;
 
 /// An available ring-zero long-mode task-state-segment descriptor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -439,12 +631,12 @@ impl LongModeTssDescriptor {
         match limit {
             Some(limit) => {
                 let target_value = base.bits();
-                let base_low = TssBaseValueLow::wrap(&target_value).const_value();
-                let base_middle = TssBaseValueMiddle::wrap(&target_value).const_value();
-                let base_high = TssBaseValueHigh::wrap(&target_value).const_value();
-                let base_upper = TssBaseValueUpper::wrap(&target_value).const_value();
-                let limit_low = TssLimitValueLow::wrap(&limit).const_value();
-                let limit_high = TssLimitValueHigh::wrap(&limit).const_value();
+                let base_low = SystemDescriptorBaseValueLow::wrap(&target_value).const_value();
+                let base_middle = SystemDescriptorBaseValueMiddle::wrap(&target_value).const_value();
+                let base_high = SystemDescriptorBaseValueHigh::wrap(&target_value).const_value();
+                let base_upper = SystemDescriptorBaseValueUpper::wrap(&target_value).const_value();
+                let limit_low = SystemDescriptorLimitValueLow::wrap(&limit).const_value();
+                let limit_high = SystemDescriptorLimitValueHigh::wrap(&limit).const_value();
                 let descriptor_kind = SystemDescriptorType::TssAvailable32 as u8;
                 let mut low = u64::MIN;
                 let mut low_limit = TssDescriptorLimitLowMut::wrap(&mut low);
@@ -485,7 +677,7 @@ impl LongModeTssDescriptor {
 
                 upper_base.const_merge(base_upper);
 
-                let raw = RawLongModeTssDescriptor::new(low, high);
+                let raw = RawLongModeSystemDescriptor::new(low, high);
 
                 Some(Self(raw))
             },
@@ -497,6 +689,83 @@ impl LongModeTssDescriptor {
     #[inline]
     #[must_use]
     pub const fn raw(self) -> RawLongModeTssDescriptor {
+        let Self(raw) = self;
+
+        raw
+    }
+}
+
+/// A present long-mode local-descriptor-table descriptor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
+// NOTE(invariant): The raw image names a present LDT with a canonical base, the requested DPL,
+// and an exact byte extent representable by the architectural limit and granularity fields.
+pub struct LongModeLdtDescriptor(RawLongModeSystemDescriptor);
+
+impl LongModeLdtDescriptor {
+    /// Constructs an LDT descriptor for an exact table byte length.
+    ///
+    /// The requested length is encoded with byte granularity when it is at most one mebibyte.
+    /// Larger lengths must be an exact multiple of four kibibytes and may not exceed four
+    /// gibibytes. Returns `None` when the requested length cannot be represented by the
+    /// descriptor's twenty-bit limit and granularity fields.
+    #[inline]
+    #[must_use]
+    pub const fn new(base: La, byte_length: NonZero<u64>, privilege: PrivilegeLevel) -> Option<Self> {
+        const MAX_BYTE_LIMIT: u64 = 0x000f_ffff;
+        const FIRST_PAGE_LIMIT: u64 = MAX_BYTE_LIMIT + 1;
+        const MAX_EFFECTIVE_LIMIT: u64 = u32::MAX as u64;
+        const PAGE_BYTES: u64 = 4096;
+        const PAGE_LAST_BYTE: u64 = PAGE_BYTES - 1;
+
+        let target_limit = byte_length.get() - 1;
+        let encoded_limit = match target_limit {
+            0..=MAX_BYTE_LIMIT => Some((target_limit, State::Cleared)),
+            FIRST_PAGE_LIMIT..=MAX_EFFECTIVE_LIMIT if target_limit % PAGE_BYTES == PAGE_LAST_BYTE => {
+                Some((target_limit / PAGE_BYTES, State::Set))
+            },
+            _ => None,
+        };
+
+        match encoded_limit {
+            Some((encoded_limit, granularity)) => {
+                let target_value = base.bits();
+                let base_low = SystemDescriptorBaseValueLow::wrap(&target_value).const_value();
+                let base_middle = SystemDescriptorBaseValueMiddle::wrap(&target_value).const_value();
+                let base_high = SystemDescriptorBaseValueHigh::wrap(&target_value).const_value();
+                let base_upper = SystemDescriptorBaseValueUpper::wrap(&target_value).const_value();
+                let limit_low = SystemDescriptorLimitValueLow::wrap(&encoded_limit).const_value();
+                let limit_high = SystemDescriptorLimitValueHigh::wrap(&encoded_limit).const_value();
+                let mut low = u64::MIN;
+
+                LongModeSystemDescriptorLimitLowMut::wrap(&mut low).const_merge(limit_low);
+                LongModeSystemDescriptorBaseLowMut::wrap(&mut low).const_merge(base_low);
+                LongModeSystemDescriptorBaseMiddleMut::wrap(&mut low).const_merge(base_middle);
+                LongModeSystemDescriptorTypeMut::wrap(&mut low).const_merge(SystemDescriptorType::Ldt as u8);
+                LongModeSystemDescriptorClassMut::wrap(&mut low).const_set(State::Cleared);
+                LongModeSystemDescriptorPrivilegeMut::wrap(&mut low).const_merge(privilege.raw());
+                LongModeSystemDescriptorPresentMut::wrap(&mut low).const_set(State::Set);
+                LongModeSystemDescriptorLimitHighMut::wrap(&mut low).const_merge(limit_high);
+                LongModeSystemDescriptorBaseHighMut::wrap(&mut low).const_merge(base_high);
+                LongModeSystemDescriptorAvailableMut::wrap(&mut low).const_set(State::Cleared);
+                LongModeSystemDescriptorGranularityMut::wrap(&mut low).const_set(granularity);
+
+                let mut high = u64::MIN;
+
+                LongModeSystemDescriptorBaseUpperMut::wrap(&mut high).const_merge(base_upper);
+
+                let raw = RawLongModeSystemDescriptor::new(low, high);
+
+                Some(Self(raw))
+            },
+            None => None,
+        }
+    }
+
+    /// Lowers this checked descriptor into its raw image.
+    #[inline]
+    #[must_use]
+    pub const fn raw(self) -> RawLongModeLdtDescriptor {
         let Self(raw) = self;
 
         raw
