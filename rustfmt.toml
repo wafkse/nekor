@@ -16,7 +16,7 @@ max_width = 120
 # "Max" tends to produce overly dense 90–100 character expressions.
 use_small_heuristics = "Default"
 
-# Treat max_width as an actual policy rather than just a preference.
+# Enforce max_width as a formatting limit.
 error_on_line_overflow = false
 error_on_unformatted = true
 
