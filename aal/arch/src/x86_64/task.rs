@@ -2,7 +2,7 @@
 
 use core::mem;
 
-use nekor_aal_agnostic::partitioned::Partitioned;
+use nekor_aal_agnostic::{partitioned::Partitioned, reserved::Reserved};
 use nekor_bitwise::prelude::State;
 use zerocopy::{Immutable, IntoBytes};
 
@@ -260,14 +260,16 @@ impl TaskIoMapBase {
 }
 
 /// The fixed 104-byte raw long-mode task-state image.
-#[derive(Debug, Clone, Copy, IntoBytes, Immutable)]
+///
+/// Reserved storage may be uninitialized, so this image does not implement [`IntoBytes`].
+#[derive(Debug, Clone, Copy, Immutable)]
 #[repr(C)]
 // NOTE(invariant): Field order and four-byte alignment form the exact fixed
 // long-mode TSS image. Values produced by `TaskStateSegment::raw` have zeroed
 // reserved fields, canonical stack addresses, and an I/O map base of 104.
 pub struct RawTaskStateSegmentBase {
     /// Reserved initial word.
-    reserved_header: u32,
+    reserved_head: Reserved<u32>,
 
     /// Stack loaded for a transition to CPL0.
     rsp0: RawPrivilegeStack,
@@ -279,7 +281,7 @@ pub struct RawTaskStateSegmentBase {
     rsp2: RawPrivilegeStack,
 
     /// Reserved words after the privilege-transition stacks.
-    reserved_privilege: [u32; 2],
+    reserved_privilege: Reserved<[u32; 2]>,
 
     /// First interrupt-stack-table entry, architecturally IST1.
     ist0: RawInterruptStack,
@@ -303,10 +305,10 @@ pub struct RawTaskStateSegmentBase {
     ist6: RawInterruptStack,
 
     /// Reserved words after the interrupt-stack-table entries.
-    reserved_interrupt: [u32; 2],
+    reserved_interrupt: Reserved<[u32; 2]>,
 
     /// Reserved word before the I/O map base field.
-    reserved_io: u16,
+    reserved_io: Reserved<u16>,
 
     /// Byte offset from the TSS base to the trailing I/O map area.
     io_map_base: TaskIoMapBase,
@@ -321,11 +323,11 @@ impl RawTaskStateSegmentBase {
     #[inline]
     #[must_use]
     pub const fn new(
-        reserved_header: u32,
+        reserved_head: Reserved<u32>,
         rsp0: RawPrivilegeStack,
         rsp1: RawPrivilegeStack,
         rsp2: RawPrivilegeStack,
-        reserved_privilege: [u32; 2],
+        reserved_privilege: Reserved<[u32; 2]>,
         ist0: RawInterruptStack,
         ist1: RawInterruptStack,
         ist2: RawInterruptStack,
@@ -333,12 +335,12 @@ impl RawTaskStateSegmentBase {
         ist4: RawInterruptStack,
         ist5: RawInterruptStack,
         ist6: RawInterruptStack,
-        reserved_interrupt: [u32; 2],
-        reserved_io: u16,
+        reserved_interrupt: Reserved<[u32; 2]>,
+        reserved_io: Reserved<u16>,
         io_map_base: TaskIoMapBase,
     ) -> Self {
         Self {
-            reserved_header,
+            reserved_head,
             rsp0,
             rsp1,
             rsp2,
@@ -374,11 +376,11 @@ impl RawTaskStateSegmentBase {
             ..
         } = state;
 
-        let reserved_header = 0;
+        let reserved_head = Reserved::zeroed();
         let rsp0 = RawPrivilegeStack::lower(rsp0);
         let rsp1 = RawPrivilegeStack::lower(rsp1);
         let rsp2 = RawPrivilegeStack::lower(rsp2);
-        let reserved_privilege = [0; 2];
+        let reserved_privilege = Reserved::zeroed();
         let ist0 = RawInterruptStack::lower(ist0);
         let ist1 = RawInterruptStack::lower(ist1);
         let ist2 = RawInterruptStack::lower(ist2);
@@ -386,12 +388,12 @@ impl RawTaskStateSegmentBase {
         let ist4 = RawInterruptStack::lower(ist4);
         let ist5 = RawInterruptStack::lower(ist5);
         let ist6 = RawInterruptStack::lower(ist6);
-        let reserved_interrupt = [0; 2];
-        let reserved_io = 0;
+        let reserved_interrupt = Reserved::zeroed();
+        let reserved_io = Reserved::zeroed();
         let io_map_base = TaskIoMapBase::new(mem::size_of::<Self>() as u16);
 
         Self {
-            reserved_header,
+            reserved_head,
             rsp0,
             rsp1,
             rsp2,
@@ -1108,6 +1110,7 @@ impl<const N: usize> Default for TaskStateSegment<N> {
 mod tests {
     use core::mem::{self, offset_of};
 
+    use nekor_aal_agnostic::reserved::Reserved;
     use zerocopy::IntoBytes;
 
     use super::{
@@ -1136,6 +1139,10 @@ mod tests {
         assert_eq!(mem::align_of::<RawTaskStateSegmentBase>(), 4);
         assert_eq!(mem::size_of::<RawTaskStateSegment>(), 104);
         assert_eq!(mem::align_of::<RawTaskStateSegment>(), 4);
+        assert_eq!(offset_of!(RawTaskStateSegmentBase, reserved_head), 0);
+        assert_eq!(offset_of!(RawTaskStateSegmentBase, reserved_privilege), 28);
+        assert_eq!(offset_of!(RawTaskStateSegmentBase, reserved_interrupt), 92);
+        assert_eq!(offset_of!(RawTaskStateSegmentBase, reserved_io), 100);
         assert_eq!(offset_of!(RawTaskStateSegmentBase, rsp0), 4);
         assert_eq!(offset_of!(RawTaskStateSegmentBase, ist0), 36);
         assert_eq!(offset_of!(RawTaskStateSegmentBase, io_map_base), 102);
@@ -1149,11 +1156,11 @@ mod tests {
         let stack = RawPrivilegeStack::new(TaskStackLow::raw(0), TaskStackHigh::raw(0));
         let interrupt = RawInterruptStack::new(TaskStackLow::raw(0), TaskStackHigh::raw(0));
         let raw = RawTaskStateSegmentBase::new(
-            0x89ab_cdef,
+            Reserved::new(0x89ab_cdef),
             stack,
             stack,
             stack,
-            [0x0123_4567, 0x7654_3210],
+            Reserved::new([0x0123_4567, 0x7654_3210]),
             interrupt,
             interrupt,
             interrupt,
@@ -1161,19 +1168,33 @@ mod tests {
             interrupt,
             interrupt,
             interrupt,
-            [0xa5a5_5a5a, 0x5a5a_a5a5],
-            0xc3d4,
+            Reserved::new([0xa5a5_5a5a, 0x5a5a_a5a5]),
+            Reserved::new(0xc3d4),
             TaskIoMapBase::new(104),
         );
-        let bytes = raw.as_bytes();
 
-        assert_eq!(bytes.len(), 104);
-        assert_eq!(&bytes[0..4], &0x89ab_cdef_u32.to_ne_bytes());
-        assert_eq!(&bytes[28..32], &0x0123_4567_u32.to_ne_bytes());
-        assert_eq!(&bytes[32..36], &0x7654_3210_u32.to_ne_bytes());
-        assert_eq!(&bytes[92..96], &0xa5a5_5a5a_u32.to_ne_bytes());
-        assert_eq!(&bytes[96..100], &0x5a5a_a5a5_u32.to_ne_bytes());
-        assert_eq!(&bytes[100..102], &0xc3d4_u16.to_ne_bytes());
+        let RawTaskStateSegmentBase {
+            reserved_head,
+            reserved_privilege,
+            reserved_interrupt,
+            reserved_io,
+            ..
+        } = raw;
+
+        // SAFETY: Each reserved field was constructed from an initialized integer or array above.
+        let (header, privilege, interrupt, io) = unsafe {
+            (
+                reserved_head.into_storage().assume_init(),
+                reserved_privilege.into_storage().assume_init(),
+                reserved_interrupt.into_storage().assume_init(),
+                reserved_io.into_storage().assume_init(),
+            )
+        };
+
+        assert_eq!(header, 0x89ab_cdef);
+        assert_eq!(privilege, [0x0123_4567, 0x7654_3210]);
+        assert_eq!(interrupt, [0xa5a5_5a5a, 0x5a5a_a5a5]);
+        assert_eq!(io, 0xc3d4);
     }
 
     #[test]
