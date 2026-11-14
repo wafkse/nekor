@@ -1,7 +1,7 @@
 use core::{cmp, fmt, hash, marker};
 
 use nekor_bitwise::prelude::Extract;
-use zerocopy::{Immutable, IntoBytes};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 /// A new-type wrapper over a partioned integer primitive.
 ///
@@ -9,7 +9,7 @@ use zerocopy::{Immutable, IntoBytes};
 /// fields.
 ///
 /// Note that this is transparent over `P`'s [`Extract::Output`] type.
-#[derive(Clone, Copy, IntoBytes, Immutable)]
+#[derive(Clone, Copy, FromBytes, IntoBytes, Immutable, KnownLayout)]
 #[repr(transparent)]
 // NOTE(invariant): The stored scalar is exactly the extracted partition output; the phantom
 // parameter preserves invariance over the source primitive without affecting layout.
