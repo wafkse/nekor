@@ -67,13 +67,10 @@
 //! particular processor. Those operations belong to the owner of processor and
 //! page-table state.
 
-/// Architectural linear and physical address representations.
 pub mod address;
 
 pub use address::{La, La48, La48Page, La57, LaMode, Pa};
 
-/// Level-specific hardware page-table entry representations.
 pub mod entry;
 
-/// Exact 4 KiB page-table page representations and hierarchy indices.
 pub mod table;

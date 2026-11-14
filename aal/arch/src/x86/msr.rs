@@ -16,22 +16,16 @@ use crate::x86::{
     xstate::{XfdCapability, XsaveSupervisorCapability},
 };
 
-/// Extended feature enable register representations and access.
 pub mod efer;
 
-/// Fast system-call and system-return register representations.
 pub mod syscall;
 
-/// Legacy SYSENTER register representations.
 pub mod sysenter;
 
-/// FS and GS segment-base register representations.
 pub mod segment;
 
-/// Extended-state register representations and access.
 pub mod xstate;
 
-/// Flexible Return and Event Delivery register representations and access.
 pub mod fred;
 
 /// A trait for model-specific register snapshots.

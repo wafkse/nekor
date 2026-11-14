@@ -83,19 +83,19 @@ mod detail {
 }
 
 detail::component!(
-    /// `IA32_XFD` disabled-component bitmap.
+    /// `IA32_XFD` model-specfic register disabled-component bitmap.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawXfd for (0x0000_01C4) use XfdAccess
 );
 
 detail::component!(
-    /// `IA32_XFD_ERR` component bitmap.
+    /// `IA32_XFD_ERR` model-specific register component bitmap.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawXfdErr for (0x0000_01C5) use XfdAccess
 );
 
 detail::component!(
-    /// `IA32_XSS` supervisor component bitmap.
+    /// `IA32_XSS` model-specific register supervisor component bitmap.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct RawXss for (0x0000_0DA0) use XssAccess
 );

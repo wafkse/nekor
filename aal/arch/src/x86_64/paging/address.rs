@@ -174,8 +174,7 @@ impl Pa {
 /// A compile-time linear-address translation mode.
 ///
 /// Implementations are sealed to the architectural modes represented by this
-/// module. The marker is selected by the owner of processor state rather than
-/// inferred from a control-register value.
+/// module. The owner of processor state explicitly selects a marker for the architectural mode.
 pub trait LaMode: private::Sealed {
     /// Number of low linear-address bits translated by this mode.
     #[doc(hidden)]
