@@ -1,0 +1,20 @@
+[package]
+name = "verte-eval"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+aldebaran = { workspace = true, features = ["report-codegen"] }
+fack.workspace = true
+num-bigint = { version = "0.4.8", default-features = false }
+verte-ir = { path = "../ir" }
+
+[lints]
+workspace = true
