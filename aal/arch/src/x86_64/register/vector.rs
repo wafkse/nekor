@@ -16,16 +16,16 @@ pub type YmmHighBank = [YmmHigh; 16];
 pub type ZmmHighParts = [Xmm; 2];
 
 /// The lower 64 bits of an XMM register.
-pub type XmmLow64<'target_value> = Field<'target_value, 0, 63, u128>;
+pub type XmmLow64<'value> = Field<'value, 0, 63, u128>;
 
 /// The upper 64 bits of an XMM register.
-pub type XmmHigh64<'target_value> = Field<'target_value, 64, 127, u128>;
+pub type XmmHigh64<'value> = Field<'value, 64, 127, u128>;
 
 /// Mutable counterpart of [`XmmLow64`].
-pub type XmmLow64Mut<'target_value> = <XmmLow64<'target_value> as Counterpart>::Mut;
+pub type XmmLow64Mut<'value> = <XmmLow64<'value> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`XmmHigh64`].
-pub type XmmHigh64Mut<'target_value> = <XmmHigh64<'target_value> as Counterpart>::Mut;
+pub type XmmHigh64Mut<'value> = <XmmHigh64<'value> as Counterpart>::Mut;
 
 /// A raw 128-bit XMM register.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]

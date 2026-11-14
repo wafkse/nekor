@@ -20,16 +20,16 @@ pub type Significand = Partitioned<0, 63, u128>;
 pub type SignExponent = Partitioned<64, 79, u128>;
 
 /// The biased exponent in the upper register portion.
-pub type Exponent<'target_value> = Field<'target_value, 0, 14, u16>;
+pub type Exponent<'value> = Field<'value, 0, 14, u16>;
 
 /// The sign bit in the upper register portion.
-pub type Sign<'target_value> = Bit<'target_value, u16, 15>;
+pub type Sign<'value> = Bit<'value, u16, 15>;
 
 /// Mutable counterpart of [`Exponent`].
-pub type ExponentMut<'target_value> = <Exponent<'target_value> as Counterpart>::Mut;
+pub type ExponentMut<'value> = <Exponent<'value> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`Sign`].
-pub type SignMut<'target_value> = <Sign<'target_value> as Counterpart>::Mut;
+pub type SignMut<'value> = <Sign<'value> as Counterpart>::Mut;
 
 /// An x87 register in its 16-byte FXSAVE or XSAVE slot.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
