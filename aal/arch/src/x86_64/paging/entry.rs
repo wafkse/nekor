@@ -35,121 +35,121 @@ use super::address::Pa;
 
 /// The "Present" (P) flag. Bit zero determines whether the processor treats the
 /// entry as present.
-pub type EntryPresent<'value> = Bit<'value, u64, 0>;
+pub type EntryPresent<'a> = Bit<'a, u64, 0>;
 
 /// The "Read/Write" (R/W) flag. Set permits writes subject to higher-level
 /// protection.
-pub type EntryWritable<'value> = Bit<'value, u64, 1>;
+pub type EntryWritable<'a> = Bit<'a, u64, 1>;
 
 /// The "User/Supervisor" (U/S) flag. Set permits user-mode access subject to
 /// the walk.
-pub type EntryUser<'value> = Bit<'value, u64, 2>;
+pub type EntryUser<'a> = Bit<'a, u64, 2>;
 
 /// The page-level write-through (PWT) flag.
-pub type EntryWriteThrough<'value> = Bit<'value, u64, 3>;
+pub type EntryWriteThrough<'a> = Bit<'a, u64, 3>;
 
 /// The page-level cache-disable (PCD) flag.
-pub type EntryCacheDisable<'value> = Bit<'value, u64, 4>;
+pub type EntryCacheDisable<'a> = Bit<'a, u64, 4>;
 
 /// The processor-maintained "Accessed" (A) flag.
-pub type EntryAccessed<'value> = Bit<'value, u64, 5>;
+pub type EntryAccessed<'a> = Bit<'a, u64, 5>;
 
 /// The processor-maintained "Dirty" (D) flag used by leaf mappings.
-pub type EntryDirty<'value> = Bit<'value, u64, 6>;
+pub type EntryDirty<'a> = Bit<'a, u64, 6>;
 
 /// The "Page Size" (PS) flag used by PDPT and page-directory entries.
-pub type EntryPageSize<'value> = Bit<'value, u64, 7>;
+pub type EntryPageSize<'a> = Bit<'a, u64, 7>;
 
 /// The PAT selector bit used by a 4 KiB page-table leaf.
-pub type EntryPat4K<'value> = Bit<'value, u64, 7>;
+pub type EntryPat4K<'a> = Bit<'a, u64, 7>;
 
 /// The "Global" (G) flag used by leaf mappings.
-pub type EntryGlobal<'value> = Bit<'value, u64, 8>;
+pub type EntryGlobal<'a> = Bit<'a, u64, 8>;
 
 /// The low software-available field spanning bits 9 through 11.
-pub type EntryAvailableLow<'value> = Field<'value, 9, 11, u64>;
+pub type EntryAvailableLow<'a> = Field<'a, 9, 11, u64>;
 
 /// The PAT selector bit used by 2 MiB and 1 GiB leaf mappings.
-pub type EntryPatLarge<'value> = Bit<'value, u64, 12>;
+pub type EntryPatLarge<'a> = Bit<'a, u64, 12>;
 
 /// The address field used by table pointers and 4 KiB leaves.
-pub type EntryAddress4KiB<'value> = Field<'value, 12, 51, u64>;
+pub type EntryAddress4KiB<'a> = Field<'a, 12, 51, u64>;
 
 /// Reserved address-alignment field in a 2 MiB leaf.
-pub type EntryReserved2MiB<'value> = Field<'value, 13, 20, u64>;
+pub type EntryReserved2MiB<'a> = Field<'a, 13, 20, u64>;
 
 /// The physical page-number field used by a 2 MiB leaf.
-pub type EntryAddress2MiB<'value> = Field<'value, 21, 51, u64>;
+pub type EntryAddress2MiB<'a> = Field<'a, 21, 51, u64>;
 
 /// Reserved address-alignment field in a 1 GiB leaf.
-pub type EntryReserved1GiB<'value> = Field<'value, 13, 29, u64>;
+pub type EntryReserved1GiB<'a> = Field<'a, 13, 29, u64>;
 
 /// The physical page-number field used by a 1 GiB leaf.
-pub type EntryAddress1GiB<'value> = Field<'value, 30, 51, u64>;
+pub type EntryAddress1GiB<'a> = Field<'a, 30, 51, u64>;
 
 /// The high software-available field spanning bits 52 through 58.
-pub type EntryAvailableHigh<'value> = Field<'value, 52, 58, u64>;
+pub type EntryAvailableHigh<'a> = Field<'a, 52, 58, u64>;
 
 /// The protection-key field used by leaf mappings when protection keys are
 /// enabled.
-pub type EntryProtectionKey<'value> = Field<'value, 59, 62, u64>;
+pub type EntryProtectionKey<'a> = Field<'a, 59, 62, u64>;
 
 /// The "Execute Disable" (XD/NX) flag when execute-disable support is enabled.
-pub type EntryNoExecute<'value> = Bit<'value, u64, 63>;
+pub type EntryNoExecute<'a> = Bit<'a, u64, 63>;
 
 /// A mutable counterpart to [`EntryPresent`].
-pub type EntryPresentMut<'value> = <EntryPresent<'value> as Counterpart>::Mut;
+pub type EntryPresentMut<'a> = <EntryPresent<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryWritable`].
-pub type EntryWritableMut<'value> = <EntryWritable<'value> as Counterpart>::Mut;
+pub type EntryWritableMut<'a> = <EntryWritable<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryUser`].
-pub type EntryUserMut<'value> = <EntryUser<'value> as Counterpart>::Mut;
+pub type EntryUserMut<'a> = <EntryUser<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryWriteThrough`].
-pub type EntryWriteThroughMut<'value> = <EntryWriteThrough<'value> as Counterpart>::Mut;
+pub type EntryWriteThroughMut<'a> = <EntryWriteThrough<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryCacheDisable`].
-pub type EntryCacheDisableMut<'value> = <EntryCacheDisable<'value> as Counterpart>::Mut;
+pub type EntryCacheDisableMut<'a> = <EntryCacheDisable<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAccessed`].
-pub type EntryAccessedMut<'value> = <EntryAccessed<'value> as Counterpart>::Mut;
+pub type EntryAccessedMut<'a> = <EntryAccessed<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryDirty`].
-pub type EntryDirtyMut<'value> = <EntryDirty<'value> as Counterpart>::Mut;
+pub type EntryDirtyMut<'a> = <EntryDirty<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryPageSize`].
-pub type EntryPageSizeMut<'value> = <EntryPageSize<'value> as Counterpart>::Mut;
+pub type EntryPageSizeMut<'a> = <EntryPageSize<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryPat4K`].
-pub type EntryPat4KMut<'value> = <EntryPat4K<'value> as Counterpart>::Mut;
+pub type EntryPat4KMut<'a> = <EntryPat4K<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryGlobal`].
-pub type EntryGlobalMut<'value> = <EntryGlobal<'value> as Counterpart>::Mut;
+pub type EntryGlobalMut<'a> = <EntryGlobal<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAvailableLow`].
-pub type EntryAvailableLowMut<'value> = <EntryAvailableLow<'value> as Counterpart>::Mut;
+pub type EntryAvailableLowMut<'a> = <EntryAvailableLow<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryPatLarge`].
-pub type EntryPatLargeMut<'value> = <EntryPatLarge<'value> as Counterpart>::Mut;
+pub type EntryPatLargeMut<'a> = <EntryPatLarge<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAddress4KiB`].
-pub type EntryAddress4KiBMut<'value> = <EntryAddress4KiB<'value> as Counterpart>::Mut;
+pub type EntryAddress4KiBMut<'a> = <EntryAddress4KiB<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAddress2MiB`].
-pub type EntryAddress2MiBMut<'value> = <EntryAddress2MiB<'value> as Counterpart>::Mut;
+pub type EntryAddress2MiBMut<'a> = <EntryAddress2MiB<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAddress1GiB`].
-pub type EntryAddress1GiBMut<'value> = <EntryAddress1GiB<'value> as Counterpart>::Mut;
+pub type EntryAddress1GiBMut<'a> = <EntryAddress1GiB<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryAvailableHigh`].
-pub type EntryAvailableHighMut<'value> = <EntryAvailableHigh<'value> as Counterpart>::Mut;
+pub type EntryAvailableHighMut<'a> = <EntryAvailableHigh<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryProtectionKey`].
-pub type EntryProtectionKeyMut<'value> = <EntryProtectionKey<'value> as Counterpart>::Mut;
+pub type EntryProtectionKeyMut<'a> = <EntryProtectionKey<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`EntryNoExecute`].
-pub type EntryNoExecuteMut<'value> = <EntryNoExecute<'value> as Counterpart>::Mut;
+pub type EntryNoExecuteMut<'a> = <EntryNoExecute<'a> as Counterpart>::Mut;
 
 /// An exact PML5 entry.
 ///

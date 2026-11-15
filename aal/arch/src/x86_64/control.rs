@@ -15,83 +15,83 @@ use nekor_bitwise::prelude::{Bit, Counterpart, Field, State};
 use crate::{x86::msr::efer::LongModeEfer, x86_64::paging::Pa};
 
 /// The "Protection Enable" (PE) flag in [`Cr0`].
-pub type Cr0Pe<'value> = Bit<'value, u64, 0>;
+pub type Cr0Pe<'a> = Bit<'a, u64, 0>;
 
 /// The "Monitor Coprocessor" (MP) flag in [`Cr0`].
-pub type Cr0Mp<'value> = Bit<'value, u64, 1>;
+pub type Cr0Mp<'a> = Bit<'a, u64, 1>;
 
 /// The "Emulation" (EM) flag in [`Cr0`].
-pub type Cr0Em<'value> = Bit<'value, u64, 2>;
+pub type Cr0Em<'a> = Bit<'a, u64, 2>;
 
 /// The "Task Switched" (TS) flag in [`Cr0`].
-pub type Cr0Ts<'value> = Bit<'value, u64, 3>;
+pub type Cr0Ts<'a> = Bit<'a, u64, 3>;
 
 /// The historical "Extension Type" (ET) bit in [`Cr0`].
 ///
 /// On modern x86 processors this architectural bit is reserved and fixed to
 /// 1. It is therefore exposed for inspection without a mutable counterpart.
-pub type Cr0Et<'value> = Bit<'value, u64, 4>;
+pub type Cr0Et<'a> = Bit<'a, u64, 4>;
 
 /// Internal mutable counterpart used only to construct architectural values.
-type Cr0EtMut<'value> = <Cr0Et<'value> as Counterpart>::Mut;
+type Cr0EtMut<'a> = <Cr0Et<'a> as Counterpart>::Mut;
 
 /// The "Numeric Error" (NE) flag in [`Cr0`].
-pub type Cr0Ne<'value> = Bit<'value, u64, 5>;
+pub type Cr0Ne<'a> = Bit<'a, u64, 5>;
 
 /// Reserved CR0 field spanning bits 6 through 15.
-pub type Cr0Reserved6_15<'value> = Field<'value, 6, 15, u64>;
+pub type Cr0Reserved6_15<'a> = Field<'a, 6, 15, u64>;
 
 /// The "Write Protect" (WP) flag in [`Cr0`].
-pub type Cr0Wp<'value> = Bit<'value, u64, 16>;
+pub type Cr0Wp<'a> = Bit<'a, u64, 16>;
 
 /// Architecturally reserved CR0 bit 17.
-pub type Cr0Reserved17<'value> = Bit<'value, u64, 17>;
+pub type Cr0Reserved17<'a> = Bit<'a, u64, 17>;
 
 /// The "Alignment Mask" (AM) flag in [`Cr0`].
-pub type Cr0Am<'value> = Bit<'value, u64, 18>;
+pub type Cr0Am<'a> = Bit<'a, u64, 18>;
 
 /// Reserved CR0 field spanning bits 19 through 28.
-pub type Cr0Reserved19_28<'value> = Field<'value, 19, 28, u64>;
+pub type Cr0Reserved19_28<'a> = Field<'a, 19, 28, u64>;
 
 /// The "Not Write-through" (NW) flag in [`Cr0`].
-pub type Cr0Nw<'value> = Bit<'value, u64, 29>;
+pub type Cr0Nw<'a> = Bit<'a, u64, 29>;
 
 /// The "Cache Disable" (CD) flag in [`Cr0`].
-pub type Cr0Cd<'value> = Bit<'value, u64, 30>;
+pub type Cr0Cd<'a> = Bit<'a, u64, 30>;
 
 /// The "Paging" (PG) flag in [`Cr0`].
-pub type Cr0Pg<'value> = Bit<'value, u64, 31>;
+pub type Cr0Pg<'a> = Bit<'a, u64, 31>;
 
 /// Reserved upper half of [`Cr0`].
-pub type Cr0Reserved32_63<'value> = Field<'value, 32, 63, u64>;
+pub type Cr0Reserved32_63<'a> = Field<'a, 32, 63, u64>;
 /// A mutable counterpart to [`Cr0Pe`].
-pub type Cr0PeMut<'value> = <Cr0Pe<'value> as Counterpart>::Mut;
+pub type Cr0PeMut<'a> = <Cr0Pe<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Mp`].
-pub type Cr0MpMut<'value> = <Cr0Mp<'value> as Counterpart>::Mut;
+pub type Cr0MpMut<'a> = <Cr0Mp<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Em`].
-pub type Cr0EmMut<'value> = <Cr0Em<'value> as Counterpart>::Mut;
+pub type Cr0EmMut<'a> = <Cr0Em<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Ts`].
-pub type Cr0TsMut<'value> = <Cr0Ts<'value> as Counterpart>::Mut;
+pub type Cr0TsMut<'a> = <Cr0Ts<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Ne`].
-pub type Cr0NeMut<'value> = <Cr0Ne<'value> as Counterpart>::Mut;
+pub type Cr0NeMut<'a> = <Cr0Ne<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Wp`].
-pub type Cr0WpMut<'value> = <Cr0Wp<'value> as Counterpart>::Mut;
+pub type Cr0WpMut<'a> = <Cr0Wp<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Am`].
-pub type Cr0AmMut<'value> = <Cr0Am<'value> as Counterpart>::Mut;
+pub type Cr0AmMut<'a> = <Cr0Am<'a> as Counterpart>::Mut;
 /// A mutable counterpart to [`Cr0Nw`].
-pub type Cr0NwMut<'value> = <Cr0Nw<'value> as Counterpart>::Mut;
+pub type Cr0NwMut<'a> = <Cr0Nw<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Cd`].
-pub type Cr0CdMut<'value> = <Cr0Cd<'value> as Counterpart>::Mut;
+pub type Cr0CdMut<'a> = <Cr0Cd<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`Cr0Pg`].
-pub type Cr0PgMut<'value> = <Cr0Pg<'value> as Counterpart>::Mut;
+pub type Cr0PgMut<'a> = <Cr0Pg<'a> as Counterpart>::Mut;
 
 /// The 64-bit CR0 control register.
 ///
@@ -381,55 +381,55 @@ impl Cr0 {
 }
 
 /// The process-context identifier field in [`Cr3`] when PCIDE is enabled.
-pub type Cr3Pcid<'value> = Field<'value, 0, 11, u64>;
+pub type Cr3Pcid<'a> = Field<'a, 0, 11, u64>;
 
 /// Reserved CR3 bits zero through two when PCIDE is disabled.
-pub type Cr3Reserved0_2<'value> = Field<'value, 0, 2, u64>;
+pub type Cr3Reserved0_2<'a> = Field<'a, 0, 2, u64>;
 
 /// The page-level write-through flag in [`Cr3`] when PCIDE is disabled.
-pub type Cr3Pwt<'value> = Bit<'value, u64, 3>;
+pub type Cr3Pwt<'a> = Bit<'a, u64, 3>;
 
 /// The page-level cache-disable flag in [`Cr3`] when PCIDE is disabled.
-pub type Cr3Pcd<'value> = Bit<'value, u64, 4>;
+pub type Cr3Pcd<'a> = Bit<'a, u64, 4>;
 
 /// Reserved CR3 bits five through eleven when PCIDE is disabled.
-pub type Cr3Reserved5_11<'value> = Field<'value, 5, 11, u64>;
+pub type Cr3Reserved5_11<'a> = Field<'a, 5, 11, u64>;
 
 /// The physical page-number field selecting the active paging root.
-pub type Cr3Root<'value> = Field<'value, 12, 51, u64>;
+pub type Cr3Root<'a> = Field<'a, 12, 51, u64>;
 
 /// Reserved CR3 bits 52 through 60.
-pub type Cr3Reserved52_60<'value> = Field<'value, 52, 60, u64>;
+pub type Cr3Reserved52_60<'a> = Field<'a, 52, 60, u64>;
 
 /// The user LAM57 enable flag.
-pub type Cr3LamU57<'value> = Bit<'value, u64, 61>;
+pub type Cr3LamU57<'a> = Bit<'a, u64, 61>;
 
 /// The user LAM48 enable flag.
-pub type Cr3LamU48<'value> = Bit<'value, u64, 62>;
+pub type Cr3LamU48<'a> = Bit<'a, u64, 62>;
 
 /// The PCID no-flush hint in bit 63.
-pub type Cr3NoFlush<'value> = Bit<'value, u64, 63>;
+pub type Cr3NoFlush<'a> = Bit<'a, u64, 63>;
 
 /// Mutable counterpart to [`Cr3Pcid`].
-pub type Cr3PcidMut<'value> = <Cr3Pcid<'value> as Counterpart>::Mut;
+pub type Cr3PcidMut<'a> = <Cr3Pcid<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr3Pwt`].
-pub type Cr3PwtMut<'value> = <Cr3Pwt<'value> as Counterpart>::Mut;
+pub type Cr3PwtMut<'a> = <Cr3Pwt<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr3Pcd`].
-pub type Cr3PcdMut<'value> = <Cr3Pcd<'value> as Counterpart>::Mut;
+pub type Cr3PcdMut<'a> = <Cr3Pcd<'a> as Counterpart>::Mut;
 
 /// Internal mutable counterpart used to construct the CR3 root field.
-type Cr3RootMut<'value> = <Cr3Root<'value> as Counterpart>::Mut;
+type Cr3RootMut<'a> = <Cr3Root<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr3LamU57`].
-pub type Cr3LamU57Mut<'value> = <Cr3LamU57<'value> as Counterpart>::Mut;
+pub type Cr3LamU57Mut<'a> = <Cr3LamU57<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr3LamU48`].
-pub type Cr3LamU48Mut<'value> = <Cr3LamU48<'value> as Counterpart>::Mut;
+pub type Cr3LamU48Mut<'a> = <Cr3LamU48<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr3NoFlush`].
-pub type Cr3NoFlushMut<'value> = <Cr3NoFlush<'value> as Counterpart>::Mut;
+pub type Cr3NoFlushMut<'a> = <Cr3NoFlush<'a> as Counterpart>::Mut;
 
 /// The 64-bit CR3 paging-root register.
 ///
@@ -636,7 +636,7 @@ impl Cr3 {
 }
 
 /// The page-fault linear address held in [`RawCr2`].
-pub type Cr2LinearAddress<'value> = Field<'value, 0, 63, u64>;
+pub type Cr2LinearAddress<'a> = Field<'a, 0, 63, u64>;
 
 /// The 64-bit CR2 page-fault linear-address register image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -672,13 +672,13 @@ impl RawCr2 {
 }
 
 /// The task-priority class held in [`Cr8`].
-pub type Cr8TaskPriority<'value> = Field<'value, 0, 3, u64>;
+pub type Cr8TaskPriority<'a> = Field<'a, 0, 3, u64>;
 
 /// Mutable counterpart to [`Cr8TaskPriority`].
-pub type Cr8TaskPriorityMut<'value> = <Cr8TaskPriority<'value> as Counterpart>::Mut;
+pub type Cr8TaskPriorityMut<'a> = <Cr8TaskPriority<'a> as Counterpart>::Mut;
 
 /// Reserved CR8 bits four through 63.
-pub type Cr8Reserved4_63<'value> = Field<'value, 4, 63, u64>;
+pub type Cr8Reserved4_63<'a> = Field<'a, 4, 63, u64>;
 
 /// The 64-bit CR8 task-priority register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -827,184 +827,184 @@ impl LongModeControl {
 }
 
 /// The Virtual-8086 mode extensions flag in [`Cr4`].
-pub type Cr4Vme<'value> = Bit<'value, u64, 0>;
+pub type Cr4Vme<'a> = Bit<'a, u64, 0>;
 
 /// The Protected-mode virtual interrupts flag in [`Cr4`].
-pub type Cr4Pvi<'value> = Bit<'value, u64, 1>;
+pub type Cr4Pvi<'a> = Bit<'a, u64, 1>;
 
 /// The Time stamp disable flag in [`Cr4`].
-pub type Cr4Tsd<'value> = Bit<'value, u64, 2>;
+pub type Cr4Tsd<'a> = Bit<'a, u64, 2>;
 
 /// The Debugging extensions flag in [`Cr4`].
-pub type Cr4De<'value> = Bit<'value, u64, 3>;
+pub type Cr4De<'a> = Bit<'a, u64, 3>;
 
 /// The Page size extensions flag in [`Cr4`].
-pub type Cr4Pse<'value> = Bit<'value, u64, 4>;
+pub type Cr4Pse<'a> = Bit<'a, u64, 4>;
 
 /// The Physical address extension flag in [`Cr4`].
-pub type Cr4Pae<'value> = Bit<'value, u64, 5>;
+pub type Cr4Pae<'a> = Bit<'a, u64, 5>;
 
 /// The Machine-check enable flag in [`Cr4`].
-pub type Cr4Mce<'value> = Bit<'value, u64, 6>;
+pub type Cr4Mce<'a> = Bit<'a, u64, 6>;
 
 /// The Page global enable flag in [`Cr4`].
-pub type Cr4Pge<'value> = Bit<'value, u64, 7>;
+pub type Cr4Pge<'a> = Bit<'a, u64, 7>;
 
 /// The Performance-monitoring counter enable flag in [`Cr4`].
-pub type Cr4Pce<'value> = Bit<'value, u64, 8>;
+pub type Cr4Pce<'a> = Bit<'a, u64, 8>;
 
 /// The OS support for FXSAVE and FXRSTOR flag in [`Cr4`].
-pub type Cr4Osfxsr<'value> = Bit<'value, u64, 9>;
+pub type Cr4Osfxsr<'a> = Bit<'a, u64, 9>;
 
 /// The OS support for unmasked SIMD floating-point exceptions flag in [`Cr4`].
-pub type Cr4Osxmmexcpt<'value> = Bit<'value, u64, 10>;
+pub type Cr4Osxmmexcpt<'a> = Bit<'a, u64, 10>;
 
 /// The User-mode instruction prevention flag in [`Cr4`].
-pub type Cr4Umip<'value> = Bit<'value, u64, 11>;
+pub type Cr4Umip<'a> = Bit<'a, u64, 11>;
 
 /// The 57-bit linear addresses flag in [`Cr4`].
-pub type Cr4La57<'value> = Bit<'value, u64, 12>;
+pub type Cr4La57<'a> = Bit<'a, u64, 12>;
 
 /// The VMX enable flag in [`Cr4`].
-pub type Cr4Vmxe<'value> = Bit<'value, u64, 13>;
+pub type Cr4Vmxe<'a> = Bit<'a, u64, 13>;
 
 /// The SMX enable flag in [`Cr4`].
-pub type Cr4Smxe<'value> = Bit<'value, u64, 14>;
+pub type Cr4Smxe<'a> = Bit<'a, u64, 14>;
 
 /// The FSGSBASE enable flag in [`Cr4`].
-pub type Cr4Fsgsbase<'value> = Bit<'value, u64, 16>;
+pub type Cr4Fsgsbase<'a> = Bit<'a, u64, 16>;
 
 /// The PCID enable flag in [`Cr4`].
-pub type Cr4Pcide<'value> = Bit<'value, u64, 17>;
+pub type Cr4Pcide<'a> = Bit<'a, u64, 17>;
 
 /// The OS XSAVE enable flag in [`Cr4`].
-pub type Cr4Osxsave<'value> = Bit<'value, u64, 18>;
+pub type Cr4Osxsave<'a> = Bit<'a, u64, 18>;
 
 /// The Key Locker enable flag in [`Cr4`].
-pub type Cr4Kl<'value> = Bit<'value, u64, 19>;
+pub type Cr4Kl<'a> = Bit<'a, u64, 19>;
 
 /// The Supervisor-mode execution prevention flag in [`Cr4`].
-pub type Cr4Smep<'value> = Bit<'value, u64, 20>;
+pub type Cr4Smep<'a> = Bit<'a, u64, 20>;
 
 /// The Supervisor-mode access prevention flag in [`Cr4`].
-pub type Cr4Smap<'value> = Bit<'value, u64, 21>;
+pub type Cr4Smap<'a> = Bit<'a, u64, 21>;
 
 /// The Protection keys for user pages flag in [`Cr4`].
-pub type Cr4Pke<'value> = Bit<'value, u64, 22>;
+pub type Cr4Pke<'a> = Bit<'a, u64, 22>;
 
 /// The Control-flow enforcement technology flag in [`Cr4`].
-pub type Cr4Cet<'value> = Bit<'value, u64, 23>;
+pub type Cr4Cet<'a> = Bit<'a, u64, 23>;
 
 /// The Protection keys for supervisor pages flag in [`Cr4`].
-pub type Cr4Pks<'value> = Bit<'value, u64, 24>;
+pub type Cr4Pks<'a> = Bit<'a, u64, 24>;
 
 /// The User interrupts enable flag in [`Cr4`].
-pub type Cr4Uintr<'value> = Bit<'value, u64, 25>;
+pub type Cr4Uintr<'a> = Bit<'a, u64, 25>;
 
 /// The Linear-address-space separation flag in [`Cr4`].
-pub type Cr4Lass<'value> = Bit<'value, u64, 27>;
+pub type Cr4Lass<'a> = Bit<'a, u64, 27>;
 
 /// The Supervisor linear-address masking flag in [`Cr4`].
-pub type Cr4LamSup<'value> = Bit<'value, u64, 28>;
+pub type Cr4LamSup<'a> = Bit<'a, u64, 28>;
 
 /// The Flexible return and event delivery flag in [`Cr4`].
-pub type Cr4Fred<'value> = Bit<'value, u64, 32>;
+pub type Cr4Fred<'a> = Bit<'a, u64, 32>;
 
 /// Reserved CR4 bit 15.
-pub type Cr4Reserved15<'value> = Bit<'value, u64, 15>;
+pub type Cr4Reserved15<'a> = Bit<'a, u64, 15>;
 
 /// Reserved CR4 bit 26.
-pub type Cr4Reserved26<'value> = Bit<'value, u64, 26>;
+pub type Cr4Reserved26<'a> = Bit<'a, u64, 26>;
 
 /// Reserved CR4 bits 29 through 31.
-pub type Cr4Reserved29_31<'value> = Field<'value, 29, 31, u64>;
+pub type Cr4Reserved29_31<'a> = Field<'a, 29, 31, u64>;
 
 /// Reserved CR4 bits 33 through 63.
-pub type Cr4Reserved33_63<'value> = Field<'value, 33, 63, u64>;
+pub type Cr4Reserved33_63<'a> = Field<'a, 33, 63, u64>;
 
 /// Mutable counterpart to [`Cr4Vme`].
-pub type Cr4VmeMut<'value> = <Cr4Vme<'value> as Counterpart>::Mut;
+pub type Cr4VmeMut<'a> = <Cr4Vme<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pvi`].
-pub type Cr4PviMut<'value> = <Cr4Pvi<'value> as Counterpart>::Mut;
+pub type Cr4PviMut<'a> = <Cr4Pvi<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Tsd`].
-pub type Cr4TsdMut<'value> = <Cr4Tsd<'value> as Counterpart>::Mut;
+pub type Cr4TsdMut<'a> = <Cr4Tsd<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4De`].
-pub type Cr4DeMut<'value> = <Cr4De<'value> as Counterpart>::Mut;
+pub type Cr4DeMut<'a> = <Cr4De<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pse`].
-pub type Cr4PseMut<'value> = <Cr4Pse<'value> as Counterpart>::Mut;
+pub type Cr4PseMut<'a> = <Cr4Pse<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pae`].
-pub type Cr4PaeMut<'value> = <Cr4Pae<'value> as Counterpart>::Mut;
+pub type Cr4PaeMut<'a> = <Cr4Pae<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Mce`].
-pub type Cr4MceMut<'value> = <Cr4Mce<'value> as Counterpart>::Mut;
+pub type Cr4MceMut<'a> = <Cr4Mce<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pge`].
-pub type Cr4PgeMut<'value> = <Cr4Pge<'value> as Counterpart>::Mut;
+pub type Cr4PgeMut<'a> = <Cr4Pge<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pce`].
-pub type Cr4PceMut<'value> = <Cr4Pce<'value> as Counterpart>::Mut;
+pub type Cr4PceMut<'a> = <Cr4Pce<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Osfxsr`].
-pub type Cr4OsfxsrMut<'value> = <Cr4Osfxsr<'value> as Counterpart>::Mut;
+pub type Cr4OsfxsrMut<'a> = <Cr4Osfxsr<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Osxmmexcpt`].
-pub type Cr4OsxmmexcptMut<'value> = <Cr4Osxmmexcpt<'value> as Counterpart>::Mut;
+pub type Cr4OsxmmexcptMut<'a> = <Cr4Osxmmexcpt<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Umip`].
-pub type Cr4UmipMut<'value> = <Cr4Umip<'value> as Counterpart>::Mut;
+pub type Cr4UmipMut<'a> = <Cr4Umip<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4La57`].
-pub type Cr4La57Mut<'value> = <Cr4La57<'value> as Counterpart>::Mut;
+pub type Cr4La57Mut<'a> = <Cr4La57<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Vmxe`].
-pub type Cr4VmxeMut<'value> = <Cr4Vmxe<'value> as Counterpart>::Mut;
+pub type Cr4VmxeMut<'a> = <Cr4Vmxe<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Smxe`].
-pub type Cr4SmxeMut<'value> = <Cr4Smxe<'value> as Counterpart>::Mut;
+pub type Cr4SmxeMut<'a> = <Cr4Smxe<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Fsgsbase`].
-pub type Cr4FsgsbaseMut<'value> = <Cr4Fsgsbase<'value> as Counterpart>::Mut;
+pub type Cr4FsgsbaseMut<'a> = <Cr4Fsgsbase<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pcide`].
-pub type Cr4PcideMut<'value> = <Cr4Pcide<'value> as Counterpart>::Mut;
+pub type Cr4PcideMut<'a> = <Cr4Pcide<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Osxsave`].
-pub type Cr4OsxsaveMut<'value> = <Cr4Osxsave<'value> as Counterpart>::Mut;
+pub type Cr4OsxsaveMut<'a> = <Cr4Osxsave<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Kl`].
-pub type Cr4KlMut<'value> = <Cr4Kl<'value> as Counterpart>::Mut;
+pub type Cr4KlMut<'a> = <Cr4Kl<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Smep`].
-pub type Cr4SmepMut<'value> = <Cr4Smep<'value> as Counterpart>::Mut;
+pub type Cr4SmepMut<'a> = <Cr4Smep<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Smap`].
-pub type Cr4SmapMut<'value> = <Cr4Smap<'value> as Counterpart>::Mut;
+pub type Cr4SmapMut<'a> = <Cr4Smap<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pke`].
-pub type Cr4PkeMut<'value> = <Cr4Pke<'value> as Counterpart>::Mut;
+pub type Cr4PkeMut<'a> = <Cr4Pke<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Cet`].
-pub type Cr4CetMut<'value> = <Cr4Cet<'value> as Counterpart>::Mut;
+pub type Cr4CetMut<'a> = <Cr4Cet<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Pks`].
-pub type Cr4PksMut<'value> = <Cr4Pks<'value> as Counterpart>::Mut;
+pub type Cr4PksMut<'a> = <Cr4Pks<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Uintr`].
-pub type Cr4UintrMut<'value> = <Cr4Uintr<'value> as Counterpart>::Mut;
+pub type Cr4UintrMut<'a> = <Cr4Uintr<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Lass`].
-pub type Cr4LassMut<'value> = <Cr4Lass<'value> as Counterpart>::Mut;
+pub type Cr4LassMut<'a> = <Cr4Lass<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4LamSup`].
-pub type Cr4LamSupMut<'value> = <Cr4LamSup<'value> as Counterpart>::Mut;
+pub type Cr4LamSupMut<'a> = <Cr4LamSup<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`Cr4Fred`].
-pub type Cr4FredMut<'value> = <Cr4Fred<'value> as Counterpart>::Mut;
+pub type Cr4FredMut<'a> = <Cr4Fred<'a> as Counterpart>::Mut;
 
 /// The 64-bit CR4 control register.
 ///

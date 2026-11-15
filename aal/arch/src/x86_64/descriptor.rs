@@ -57,116 +57,114 @@ pub const TASK_INDEX: DescriptorIndex = const {
 };
 
 /// Low sixteen bits of a long-mode system-descriptor base value.
-pub type SystemDescriptorBaseValueLow<'value> = Field<'value, 0, 15, u64>;
+pub type SystemDescriptorBaseValueLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorBaseValueLow`].
-pub type SystemDescriptorBaseValueLowMut<'value> = <SystemDescriptorBaseValueLow<'value> as Counterpart>::Mut;
+pub type SystemDescriptorBaseValueLowMut<'a> = <SystemDescriptorBaseValueLow<'a> as Counterpart>::Mut;
 
 /// Middle-low byte of a long-mode system-descriptor base value.
-pub type SystemDescriptorBaseValueMiddle<'value> = Field<'value, 16, 23, u64>;
+pub type SystemDescriptorBaseValueMiddle<'a> = Field<'a, 16, 23, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorBaseValueMiddle`].
-pub type SystemDescriptorBaseValueMiddleMut<'value> = <SystemDescriptorBaseValueMiddle<'value> as Counterpart>::Mut;
+pub type SystemDescriptorBaseValueMiddleMut<'a> = <SystemDescriptorBaseValueMiddle<'a> as Counterpart>::Mut;
 
 /// Middle-high byte of a long-mode system-descriptor base value.
-pub type SystemDescriptorBaseValueHigh<'value> = Field<'value, 24, 31, u64>;
+pub type SystemDescriptorBaseValueHigh<'a> = Field<'a, 24, 31, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorBaseValueHigh`].
-pub type SystemDescriptorBaseValueHighMut<'value> = <SystemDescriptorBaseValueHigh<'value> as Counterpart>::Mut;
+pub type SystemDescriptorBaseValueHighMut<'a> = <SystemDescriptorBaseValueHigh<'a> as Counterpart>::Mut;
 
 /// Upper thirty-two bits of a long-mode system-descriptor base value.
-pub type SystemDescriptorBaseValueUpper<'value> = Field<'value, 32, 63, u64>;
+pub type SystemDescriptorBaseValueUpper<'a> = Field<'a, 32, 63, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorBaseValueUpper`].
-pub type SystemDescriptorBaseValueUpperMut<'value> = <SystemDescriptorBaseValueUpper<'value> as Counterpart>::Mut;
+pub type SystemDescriptorBaseValueUpperMut<'a> = <SystemDescriptorBaseValueUpper<'a> as Counterpart>::Mut;
 
 /// Low sixteen bits of a long-mode system-descriptor limit value.
-pub type SystemDescriptorLimitValueLow<'value> = Field<'value, 0, 15, u64>;
+pub type SystemDescriptorLimitValueLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorLimitValueLow`].
-pub type SystemDescriptorLimitValueLowMut<'value> = <SystemDescriptorLimitValueLow<'value> as Counterpart>::Mut;
+pub type SystemDescriptorLimitValueLowMut<'a> = <SystemDescriptorLimitValueLow<'a> as Counterpart>::Mut;
 
 /// High four bits of a long-mode system-descriptor limit value.
-pub type SystemDescriptorLimitValueHigh<'value> = Field<'value, 16, 19, u64>;
+pub type SystemDescriptorLimitValueHigh<'a> = Field<'a, 16, 19, u64>;
 
 /// Mutable counterpart to [`SystemDescriptorLimitValueHigh`].
-pub type SystemDescriptorLimitValueHighMut<'value> = <SystemDescriptorLimitValueHigh<'value> as Counterpart>::Mut;
+pub type SystemDescriptorLimitValueHighMut<'a> = <SystemDescriptorLimitValueHigh<'a> as Counterpart>::Mut;
 
 /// Low limit field in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorLimitLow<'value> = Field<'value, 0, 15, u64>;
+pub type LongModeSystemDescriptorLimitLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorLimitLow`].
-pub type LongModeSystemDescriptorLimitLowMut<'value> = <LongModeSystemDescriptorLimitLow<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorLimitLowMut<'a> = <LongModeSystemDescriptorLimitLow<'a> as Counterpart>::Mut;
 
 /// Low base field in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorBaseLow<'value> = Field<'value, 16, 31, u64>;
+pub type LongModeSystemDescriptorBaseLow<'a> = Field<'a, 16, 31, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorBaseLow`].
-pub type LongModeSystemDescriptorBaseLowMut<'value> = <LongModeSystemDescriptorBaseLow<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorBaseLowMut<'a> = <LongModeSystemDescriptorBaseLow<'a> as Counterpart>::Mut;
 
 /// Middle base field in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorBaseMiddle<'value> = Field<'value, 32, 39, u64>;
+pub type LongModeSystemDescriptorBaseMiddle<'a> = Field<'a, 32, 39, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorBaseMiddle`].
-pub type LongModeSystemDescriptorBaseMiddleMut<'value> =
-    <LongModeSystemDescriptorBaseMiddle<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorBaseMiddleMut<'a> = <LongModeSystemDescriptorBaseMiddle<'a> as Counterpart>::Mut;
 
 /// System descriptor type field in a long-mode TSS, LDT, or gate descriptor.
-pub type LongModeSystemDescriptorType<'value> = Field<'value, 40, 43, u64>;
+pub type LongModeSystemDescriptorType<'a> = Field<'a, 40, 43, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorType`].
-pub type LongModeSystemDescriptorTypeMut<'value> = <LongModeSystemDescriptorType<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorTypeMut<'a> = <LongModeSystemDescriptorType<'a> as Counterpart>::Mut;
 
 /// Descriptor privilege field in a long-mode TSS, LDT, or gate descriptor.
-pub type LongModeSystemDescriptorPrivilege<'value> = Field<'value, 45, 46, u64>;
+pub type LongModeSystemDescriptorPrivilege<'a> = Field<'a, 45, 46, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorPrivilege`].
-pub type LongModeSystemDescriptorPrivilegeMut<'value> = <LongModeSystemDescriptorPrivilege<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorPrivilegeMut<'a> = <LongModeSystemDescriptorPrivilege<'a> as Counterpart>::Mut;
 
 /// Present bit in a long-mode TSS, LDT, or gate descriptor.
-pub type LongModeSystemDescriptorPresent<'value> = Bit<'value, u64, 47>;
+pub type LongModeSystemDescriptorPresent<'a> = Bit<'a, u64, 47>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorPresent`].
-pub type LongModeSystemDescriptorPresentMut<'value> = <LongModeSystemDescriptorPresent<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorPresentMut<'a> = <LongModeSystemDescriptorPresent<'a> as Counterpart>::Mut;
 
 /// High limit field in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorLimitHigh<'value> = Field<'value, 48, 51, u64>;
+pub type LongModeSystemDescriptorLimitHigh<'a> = Field<'a, 48, 51, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorLimitHigh`].
-pub type LongModeSystemDescriptorLimitHighMut<'value> = <LongModeSystemDescriptorLimitHigh<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorLimitHighMut<'a> = <LongModeSystemDescriptorLimitHigh<'a> as Counterpart>::Mut;
 
 /// High byte of the low-word base in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorBaseHigh<'value> = Field<'value, 56, 63, u64>;
+pub type LongModeSystemDescriptorBaseHigh<'a> = Field<'a, 56, 63, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorBaseHigh`].
-pub type LongModeSystemDescriptorBaseHighMut<'value> = <LongModeSystemDescriptorBaseHigh<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorBaseHighMut<'a> = <LongModeSystemDescriptorBaseHigh<'a> as Counterpart>::Mut;
 
 /// Upper thirty-two bits of the base in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorBaseUpper<'value> = Field<'value, 0, 31, u64>;
+pub type LongModeSystemDescriptorBaseUpper<'a> = Field<'a, 0, 31, u64>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorBaseUpper`].
-pub type LongModeSystemDescriptorBaseUpperMut<'value> = <LongModeSystemDescriptorBaseUpper<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorBaseUpperMut<'a> = <LongModeSystemDescriptorBaseUpper<'a> as Counterpart>::Mut;
 
 /// Segment-class bit in a long-mode system descriptor.
 ///
 /// The bit is cleared for TSS, LDT, and gate descriptors.
-pub type LongModeSystemDescriptorClass<'value> = Bit<'value, u64, 44>;
+pub type LongModeSystemDescriptorClass<'a> = Bit<'a, u64, 44>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorClass`].
-pub type LongModeSystemDescriptorClassMut<'value> = <LongModeSystemDescriptorClass<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorClassMut<'a> = <LongModeSystemDescriptorClass<'a> as Counterpart>::Mut;
 
 /// Available-for-system-software bit in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorAvailable<'value> = Bit<'value, u64, 52>;
+pub type LongModeSystemDescriptorAvailable<'a> = Bit<'a, u64, 52>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorAvailable`].
-pub type LongModeSystemDescriptorAvailableMut<'value> = <LongModeSystemDescriptorAvailable<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorAvailableMut<'a> = <LongModeSystemDescriptorAvailable<'a> as Counterpart>::Mut;
 
 /// Granularity bit in a long-mode TSS or LDT descriptor.
-pub type LongModeSystemDescriptorGranularity<'value> = Bit<'value, u64, 55>;
+pub type LongModeSystemDescriptorGranularity<'a> = Bit<'a, u64, 55>;
 
 /// Mutable counterpart to [`LongModeSystemDescriptorGranularity`].
-pub type LongModeSystemDescriptorGranularityMut<'value> =
-    <LongModeSystemDescriptorGranularity<'value> as Counterpart>::Mut;
+pub type LongModeSystemDescriptorGranularityMut<'a> = <LongModeSystemDescriptorGranularity<'a> as Counterpart>::Mut;
 
 /// Low sixty-four bits of a long-mode system-descriptor image.
 pub type LongModeSystemDescriptorLow = Partitioned<0, 63, u128>;
@@ -175,58 +173,58 @@ pub type LongModeSystemDescriptorLow = Partitioned<0, 63, u128>;
 pub type LongModeSystemDescriptorHigh = Partitioned<64, 127, u128>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorLimitLow`].
-pub type TssDescriptorLimitLow<'value> = LongModeSystemDescriptorLimitLow<'value>;
+pub type TssDescriptorLimitLow<'a> = LongModeSystemDescriptorLimitLow<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorLimitLowMut`].
-pub type TssDescriptorLimitLowMut<'value> = LongModeSystemDescriptorLimitLowMut<'value>;
+pub type TssDescriptorLimitLowMut<'a> = LongModeSystemDescriptorLimitLowMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseLow`].
-pub type TssDescriptorBaseLow<'value> = LongModeSystemDescriptorBaseLow<'value>;
+pub type TssDescriptorBaseLow<'a> = LongModeSystemDescriptorBaseLow<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseLowMut`].
-pub type TssDescriptorBaseLowMut<'value> = LongModeSystemDescriptorBaseLowMut<'value>;
+pub type TssDescriptorBaseLowMut<'a> = LongModeSystemDescriptorBaseLowMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseMiddle`].
-pub type TssDescriptorBaseMiddle<'value> = LongModeSystemDescriptorBaseMiddle<'value>;
+pub type TssDescriptorBaseMiddle<'a> = LongModeSystemDescriptorBaseMiddle<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseMiddleMut`].
-pub type TssDescriptorBaseMiddleMut<'value> = LongModeSystemDescriptorBaseMiddleMut<'value>;
+pub type TssDescriptorBaseMiddleMut<'a> = LongModeSystemDescriptorBaseMiddleMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorType`].
-pub type TssDescriptorType<'value> = LongModeSystemDescriptorType<'value>;
+pub type TssDescriptorType<'a> = LongModeSystemDescriptorType<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorTypeMut`].
-pub type TssDescriptorTypeMut<'value> = LongModeSystemDescriptorTypeMut<'value>;
+pub type TssDescriptorTypeMut<'a> = LongModeSystemDescriptorTypeMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorPrivilege`].
-pub type TssDescriptorPrivilege<'value> = LongModeSystemDescriptorPrivilege<'value>;
+pub type TssDescriptorPrivilege<'a> = LongModeSystemDescriptorPrivilege<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorPrivilegeMut`].
-pub type TssDescriptorPrivilegeMut<'value> = LongModeSystemDescriptorPrivilegeMut<'value>;
+pub type TssDescriptorPrivilegeMut<'a> = LongModeSystemDescriptorPrivilegeMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorPresent`].
-pub type TssDescriptorPresent<'value> = LongModeSystemDescriptorPresent<'value>;
+pub type TssDescriptorPresent<'a> = LongModeSystemDescriptorPresent<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorPresentMut`].
-pub type TssDescriptorPresentMut<'value> = LongModeSystemDescriptorPresentMut<'value>;
+pub type TssDescriptorPresentMut<'a> = LongModeSystemDescriptorPresentMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorLimitHigh`].
-pub type TssDescriptorLimitHigh<'value> = LongModeSystemDescriptorLimitHigh<'value>;
+pub type TssDescriptorLimitHigh<'a> = LongModeSystemDescriptorLimitHigh<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorLimitHighMut`].
-pub type TssDescriptorLimitHighMut<'value> = LongModeSystemDescriptorLimitHighMut<'value>;
+pub type TssDescriptorLimitHighMut<'a> = LongModeSystemDescriptorLimitHighMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseHigh`].
-pub type TssDescriptorBaseHigh<'value> = LongModeSystemDescriptorBaseHigh<'value>;
+pub type TssDescriptorBaseHigh<'a> = LongModeSystemDescriptorBaseHigh<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseHighMut`].
-pub type TssDescriptorBaseHighMut<'value> = LongModeSystemDescriptorBaseHighMut<'value>;
+pub type TssDescriptorBaseHighMut<'a> = LongModeSystemDescriptorBaseHighMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseUpper`].
-pub type TssDescriptorBaseUpper<'value> = LongModeSystemDescriptorBaseUpper<'value>;
+pub type TssDescriptorBaseUpper<'a> = LongModeSystemDescriptorBaseUpper<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorBaseUpperMut`].
-pub type TssDescriptorBaseUpperMut<'value> = LongModeSystemDescriptorBaseUpperMut<'value>;
+pub type TssDescriptorBaseUpperMut<'a> = LongModeSystemDescriptorBaseUpperMut<'a>;
 
 /// TSS-specific name for [`LongModeSystemDescriptorLow`].
 pub type TssDescriptorLow = LongModeSystemDescriptorLow;
@@ -620,9 +618,9 @@ impl LongModeTssDescriptor {
 
     /// Constructs an available ring-zero descriptor for a task-state segment.
     ///
-    /// The descriptor extent is derived from the task-state area so the
+    /// The descriptor byte limit is derived from the task-state area so the
     /// architectural limit includes exactly the trailing I/O permission-map bytes.
-    /// Returns `None` when that extent exceeds the twenty-bit descriptor limit.
+    /// Returns `None` when that limit exceeds the twenty-bit descriptor limit.
     #[inline]
     #[must_use]
     pub const fn new<const N: usize>(base: La, state: &RawTaskStateSegment<N>) -> Option<Self> {
@@ -699,7 +697,7 @@ impl LongModeTssDescriptor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The raw image names a present LDT with a canonical base, the requested DPL,
-// and an exact byte extent representable by the architectural limit and granularity fields.
+// and a byte length representable by the architectural limit and granularity fields.
 pub struct LongModeLdtDescriptor(RawLongModeSystemDescriptor);
 
 impl LongModeLdtDescriptor {

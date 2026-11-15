@@ -330,7 +330,7 @@ impl IndexMut<Pml4Index> for Pml4 {
 
 /// An exact page-directory-pointer table page.
 ///
-/// This is the second-level page-directory-pointer table. Its representation is
+/// This table is level three under LA57 and level two under LA48. Its representation is
 /// a 4096-byte page containing 512 contiguous [`Pdpte`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]
@@ -393,7 +393,7 @@ impl IndexMut<PdptIndex> for Pdpt {
 
 /// An exact page directory page.
 ///
-/// This is the third-level page directory. Its representation occupies a 4096-byte
+/// This directory is level four under LA57 and level three under LA48. It occupies a 4096-byte
 /// page containing 512 contiguous [`Pde`] hardware entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C, align(4096))]

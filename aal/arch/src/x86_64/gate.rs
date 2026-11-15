@@ -30,36 +30,36 @@ use crate::{
 pub enum GateType64 {
     /// A *Long Mode* 64-bit interrupt mode.
     ///
-    /// # Remarks
+    /// # Notes
     ///
     /// This value is inherited from a [`GateType32::Interrupt`].
     Interrupt = GateType32::Interrupt as u8,
 
     /// A *Long Mode* 64-bit interrupt trap mode.
     ///
-    /// # Remarks
+    /// # Notes
     ///
     /// This value is inherited from a [`GateType32::Trap`].
     Trap = GateType32::Trap as u8,
 }
 
 /// Low sixteen bits of a call-gate target offset value.
-pub type LongModeCallGateOffsetValueLow<'value> = Field<'value, 0, 15, u64>;
+pub type LongModeCallGateOffsetValueLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetValueLow`].
-pub type LongModeCallGateOffsetValueLowMut<'value> = <LongModeCallGateOffsetValueLow<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetValueLowMut<'a> = <LongModeCallGateOffsetValueLow<'a> as Counterpart>::Mut;
 
 /// Middle sixteen bits of a call-gate target offset value.
-pub type LongModeCallGateOffsetValueMiddle<'value> = Field<'value, 16, 31, u64>;
+pub type LongModeCallGateOffsetValueMiddle<'a> = Field<'a, 16, 31, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetValueMiddle`].
-pub type LongModeCallGateOffsetValueMiddleMut<'value> = <LongModeCallGateOffsetValueMiddle<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetValueMiddleMut<'a> = <LongModeCallGateOffsetValueMiddle<'a> as Counterpart>::Mut;
 
 /// High thirty-two bits of a call-gate target offset value.
-pub type LongModeCallGateOffsetValueHigh<'value> = Field<'value, 32, 63, u64>;
+pub type LongModeCallGateOffsetValueHigh<'a> = Field<'a, 32, 63, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetValueHigh`].
-pub type LongModeCallGateOffsetValueHighMut<'value> = <LongModeCallGateOffsetValueHigh<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetValueHighMut<'a> = <LongModeCallGateOffsetValueHigh<'a> as Counterpart>::Mut;
 
 /// Low sixty-four bits of a long-mode call-gate descriptor image.
 pub type LongModeCallGateLow = Partitioned<0, 63, u128>;
@@ -68,40 +68,40 @@ pub type LongModeCallGateLow = Partitioned<0, 63, u128>;
 pub type LongModeCallGateHigh = Partitioned<64, 127, u128>;
 
 /// Low sixteen bits of a long-mode call-gate target offset.
-pub type LongModeCallGateOffsetLow<'value> = Field<'value, 0, 15, u64>;
+pub type LongModeCallGateOffsetLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetLow`].
-pub type LongModeCallGateOffsetLowMut<'value> = <LongModeCallGateOffsetLow<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetLowMut<'a> = <LongModeCallGateOffsetLow<'a> as Counterpart>::Mut;
 
 /// Target code-segment selector in a long-mode call-gate descriptor.
-pub type LongModeCallGateSelector<'value> = Field<'value, 16, 31, u64>;
+pub type LongModeCallGateSelector<'a> = Field<'a, 16, 31, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateSelector`].
-pub type LongModeCallGateSelectorMut<'value> = <LongModeCallGateSelector<'value> as Counterpart>::Mut;
+pub type LongModeCallGateSelectorMut<'a> = <LongModeCallGateSelector<'a> as Counterpart>::Mut;
 
 /// Reserved bits 32 through 39 in a long-mode call-gate descriptor.
-pub type LongModeCallGateReserved32_39<'value> = Field<'value, 32, 39, u64>;
+pub type LongModeCallGateReserved32_39<'a> = Field<'a, 32, 39, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateReserved32_39`].
-pub type LongModeCallGateReserved32_39Mut<'value> = <LongModeCallGateReserved32_39<'value> as Counterpart>::Mut;
+pub type LongModeCallGateReserved32_39Mut<'a> = <LongModeCallGateReserved32_39<'a> as Counterpart>::Mut;
 
 /// Middle sixteen bits of a long-mode call-gate target offset.
-pub type LongModeCallGateOffsetMiddle<'value> = Field<'value, 48, 63, u64>;
+pub type LongModeCallGateOffsetMiddle<'a> = Field<'a, 48, 63, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetMiddle`].
-pub type LongModeCallGateOffsetMiddleMut<'value> = <LongModeCallGateOffsetMiddle<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetMiddleMut<'a> = <LongModeCallGateOffsetMiddle<'a> as Counterpart>::Mut;
 
 /// High thirty-two bits of a long-mode call-gate target offset.
-pub type LongModeCallGateOffsetHigh<'value> = Field<'value, 0, 31, u64>;
+pub type LongModeCallGateOffsetHigh<'a> = Field<'a, 0, 31, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateOffsetHigh`].
-pub type LongModeCallGateOffsetHighMut<'value> = <LongModeCallGateOffsetHigh<'value> as Counterpart>::Mut;
+pub type LongModeCallGateOffsetHighMut<'a> = <LongModeCallGateOffsetHigh<'a> as Counterpart>::Mut;
 
 /// Reserved high dword in a long-mode call-gate descriptor.
-pub type LongModeCallGateReservedHigh<'value> = Field<'value, 32, 63, u64>;
+pub type LongModeCallGateReservedHigh<'a> = Field<'a, 32, 63, u64>;
 
 /// Mutable counterpart to [`LongModeCallGateReservedHigh`].
-pub type LongModeCallGateReservedHighMut<'value> = <LongModeCallGateReservedHigh<'value> as Counterpart>::Mut;
+pub type LongModeCallGateReservedHighMut<'a> = <LongModeCallGateReservedHigh<'a> as Counterpart>::Mut;
 
 /// A raw 128-bit long-mode call-gate descriptor image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoBytes, Immutable)]
@@ -326,14 +326,15 @@ impl RawLongModeCallGateDescriptor {
 /// A present long-mode call gate targeting a checked 64-bit code segment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The image encodes a present type-0xC gate with a canonical target offset and a
-// selector validated against present 64-bit code semantics.
+// NOTE(invariant): The image encodes a present type-0xC gate with a canonical target offset. Its
+// selector came from a `CodeSegment` constructed against a present 64-bit code descriptor;
+// installation and the selector's association with that descriptor belong to the table owner.
 pub struct LongModeCallGateDescriptor(RawLongModeCallGateDescriptor);
 
 impl LongModeCallGateDescriptor {
     /// Constructs a present call gate for a checked 64-bit code segment.
     ///
-    /// The `target` must be canonical under the active LA48 or LA57 mode. [`La`] does not retain
+    /// The `target` must be canonical under the active LA48 or LA57 mode. [`La`] does not store
     /// the mode marker used during construction. The caller must ensure the address was checked
     /// for the active mode.
     ///

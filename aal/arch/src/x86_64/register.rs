@@ -10,34 +10,34 @@ pub mod vector;
 pub mod x87;
 
 /// The lower 8 bits of a general-purpose architectural register.
-pub type GprLow8<'value> = Field<'value, 0, 7, u64>;
+pub type GprLow8<'a> = Field<'a, 0, 7, u64>;
 
 /// The higher 8 bits of a general-purpose architectural register.
-pub type GprHigh8<'value> = Field<'value, 8, 15, u64>;
+pub type GprHigh8<'a> = Field<'a, 8, 15, u64>;
 
 /// The lower 16 bits of a general-purpose architectural register.
-pub type GprVal16<'value> = Field<'value, 0, 15, u64>;
+pub type GprVal16<'a> = Field<'a, 0, 15, u64>;
 
 /// The lower 32 bits of a general-purpose architectural register.
-pub type GprVal32<'value> = Field<'value, 0, 31, u64>;
+pub type GprVal32<'a> = Field<'a, 0, 31, u64>;
 
 /// The full 64 bits of a general-purpose architectural register.
-pub type GprVal64<'value> = Field<'value, 0, 63, u64>;
+pub type GprVal64<'a> = Field<'a, 0, 63, u64>;
 
 /// A mutable counterpart to [`GprLow8`].
-pub type GprLow8Mut<'value> = <GprLow8<'value> as Counterpart>::Mut;
+pub type GprLow8Mut<'a> = <GprLow8<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`GprHigh8`].
-pub type GprHigh8Mut<'value> = <GprHigh8<'value> as Counterpart>::Mut;
+pub type GprHigh8Mut<'a> = <GprHigh8<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`GprVal16`].
-pub type GprVal16Mut<'value> = <GprVal16<'value> as Counterpart>::Mut;
+pub type GprVal16Mut<'a> = <GprVal16<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`GprVal32`].
-pub type GprVal32Mut<'value> = <GprVal32<'value> as Counterpart>::Mut;
+pub type GprVal32Mut<'a> = <GprVal32<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`GprVal64`].
-pub type GprVal64Mut<'value> = <GprVal64<'value> as Counterpart>::Mut;
+pub type GprVal64Mut<'a> = <GprVal64<'a> as Counterpart>::Mut;
 
 /// A general-purpose architectural register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -199,34 +199,34 @@ impl Gpr {
 }
 
 /// The lower 8 bits of an extended segment register base.
-pub type BaseLow8<'value> = Field<'value, 0, 7, u64>;
+pub type BaseLow8<'a> = Field<'a, 0, 7, u64>;
 
 /// The higher 8 bits of an extended segment register base.
-pub type BaseHigh8<'value> = Field<'value, 8, 15, u64>;
+pub type BaseHigh8<'a> = Field<'a, 8, 15, u64>;
 
 /// The lower 16 bits of an extended segment register base.
-pub type BaseVal16<'value> = Field<'value, 0, 15, u64>;
+pub type BaseVal16<'a> = Field<'a, 0, 15, u64>;
 
 /// The lower 32 bits of an extended segment register base.
-pub type BaseVal32<'value> = Field<'value, 0, 31, u64>;
+pub type BaseVal32<'a> = Field<'a, 0, 31, u64>;
 
 /// The full 64 bits of an extended segment register base.
-pub type BaseVal64<'value> = Field<'value, 0, 63, u64>;
+pub type BaseVal64<'a> = Field<'a, 0, 63, u64>;
 
 /// A mutable counterpart to [`BaseLow8`].
-pub type BaseLow8Mut<'value> = <BaseLow8<'value> as Counterpart>::Mut;
+pub type BaseLow8Mut<'a> = <BaseLow8<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`BaseHigh8`].
-pub type BaseHigh8Mut<'value> = <BaseHigh8<'value> as Counterpart>::Mut;
+pub type BaseHigh8Mut<'a> = <BaseHigh8<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`BaseVal16`].
-pub type BaseVal16Mut<'value> = <BaseVal16<'value> as Counterpart>::Mut;
+pub type BaseVal16Mut<'a> = <BaseVal16<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`BaseVal32`].
-pub type BaseVal32Mut<'value> = <BaseVal32<'value> as Counterpart>::Mut;
+pub type BaseVal32Mut<'a> = <BaseVal32<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`BaseVal64`].
-pub type BaseVal64Mut<'value> = <BaseVal64<'value> as Counterpart>::Mut;
+pub type BaseVal64Mut<'a> = <BaseVal64<'a> as Counterpart>::Mut;
 
 /// An extended segment register base.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -344,59 +344,58 @@ impl Base {
 }
 
 /// Invalid-operation exception mask in an x87 control word.
-pub type X87ControlWordInvalidOperationMask<'value> = Bit<'value, u16, 0>;
+pub type X87ControlWordInvalidOperationMask<'a> = Bit<'a, u16, 0>;
 
 /// Denormal-operand exception mask in an x87 control word.
-pub type X87ControlWordDenormalOperandMask<'value> = Bit<'value, u16, 1>;
+pub type X87ControlWordDenormalOperandMask<'a> = Bit<'a, u16, 1>;
 
 /// Zero-divide exception mask in an x87 control word.
-pub type X87ControlWordZeroDivideMask<'value> = Bit<'value, u16, 2>;
+pub type X87ControlWordZeroDivideMask<'a> = Bit<'a, u16, 2>;
 
 /// Overflow exception mask in an x87 control word.
-pub type X87ControlWordOverflowMask<'value> = Bit<'value, u16, 3>;
+pub type X87ControlWordOverflowMask<'a> = Bit<'a, u16, 3>;
 
 /// Underflow exception mask in an x87 control word.
-pub type X87ControlWordUnderflowMask<'value> = Bit<'value, u16, 4>;
+pub type X87ControlWordUnderflowMask<'a> = Bit<'a, u16, 4>;
 
 /// Precision exception mask in an x87 control word.
-pub type X87ControlWordPrecisionMask<'value> = Bit<'value, u16, 5>;
+pub type X87ControlWordPrecisionMask<'a> = Bit<'a, u16, 5>;
 
 /// Precision control in an x87 control word.
-pub type X87ControlWordPrecisionControl<'value> = Field<'value, 8, 9, u16>;
+pub type X87ControlWordPrecisionControl<'a> = Field<'a, 8, 9, u16>;
 
 /// Rounding control in an x87 control word.
-pub type X87ControlWordRoundingControl<'value> = Field<'value, 10, 11, u16>;
+pub type X87ControlWordRoundingControl<'a> = Field<'a, 10, 11, u16>;
 
 /// The legacy infinity-control bit in an x87 control word.
-pub type X87ControlWordInfinityControl<'value> = Bit<'value, u16, 12>;
+pub type X87ControlWordInfinityControl<'a> = Bit<'a, u16, 12>;
 
 /// Mutable counterpart to [`X87ControlWordInvalidOperationMask`].
-pub type X87ControlWordInvalidOperationMaskMut<'value> =
-    <X87ControlWordInvalidOperationMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordInvalidOperationMaskMut<'a> = <X87ControlWordInvalidOperationMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordDenormalOperandMask`].
-pub type X87ControlWordDenormalOperandMaskMut<'value> = <X87ControlWordDenormalOperandMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordDenormalOperandMaskMut<'a> = <X87ControlWordDenormalOperandMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordZeroDivideMask`].
-pub type X87ControlWordZeroDivideMaskMut<'value> = <X87ControlWordZeroDivideMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordZeroDivideMaskMut<'a> = <X87ControlWordZeroDivideMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordOverflowMask`].
-pub type X87ControlWordOverflowMaskMut<'value> = <X87ControlWordOverflowMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordOverflowMaskMut<'a> = <X87ControlWordOverflowMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordUnderflowMask`].
-pub type X87ControlWordUnderflowMaskMut<'value> = <X87ControlWordUnderflowMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordUnderflowMaskMut<'a> = <X87ControlWordUnderflowMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordPrecisionMask`].
-pub type X87ControlWordPrecisionMaskMut<'value> = <X87ControlWordPrecisionMask<'value> as Counterpart>::Mut;
+pub type X87ControlWordPrecisionMaskMut<'a> = <X87ControlWordPrecisionMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordPrecisionControl`].
-pub type X87ControlWordPrecisionControlMut<'value> = <X87ControlWordPrecisionControl<'value> as Counterpart>::Mut;
+pub type X87ControlWordPrecisionControlMut<'a> = <X87ControlWordPrecisionControl<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordRoundingControl`].
-pub type X87ControlWordRoundingControlMut<'value> = <X87ControlWordRoundingControl<'value> as Counterpart>::Mut;
+pub type X87ControlWordRoundingControlMut<'a> = <X87ControlWordRoundingControl<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`X87ControlWordInfinityControl`].
-pub type X87ControlWordInfinityControlMut<'value> = <X87ControlWordInfinityControl<'value> as Counterpart>::Mut;
+pub type X87ControlWordInfinityControlMut<'a> = <X87ControlWordInfinityControl<'a> as Counterpart>::Mut;
 
 /// A raw 16-bit x87 FPU control-word image.
 #[derive(
@@ -589,94 +588,94 @@ impl RawX87ControlWord {
 }
 
 /// Invalid-operation status flag in MXCSR.
-pub type MxcsrInvalidOperationFlag<'value> = Bit<'value, u32, 0>;
+pub type MxcsrInvalidOperationFlag<'a> = Bit<'a, u32, 0>;
 
 /// Denormal-operand status flag in MXCSR.
-pub type MxcsrDenormalOperandFlag<'value> = Bit<'value, u32, 1>;
+pub type MxcsrDenormalOperandFlag<'a> = Bit<'a, u32, 1>;
 
 /// Zero-divide status flag in MXCSR.
-pub type MxcsrZeroDivideFlag<'value> = Bit<'value, u32, 2>;
+pub type MxcsrZeroDivideFlag<'a> = Bit<'a, u32, 2>;
 
 /// Overflow status flag in MXCSR.
-pub type MxcsrOverflowFlag<'value> = Bit<'value, u32, 3>;
+pub type MxcsrOverflowFlag<'a> = Bit<'a, u32, 3>;
 
 /// Underflow status flag in MXCSR.
-pub type MxcsrUnderflowFlag<'value> = Bit<'value, u32, 4>;
+pub type MxcsrUnderflowFlag<'a> = Bit<'a, u32, 4>;
 
 /// Precision status flag in MXCSR.
-pub type MxcsrPrecisionFlag<'value> = Bit<'value, u32, 5>;
+pub type MxcsrPrecisionFlag<'a> = Bit<'a, u32, 5>;
 
 /// Denormals-are-zeros flag in MXCSR.
-pub type MxcsrDaz<'value> = Bit<'value, u32, 6>;
+pub type MxcsrDaz<'a> = Bit<'a, u32, 6>;
 
 /// Invalid-operation exception mask in MXCSR.
-pub type MxcsrInvalidOperationMask<'value> = Bit<'value, u32, 7>;
+pub type MxcsrInvalidOperationMask<'a> = Bit<'a, u32, 7>;
 
 /// Denormal-operand exception mask in MXCSR.
-pub type MxcsrDenormalOperandMask<'value> = Bit<'value, u32, 8>;
+pub type MxcsrDenormalOperandMask<'a> = Bit<'a, u32, 8>;
 
 /// Zero-divide exception mask in MXCSR.
-pub type MxcsrZeroDivideMask<'value> = Bit<'value, u32, 9>;
+pub type MxcsrZeroDivideMask<'a> = Bit<'a, u32, 9>;
 
 /// Overflow exception mask in MXCSR.
-pub type MxcsrOverflowMask<'value> = Bit<'value, u32, 10>;
+pub type MxcsrOverflowMask<'a> = Bit<'a, u32, 10>;
 
 /// Underflow exception mask in MXCSR.
-pub type MxcsrUnderflowMask<'value> = Bit<'value, u32, 11>;
+pub type MxcsrUnderflowMask<'a> = Bit<'a, u32, 11>;
 
 /// Precision exception mask in MXCSR.
-pub type MxcsrPrecisionMask<'value> = Bit<'value, u32, 12>;
+pub type MxcsrPrecisionMask<'a> = Bit<'a, u32, 12>;
 
 /// Rounding-control field in MXCSR.
-pub type MxcsrRoundingControl<'value> = Field<'value, 13, 14, u32>;
+pub type MxcsrRoundingControl<'a> = Field<'a, 13, 14, u32>;
 
 /// Flush-to-zero flag in MXCSR.
-pub type MxcsrFtz<'value> = Bit<'value, u32, 15>;
+pub type MxcsrFtz<'a> = Bit<'a, u32, 15>;
 
 /// Mutable counterpart to [`MxcsrInvalidOperationFlag`].
-pub type MxcsrInvalidOperationFlagMut<'value> = <MxcsrInvalidOperationFlag<'value> as Counterpart>::Mut;
+pub type MxcsrInvalidOperationFlagMut<'a> = <MxcsrInvalidOperationFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrDenormalOperandFlag`].
-pub type MxcsrDenormalOperandFlagMut<'value> = <MxcsrDenormalOperandFlag<'value> as Counterpart>::Mut;
+pub type MxcsrDenormalOperandFlagMut<'a> = <MxcsrDenormalOperandFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrZeroDivideFlag`].
-pub type MxcsrZeroDivideFlagMut<'value> = <MxcsrZeroDivideFlag<'value> as Counterpart>::Mut;
+pub type MxcsrZeroDivideFlagMut<'a> = <MxcsrZeroDivideFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrOverflowFlag`].
-pub type MxcsrOverflowFlagMut<'value> = <MxcsrOverflowFlag<'value> as Counterpart>::Mut;
+pub type MxcsrOverflowFlagMut<'a> = <MxcsrOverflowFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrUnderflowFlag`].
-pub type MxcsrUnderflowFlagMut<'value> = <MxcsrUnderflowFlag<'value> as Counterpart>::Mut;
+pub type MxcsrUnderflowFlagMut<'a> = <MxcsrUnderflowFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrPrecisionFlag`].
-pub type MxcsrPrecisionFlagMut<'value> = <MxcsrPrecisionFlag<'value> as Counterpart>::Mut;
+pub type MxcsrPrecisionFlagMut<'a> = <MxcsrPrecisionFlag<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrDaz`].
-pub type MxcsrDazMut<'value> = <MxcsrDaz<'value> as Counterpart>::Mut;
+pub type MxcsrDazMut<'a> = <MxcsrDaz<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrInvalidOperationMask`].
-pub type MxcsrInvalidOperationMaskMut<'value> = <MxcsrInvalidOperationMask<'value> as Counterpart>::Mut;
+pub type MxcsrInvalidOperationMaskMut<'a> = <MxcsrInvalidOperationMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrDenormalOperandMask`].
-pub type MxcsrDenormalOperandMaskMut<'value> = <MxcsrDenormalOperandMask<'value> as Counterpart>::Mut;
+pub type MxcsrDenormalOperandMaskMut<'a> = <MxcsrDenormalOperandMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrZeroDivideMask`].
-pub type MxcsrZeroDivideMaskMut<'value> = <MxcsrZeroDivideMask<'value> as Counterpart>::Mut;
+pub type MxcsrZeroDivideMaskMut<'a> = <MxcsrZeroDivideMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrOverflowMask`].
-pub type MxcsrOverflowMaskMut<'value> = <MxcsrOverflowMask<'value> as Counterpart>::Mut;
+pub type MxcsrOverflowMaskMut<'a> = <MxcsrOverflowMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrUnderflowMask`].
-pub type MxcsrUnderflowMaskMut<'value> = <MxcsrUnderflowMask<'value> as Counterpart>::Mut;
+pub type MxcsrUnderflowMaskMut<'a> = <MxcsrUnderflowMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrPrecisionMask`].
-pub type MxcsrPrecisionMaskMut<'value> = <MxcsrPrecisionMask<'value> as Counterpart>::Mut;
+pub type MxcsrPrecisionMaskMut<'a> = <MxcsrPrecisionMask<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrRoundingControl`].
-pub type MxcsrRoundingControlMut<'value> = <MxcsrRoundingControl<'value> as Counterpart>::Mut;
+pub type MxcsrRoundingControlMut<'a> = <MxcsrRoundingControl<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart to [`MxcsrFtz`].
-pub type MxcsrFtzMut<'value> = <MxcsrFtz<'value> as Counterpart>::Mut;
+pub type MxcsrFtzMut<'a> = <MxcsrFtz<'a> as Counterpart>::Mut;
 
 /// A raw 32-bit MXCSR control and status register image.
 #[derive(
@@ -973,40 +972,40 @@ impl RawMxcsr {
 }
 
 /// Breakpoint condition zero sampled in [`RawDr6`].
-pub type Dr6Bp0<'value> = Bit<'value, u64, 0>;
+pub type Dr6Bp0<'a> = Bit<'a, u64, 0>;
 
 /// Breakpoint condition 1 sampled in [`RawDr6`].
-pub type Dr6Bp1<'value> = Bit<'value, u64, 1>;
+pub type Dr6Bp1<'a> = Bit<'a, u64, 1>;
 
 /// Breakpoint condition two sampled in [`RawDr6`].
-pub type Dr6Bp2<'value> = Bit<'value, u64, 2>;
+pub type Dr6Bp2<'a> = Bit<'a, u64, 2>;
 
 /// Breakpoint condition three sampled in [`RawDr6`].
-pub type Dr6Bp3<'value> = Bit<'value, u64, 3>;
+pub type Dr6Bp3<'a> = Bit<'a, u64, 3>;
 
 /// Reserved DR6 bits four through ten.
-pub type Dr6Reserved4_10<'value> = Field<'value, 4, 10, u64>;
+pub type Dr6Reserved4_10<'a> = Field<'a, 4, 10, u64>;
 
 /// Bus-lock debug state in [`RawDr6`].
-pub type Dr6Bld<'value> = Bit<'value, u64, 11>;
+pub type Dr6Bld<'a> = Bit<'a, u64, 11>;
 
 /// Reserved DR6 bit twelve.
-pub type Dr6Reserved12<'value> = Bit<'value, u64, 12>;
+pub type Dr6Reserved12<'a> = Bit<'a, u64, 12>;
 
 /// Debug-register access-detected state in [`RawDr6`].
-pub type Dr6Bd<'value> = Bit<'value, u64, 13>;
+pub type Dr6Bd<'a> = Bit<'a, u64, 13>;
 
 /// Single-step state in [`RawDr6`].
-pub type Dr6Bs<'value> = Bit<'value, u64, 14>;
+pub type Dr6Bs<'a> = Bit<'a, u64, 14>;
 
 /// Task-switch debug state in [`RawDr6`].
-pub type Dr6Bt<'value> = Bit<'value, u64, 15>;
+pub type Dr6Bt<'a> = Bit<'a, u64, 15>;
 
 /// Restricted-transactional-memory state in [`RawDr6`].
-pub type Dr6Rtm<'value> = Bit<'value, u64, 16>;
+pub type Dr6Rtm<'a> = Bit<'a, u64, 16>;
 
 /// Reserved DR6 bits seventeen through 63.
-pub type Dr6Reserved17_63<'value> = Field<'value, 17, 63, u64>;
+pub type Dr6Reserved17_63<'a> = Field<'a, 17, 63, u64>;
 
 /// The 64-bit debug-status register image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1142,112 +1141,112 @@ impl RawDr6 {
 }
 
 /// The "Carry Flag" architectural flag.
-pub type FlagCf<'value> = Bit<'value, u64, 0>;
+pub type FlagCf<'a> = Bit<'a, u64, 0>;
 
 /// The architecturally reserved bit 1 of [`Rflags`].
-pub type FlagReserved<'value> = Bit<'value, u64, 1>;
+pub type FlagReserved<'a> = Bit<'a, u64, 1>;
 
 /// A mutable counterpart to [`FlagReserved`].
-pub type FlagReservedMut<'value> = <FlagReserved<'value> as Counterpart>::Mut;
+pub type FlagReservedMut<'a> = <FlagReserved<'a> as Counterpart>::Mut;
 
 /// The "Parity Flag" architectural flag.
-pub type FlagPf<'value> = Bit<'value, u64, 2>;
+pub type FlagPf<'a> = Bit<'a, u64, 2>;
 
 /// The "Auxiliary Carry Flag" architectural flag.
-pub type FlagAf<'value> = Bit<'value, u64, 4>;
+pub type FlagAf<'a> = Bit<'a, u64, 4>;
 
 /// The "Zero Flag" architectural flag.
-pub type FlagZf<'value> = Bit<'value, u64, 6>;
+pub type FlagZf<'a> = Bit<'a, u64, 6>;
 
 /// The "Sign Flag" architectural flag.
-pub type FlagSf<'value> = Bit<'value, u64, 7>;
+pub type FlagSf<'a> = Bit<'a, u64, 7>;
 
 /// The "Trap Flag" architectural flag.
-pub type FlagTf<'value> = Bit<'value, u64, 8>;
+pub type FlagTf<'a> = Bit<'a, u64, 8>;
 
 /// The "Interrupt Enable Flag" architectural flag.
-pub type FlagIf<'value> = Bit<'value, u64, 9>;
+pub type FlagIf<'a> = Bit<'a, u64, 9>;
 
 /// The "Direction Flag" architectural flag.
-pub type FlagDf<'value> = Bit<'value, u64, 10>;
+pub type FlagDf<'a> = Bit<'a, u64, 10>;
 
 /// The "Overflow Flag" architectural flag.
-pub type FlagOf<'value> = Bit<'value, u64, 11>;
+pub type FlagOf<'a> = Bit<'a, u64, 11>;
 
 /// The "I/O Privilege Level" architectural field.
-pub type FieldIopl<'value> = Field<'value, 12, 13, u64>;
+pub type FieldIopl<'a> = Field<'a, 12, 13, u64>;
 
 /// The "Nested Task Flag" architectural flag.
-pub type FlagNt<'value> = Bit<'value, u64, 14>;
+pub type FlagNt<'a> = Bit<'a, u64, 14>;
 
 /// The "Resume Flag" architectural flag.
-pub type FlagRf<'value> = Bit<'value, u64, 16>;
+pub type FlagRf<'a> = Bit<'a, u64, 16>;
 
 /// The "Virtual-8086 Mode Flag" architectural flag.
-pub type FlagVm<'value> = Bit<'value, u64, 17>;
+pub type FlagVm<'a> = Bit<'a, u64, 17>;
 
 /// The "Alignment Check Flag" architectural flag.
-pub type FlagAc<'value> = Bit<'value, u64, 18>;
+pub type FlagAc<'a> = Bit<'a, u64, 18>;
 
 /// The "Virtual Interrupt Flag" architectural flag.
-pub type FlagVif<'value> = Bit<'value, u64, 19>;
+pub type FlagVif<'a> = Bit<'a, u64, 19>;
 
 /// The "Virtual Interrupt Pending Flag" architectural flag.
-pub type FlagVip<'value> = Bit<'value, u64, 20>;
+pub type FlagVip<'a> = Bit<'a, u64, 20>;
 
 /// The "ID Flag" architectural flag.
-pub type FlagId<'value> = Bit<'value, u64, 21>;
+pub type FlagId<'a> = Bit<'a, u64, 21>;
 
 /// A mutable counterpart to [`FlagCf`].
-pub type FlagCfMut<'value> = <FlagCf<'value> as Counterpart>::Mut;
+pub type FlagCfMut<'a> = <FlagCf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagPf`].
-pub type FlagPfMut<'value> = <FlagPf<'value> as Counterpart>::Mut;
+pub type FlagPfMut<'a> = <FlagPf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagAf`].
-pub type FlagAfMut<'value> = <FlagAf<'value> as Counterpart>::Mut;
+pub type FlagAfMut<'a> = <FlagAf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagZf`].
-pub type FlagZfMut<'value> = <FlagZf<'value> as Counterpart>::Mut;
+pub type FlagZfMut<'a> = <FlagZf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagSf`].
-pub type FlagSfMut<'value> = <FlagSf<'value> as Counterpart>::Mut;
+pub type FlagSfMut<'a> = <FlagSf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagTf`].
-pub type FlagTfMut<'value> = <FlagTf<'value> as Counterpart>::Mut;
+pub type FlagTfMut<'a> = <FlagTf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagIf`].
-pub type FlagIfMut<'value> = <FlagIf<'value> as Counterpart>::Mut;
+pub type FlagIfMut<'a> = <FlagIf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagDf`].
-pub type FlagDfMut<'value> = <FlagDf<'value> as Counterpart>::Mut;
+pub type FlagDfMut<'a> = <FlagDf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagOf`].
-pub type FlagOfMut<'value> = <FlagOf<'value> as Counterpart>::Mut;
+pub type FlagOfMut<'a> = <FlagOf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FieldIopl`].
-pub type FieldIoplMut<'value> = <FieldIopl<'value> as Counterpart>::Mut;
+pub type FieldIoplMut<'a> = <FieldIopl<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagNt`].
-pub type FlagNtMut<'value> = <FlagNt<'value> as Counterpart>::Mut;
+pub type FlagNtMut<'a> = <FlagNt<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagRf`].
-pub type FlagRfMut<'value> = <FlagRf<'value> as Counterpart>::Mut;
+pub type FlagRfMut<'a> = <FlagRf<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVm`].
-pub type FlagVmMut<'value> = <FlagVm<'value> as Counterpart>::Mut;
+pub type FlagVmMut<'a> = <FlagVm<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagAc`].
-pub type FlagAcMut<'value> = <FlagAc<'value> as Counterpart>::Mut;
+pub type FlagAcMut<'a> = <FlagAc<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVif`].
-pub type FlagVifMut<'value> = <FlagVif<'value> as Counterpart>::Mut;
+pub type FlagVifMut<'a> = <FlagVif<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagVip`].
-pub type FlagVipMut<'value> = <FlagVip<'value> as Counterpart>::Mut;
+pub type FlagVipMut<'a> = <FlagVip<'a> as Counterpart>::Mut;
 
 /// A mutable counterpart to [`FlagId`].
-pub type FlagIdMut<'value> = <FlagId<'value> as Counterpart>::Mut;
+pub type FlagIdMut<'a> = <FlagId<'a> as Counterpart>::Mut;
 
 /// The 64-bit extended "FLAGS" register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

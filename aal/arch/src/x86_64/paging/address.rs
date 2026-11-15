@@ -23,73 +23,73 @@ use nekor_bitwise::prelude::{Bit, Field, State};
 /// Bits 63 through 52 above the paging-entry physical-address envelope.
 ///
 /// See Intel SDM Vol. 3A, Sections 5.1.4 and 5.5.4.
-pub type PaUpper<'value> = Field<'value, 52, 63, u64>;
+pub type PaUpper<'a> = Field<'a, 52, 63, u64>;
 
 /// Offset inside an aligned 4 KiB physical page.
-pub type PaOffset4K<'value> = Field<'value, 0, 11, u64>;
+pub type PaOffset4K<'a> = Field<'a, 0, 11, u64>;
 
 /// Offset inside an aligned 2 MiB physical page.
-pub type PaOffset2M<'value> = Field<'value, 0, 20, u64>;
+pub type PaOffset2M<'a> = Field<'a, 0, 20, u64>;
 
 /// Offset inside an aligned 1 GiB physical page.
-pub type PaOffset1G<'value> = Field<'value, 0, 29, u64>;
+pub type PaOffset1G<'a> = Field<'a, 0, 29, u64>;
 
 /// Physical page-number field used by 4 KiB mappings and table pointers.
-pub type PaFrame4K<'value> = Field<'value, 12, 51, u64>;
+pub type PaFrame4K<'a> = Field<'a, 12, 51, u64>;
 
 /// Physical page-number field used by 2 MiB leaf mappings.
-pub type PaFrame2M<'value> = Field<'value, 21, 51, u64>;
+pub type PaFrame2M<'a> = Field<'a, 21, 51, u64>;
 
 /// Physical page-number field used by 1 GiB leaf mappings.
-pub type PaFrame1G<'value> = Field<'value, 30, 51, u64>;
+pub type PaFrame1G<'a> = Field<'a, 30, 51, u64>;
 
 /// PML5 selector in bits 56 through 48 under LA57.
 ///
 /// See Intel SDM Vol. 3A, Section 5.5.4.
-pub type LaPml5<'value> = Field<'value, 48, 56, u64>;
+pub type LaPml5<'a> = Field<'a, 48, 56, u64>;
 
 /// PML4 selector in bits 47 through 39 under LA48 and LA57.
 ///
 /// See Intel SDM Vol. 3A, Section 5.5.4.
-pub type LaPml4<'value> = Field<'value, 39, 47, u64>;
+pub type LaPml4<'a> = Field<'a, 39, 47, u64>;
 
 /// PDPT selector in bits 38 through 30 under LA48 and LA57.
 ///
 /// See Intel SDM Vol. 3A, Section 5.5.4.
-pub type LaPdpt<'value> = Field<'value, 30, 38, u64>;
+pub type LaPdpt<'a> = Field<'a, 30, 38, u64>;
 
 /// Page-directory selector in bits 29 through 21 under LA48 and LA57.
 ///
 /// See Intel SDM Vol. 3A, Section 5.5.4.
-pub type LaPd<'value> = Field<'value, 21, 29, u64>;
+pub type LaPd<'a> = Field<'a, 21, 29, u64>;
 
 /// Page-table selector in bits 20 through 12 under LA48 and LA57.
 ///
 /// See Intel SDM Vol. 3A, Section 5.5.4.
-pub type LaPt<'value> = Field<'value, 12, 20, u64>;
+pub type LaPt<'a> = Field<'a, 12, 20, u64>;
 
 /// Offset inside the selected 4 KiB page.
-pub type LaOffset4K<'value> = Field<'value, 0, 11, u64>;
+pub type LaOffset4K<'a> = Field<'a, 0, 11, u64>;
 
 /// Sign bit for LA48 canonicality.
 ///
 /// See Intel SDM Vol. 3A, Section 4.5.
-pub type La48Sign<'value> = Bit<'value, u64, 47>;
+pub type La48Sign<'a> = Bit<'a, u64, 47>;
 
 /// Sign bit for LA57 canonicality.
 ///
 /// See Intel SDM Vol. 3A, Section 4.5.
-pub type La57Sign<'value> = Bit<'value, u64, 56>;
+pub type La57Sign<'a> = Bit<'a, u64, 56>;
 
 /// LA48 untranslated upper field in bits 63 through 48.
 ///
 /// See Intel SDM Vol. 3A, Section 4.5.
-pub type La48Upper<'value> = Field<'value, 48, 63, u64>;
+pub type La48Upper<'a> = Field<'a, 48, 63, u64>;
 
 /// LA57 untranslated upper field in bits 63 through 57.
 ///
 /// See Intel SDM Vol. 3A, Section 4.5.
-pub type La57Upper<'value> = Field<'value, 57, 63, u64>;
+pub type La57Upper<'a> = Field<'a, 57, 63, u64>;
 
 /// An x86-64 physical address representable by the paging structures.
 ///
