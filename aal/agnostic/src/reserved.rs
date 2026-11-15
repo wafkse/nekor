@@ -4,9 +4,9 @@ use core::mem::MaybeUninit;
 
 /// Storage for an architecturally reserved field.
 ///
-/// The wrapper deliberately does not assign meaning to the stored bytes. It can
-/// carry initialized bytes verbatim or remain uninitialized when the enclosing
-/// representation permits that state.
+/// The enclosing format determines whether the bytes must be initialized. This type
+/// supports either case and exposes the storage as [`MaybeUninit`], so reading it requires
+/// the caller to establish initialization separately.
 #[derive(Debug, zerocopy::Immutable)]
 #[repr(transparent)]
 // NOTE(invariant): The wrapped storage may be initialized or uninitialized and is never read by
@@ -47,9 +47,7 @@ impl<S> Reserved<S> {
         Self(MaybeUninit::zeroed())
     }
 
-    /// Constructs zeroed reserved storage.
-    ///
-    /// This name is retained for compatibility with the original API.
+    /// Construct a zero-filled reserved field.
     #[inline]
     #[must_use]
     pub const fn field() -> Self {
@@ -67,17 +65,17 @@ impl<S> Reserved<S> {
     #[inline]
     #[must_use]
     pub const fn storage(&self) -> &MaybeUninit<S> {
-        let &Self(ref storage) = self;
+        let &Self(ref target_storage) = self;
 
-        storage
+        target_storage
     }
 
     /// Returns mutable access to the underlying reserved storage.
     #[inline]
     pub const fn storage_mut(&mut self) -> &mut MaybeUninit<S> {
-        let &mut Self(ref mut storage) = self;
+        let &mut Self(ref mut target_storage) = self;
 
-        storage
+        target_storage
     }
 
     /// Unwraps the reserved storage without reading it.

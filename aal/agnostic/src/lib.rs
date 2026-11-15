@@ -1,9 +1,9 @@
 #![cfg_attr(not(any(test, miri, usermode)), no_std)]
-//! Architecture-agnostic utilities that are useful for miscenalleous low-level
-//! work
+//! Storage and representation types used by low-level facilities.
 //!
-//! The structures contained within this crate do not posess any
-//! architecture-specific architecture.
+//! These modules describe reserved bytes, integer portions, relative pointers and entry
+//! tokens without selecting processor instructions. Their callers supply any architectural
+//! setup and resource ownership required to use the represented values.
 
 pub mod reserved;
 
@@ -18,6 +18,8 @@ pub mod rel_ptr;
 pub mod low_level;
 
 pub mod cache;
+
+pub mod inline_vec;
 
 pub mod prelude {
     //! A prelude module for the `nekor-aal-agnostic` crate.

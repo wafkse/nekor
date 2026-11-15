@@ -18,7 +18,7 @@ impl<T> RelPtr<T> {
     /// Construct a new base-relative pointer from a regular pointer to an
     /// instance of `T`.
     ///
-    /// The final value is written to a maybe-unintialized [`RelPtr`].
+    /// The final value is written to a possibly-uninitialized [`RelPtr`].
     ///
     /// # Safety
     ///
@@ -77,7 +77,7 @@ impl<T> RelPtrMut<T> {
     /// Construct a new base-relative pointer from a regular pointer to an
     /// instance of `T`.
     ///
-    /// The final value is written to a maybe-unintialized [`RelPtrMut`].
+    /// The final value is written to a possibly-uninitialized [`RelPtrMut`].
     ///
     /// # Safety
     ///

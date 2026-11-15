@@ -4,10 +4,11 @@ use core::fmt;
 
 use nekor_primitive::scalar::Scalar;
 
-/// An opaque wrapper over some [`Scalar`] type.
+/// A scalar whose direct construction and extraction require unsafe code.
 ///
-/// This is used to prevent access altogheter, and can be
-/// used as a safety barrier, as all accesses are marked unsafe.
+/// Higher-level APIs can use this boundary to require a local justification before exposing
+/// the value. Comparisons and copying are still available through the derived traits, while
+/// the [`Debug`](fmt::Debug) implementation hides the value.
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The scalar remains inaccessible through safe APIs because its only field is
@@ -24,11 +25,8 @@ where
     ///
     /// # Safety
     ///
-    /// This is not inherently unsafe, but access to the underlying value is an
-    /// intended safety barrier.
-    ///
-    /// Ensure that any ulterior invariants are guaranteed when accessing an
-    /// [`Opaque`] value.
+    /// The scalar must satisfy any restrictions imposed by the enclosing abstraction.
+    /// `Opaque` does not check those restrictions or impose additional ones of its own.
     #[inline]
     pub const unsafe fn value(target_value: S) -> Self {
         Self(target_value)
@@ -38,11 +36,8 @@ where
     ///
     /// # Safety
     ///
-    /// As it is with [`Opaque`] types, this is unsafe to guarantee underlying
-    /// invariants.
-    ///
-    /// See the [`Self::value`] **Safety** section for rationale and any
-    /// additional information.
+    /// Extracting the scalar must comply with the enclosing abstraction's access rules.
+    /// The unsafe call does not check those rules.
     #[inline]
     pub const unsafe fn unwrap(self) -> S {
         let Self(target_value) = self;

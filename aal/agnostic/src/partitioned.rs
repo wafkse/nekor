@@ -3,21 +3,18 @@ use core::{cmp, fmt, hash, marker};
 use nekor_bitwise::prelude::Extract;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-/// A new-type wrapper over a partioned integer primitive.
+/// The `N..=M` portion of an integer, stored in [`Extract::Output`].
 ///
-/// This is used in structures where an integer is divided into two or more
-/// fields.
-///
-/// Note that this is transparent over `P`'s [`Extract::Output`] type.
+/// [`Self::away`] extracts that portion from a source integer, and [`Self::merge`] writes it
+/// back into the corresponding bits of another integer. The transparent layout permits
+/// structures to store split fields in their individual integer sizes.
 #[derive(Clone, Copy, FromBytes, IntoBytes, Immutable, KnownLayout)]
 #[repr(transparent)]
-// NOTE(invariant): The stored scalar is exactly the extracted partition output; the phantom
-// parameter preserves invariance over the source primitive without affecting layout.
+// NOTE(invariant): None.
 pub struct Partitioned<const N: usize, const M: usize, P>(
-    // NOTE: `P::Output` is the smallest integer that can fit `M - N`
-    // consecutive bits.
+    // NOTE: `P::Output` can hold the inclusive bit range `N..=M`.
     P::Output,
-    // NOTE(variance): Keep `Partitioned` explicitly invariant over `P`.
+    // NOTE(variance): Keep `Partitioned` covariant over `P`.
     marker::PhantomData<fn() -> P>,
 )
 where
@@ -27,7 +24,7 @@ impl<const N: usize, const M: usize, P> Partitioned<N, M, P>
 where
     P: Extract<N, M>,
 {
-    /// Construct new [`Partitioned`] new-type from the bare sawed-off bitset.
+    /// Store an already extracted integer portion.
     #[inline]
     pub const fn raw(target_value: P::Output) -> Self {
         Self(target_value, marker::PhantomData)

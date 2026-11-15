@@ -1,9 +1,8 @@
-//! A memory-level swapchain for modifying critical system structures safely.
+//! Two storage slots with a selected active value.
 //!
-//! This is intended for structures like:
-//!
-//! - Interrupt Tables
-//! - Descriptor Tables (x86-specific)
+//! The inactive slot can be prepared before [`Swap::now`] changes the active selection.
+//! Callers updating a descriptor table must separately install the selected table in the
+//! processor. Changing the selection here does not synchronize hardware or other cores.
 
 use core::{mem::MaybeUninit, ops::Deref, ptr::NonNull};
 
@@ -50,8 +49,7 @@ where
         }
     }
 
-    /// Determine the currently-active structure in this [`Swap`] mechanism, but
-    /// in a mutable manner.
+    /// Modify the initialized active value.
     #[inline]
     pub const fn active_mut(&mut self) -> &mut S {
         let &mut Self(ref mut structure_list, target_structure) = self;
@@ -83,8 +81,7 @@ where
         }
     }
 
-    /// Determine the currently-inactive structure in this [`Swap`] mechanism,
-    /// but in a mutable manner.
+    /// Prepare the inactive slot, which may be uninitialized.
     #[inline]
     pub const fn inactive_mut(&mut self) -> &mut MaybeUninit<S> {
         let &mut Self(ref mut structure_list, target_structure) = self;
