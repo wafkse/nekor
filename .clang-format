@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Shared clang-format configuration for C and C++ sources in this repository.
-# The style follows Linux kernel conventions while using four-space indentation,
-# matching the `.editorconfig` that governs the rest of the tree. Intended for
-# clang-format 23 or newer.
+#
+# The style follows Linux kernel conventions with four-space indentation.
+#
+# Use clang-format 23 or newer.
 #
 # For more information, see the clang-format documentation.
 #
