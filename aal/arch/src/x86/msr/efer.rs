@@ -1,45 +1,46 @@
 //! Extended feature enable register representations and access.
 //!
-//! RawEfer owns the architectural snapshot. Efer exposes safe mutation
-//! of software-controlled fields. LongModeEfer carries the stronger active
-//! long-mode proof needed by saved control-state representations.
+//! `MsrEfer` exposes the register image, including processor-maintained fields.
+//! `LongModeEfer` prepares the active long-mode state used by saved control contexts.
+//! Neither value proves that the corresponding state is installed on the processor.
 
 use nekor_bitwise::prelude::{Bit, Counterpart, State};
 
-use crate::x86::msr::{Cpl0Access, detail::snapshotted};
+use crate::x86::msr::detail::snapshotted;
 
-/// System Call Extensions enable flag in RawEfer.
-pub type EferSce<'value> = Bit<'value, u64, 0>;
+/// The System Call Extensions enable flag in `MsrEfer`.
+pub type EferSce<'a> = Bit<'a, u64, 0>;
 
-/// Long Mode Enable flag in RawEfer.
-pub type EferLme<'value> = Bit<'value, u64, 8>;
+/// The Long Mode Enable flag in `MsrEfer`.
+pub type EferLme<'a> = Bit<'a, u64, 8>;
 
-/// Processor-maintained Long Mode Active flag in RawEfer.
-pub type EferLma<'value> = Bit<'value, u64, 10>;
+/// The processor-maintained Long Mode Active flag in `MsrEfer`.
+pub type EferLma<'a> = Bit<'a, u64, 10>;
 
-/// No-Execute Enable flag in RawEfer.
-pub type EferNxe<'value> = Bit<'value, u64, 11>;
+/// The No-Execute Enable flag in `MsrEfer`.
+pub type EferNxe<'a> = Bit<'a, u64, 11>;
 
-/// Mutable counterpart to EferSce.
-pub type EferSceMut<'value> = <EferSce<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `EferSce`.
+pub type EferSceMut<'a> = <EferSce<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to EferLme.
-pub type EferLmeMut<'value> = <EferLme<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `EferLme`.
+pub type EferLmeMut<'a> = <EferLme<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to EferLma.
-pub type EferLmaMut<'value> = <EferLma<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `EferLma`.
+pub type EferLmaMut<'a> = <EferLma<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to EferNxe.
-pub type EferNxeMut<'value> = <EferNxe<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `EferNxe`.
+pub type EferNxeMut<'a> = <EferNxe<'a> as Counterpart>::Mut;
 
 snapshotted::snapshot!(
-    /// `IA32_EFER` register snapshot.
+    /// The `IA32_EFER` extended feature enable model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawEfer for (0xC000_0080) use Cpl0Access
+    pub struct MsrEfer for (0xC000_0080)
+    for<'a> &'a crate::x86::privilege::Cpl<0, T>
 );
 
-impl RawEfer {
-    /// Architectural reset snapshot used by this model.
+impl MsrEfer {
+    /// The architectural reset snapshot used by this model.
     pub const RESET: Self = Self(u64::MIN);
 
     /// Borrows the system-call enable flag.
@@ -87,8 +88,8 @@ impl RawEfer {
 
     /// Mutably borrows the processor-maintained long-mode active flag.
     ///
-    /// Raw mutation does not claim that the resulting value is writable to
-    /// live hardware.
+    /// Editing the image does not write the processor-maintained field. The write caller
+    /// must still satisfy the instruction's requirements.
     #[inline]
     pub const fn lma_mut(&mut self) -> EferLmaMut<'_> {
         let &mut Self(ref mut target_value) = self;
@@ -114,125 +115,41 @@ impl RawEfer {
     }
 }
 
-/// Software-controlled `EFER` value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The wrapped raw snapshot can preserve every hardware-provided bit while the
-// public mutation API excludes processor-maintained LMA.
-pub struct Efer(RawEfer);
-
-impl Efer {
-    /// Architectural reset value used by this model.
-    pub const RESET: Self = Self(RawEfer::RESET);
-
-    /// Lifts a raw `EFER` snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn lift(target_value: RawEfer) -> Self {
-        Self(target_value)
-    }
-
-    /// Borrows the system-call enable flag.
-    #[inline]
-    #[must_use]
-    pub const fn sce(&self) -> EferSce<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.sce()
-    }
-
-    /// Mutably borrows the system-call enable flag.
-    #[inline]
-    pub const fn sce_mut(&mut self) -> EferSceMut<'_> {
-        let &mut Self(ref mut target_value) = self;
-
-        target_value.sce_mut()
-    }
-
-    /// Borrows the long-mode enable flag.
-    #[inline]
-    #[must_use]
-    pub const fn lme(&self) -> EferLme<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.lme()
-    }
-
-    /// Mutably borrows the long-mode enable flag.
-    #[inline]
-    pub const fn lme_mut(&mut self) -> EferLmeMut<'_> {
-        let &mut Self(ref mut target_value) = self;
-
-        target_value.lme_mut()
-    }
-
-    /// Borrows the processor-maintained long-mode active flag.
-    #[inline]
-    #[must_use]
-    pub const fn lma(&self) -> EferLma<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.lma()
-    }
-
-    /// Borrows the no-execute enable flag.
-    #[inline]
-    #[must_use]
-    pub const fn nxe(&self) -> EferNxe<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.nxe()
-    }
-
-    /// Mutably borrows the no-execute enable flag.
-    #[inline]
-    pub const fn nxe_mut(&mut self) -> EferNxeMut<'_> {
-        let &mut Self(ref mut target_value) = self;
-
-        target_value.nxe_mut()
-    }
-
-    /// Lowers this value into the `EFER` snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawEfer {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-/// `EFER` value proven suitable for restoring an active long-mode context.
+/// A saved `EFER` image with long-mode enable and active flags set.
+///
+/// A saved control context needs both flags when describing active long mode. Construction
+/// requires LME and supplies LMA in that image. It does not activate long mode or authorize
+/// writing the processor-maintained LMA field through `WRMSR`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The wrapped `EFER` snapshot always has both LME and LMA set. Construction checks
-// LME and writes LMA only through the raw representation used for saved-state transport.
-pub struct LongModeEfer(Efer);
+// LME and sets LMA in the image used for saved-state transport.
+pub struct LongModeEfer(MsrEfer);
 
 impl LongModeEfer {
-    /// Creates an active long-mode `EFER` proof when LME is enabled.
+    /// Construct the [`LongModeEfer`] proof-type when LME is enabled.
     #[inline]
     #[must_use]
-    pub const fn new(efer: Efer) -> Option<Self> {
+    pub const fn new(efer: MsrEfer) -> Option<Self> {
         match efer.lme().const_state() {
             State::Set => {
-                let mut target_value = efer.raw();
+                let mut target_value = efer;
 
                 target_value.lma_mut().const_set(State::Set);
 
-                Some(Self(Efer::lift(target_value)))
+                Some(Self(target_value))
             },
             State::Cleared => None,
         }
     }
 
-    /// Lowers this proof into the saved `EFER` snapshot.
+    /// Extract the saved `EFER` image from the [`LongModeEfer`] proof-type.
     #[inline]
     #[must_use]
-    pub const fn raw(self) -> RawEfer {
+    pub const fn raw(self) -> MsrEfer {
         let Self(efer) = self;
 
-        efer.raw()
+        efer
     }
 }
 
@@ -240,13 +157,15 @@ impl LongModeEfer {
 mod tests {
     use nekor_bitwise::prelude::State;
 
-    use super::{Efer, LongModeEfer, RawEfer};
-    use crate::x86::msr::Msr;
+    use crate::x86::msr::{
+        Msr,
+        efer::{LongModeEfer, MsrEfer},
+    };
 
     #[test]
     fn long_mode_requires_enable_and_sets_active_restore_state() {
-        let inactive = LongModeEfer::new(Efer::RESET);
-        let mut enabled = Efer::RESET;
+        let inactive = LongModeEfer::new(MsrEfer::RESET);
+        let mut enabled = MsrEfer::RESET;
 
         enabled.lme_mut().const_set(State::Set);
 
@@ -254,12 +173,12 @@ mod tests {
         let raw = active.map(LongModeEfer::raw);
 
         assert_eq!(inactive, None);
-        assert_eq!(raw.map(RawEfer::raw), Some(0x500));
+        assert_eq!(raw.map(MsrEfer::raw), Some(0x500));
     }
 
     #[test]
-    fn semantic_mutation_excludes_lma() {
-        let mut efer = Efer::RESET;
+    fn field_mutation_preserves_unrelated_state() {
+        let mut efer = MsrEfer::RESET;
 
         efer.sce_mut().const_set(State::Set);
         efer.lme_mut().const_set(State::Set);
@@ -273,7 +192,7 @@ mod tests {
 
     #[test]
     fn raw_efer_preserves_processor_owned_state() {
-        let mut target_value = RawEfer::new(u64::MAX);
+        let mut target_value = MsrEfer::new(u64::MAX);
 
         target_value.lma_mut().const_set(State::Cleared);
 
@@ -282,6 +201,6 @@ mod tests {
 
     #[test]
     fn register_index_matches_architecture() {
-        assert_eq!(RawEfer::REGISTER.address(), 0xC000_0080);
+        assert_eq!(MsrEfer::REGISTER.address(), 0xC000_0080);
     }
 }

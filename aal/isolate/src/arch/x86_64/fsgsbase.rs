@@ -8,7 +8,7 @@ use core::{arch, ffi};
 
 use nekor_aal_arch::x86::msr::{
     Msr,
-    segment::{RawFsBase, RawGsBase},
+    segment::{MsrFsBase, MsrGsBase},
 };
 use nekor_aal_hotpatch::prelude::{Chosen, Delegated, Delegator};
 
@@ -99,8 +99,8 @@ unsafe impl Delegated for RdmsrDelegate {
             //
             "movq %r8, %rax",
             "retq",
-            const <RawFsBase as Msr>::ADDRESS,
-            const <RawGsBase as Msr>::ADDRESS,
+            const <MsrFsBase as Msr>::ADDRESS,
+            const <MsrGsBase as Msr>::ADDRESS,
             options(att_syntax)
         )
     }
@@ -223,8 +223,8 @@ unsafe impl Delegated for WrmsrDelegate {
             "xorl %edx, %edx",
             //
             "retq",
-            const <RawFsBase as Msr>::ADDRESS,
-            const <RawGsBase as Msr>::ADDRESS,
+            const <MsrFsBase as Msr>::ADDRESS,
+            const <MsrGsBase as Msr>::ADDRESS,
             options(att_syntax)
         )
     }

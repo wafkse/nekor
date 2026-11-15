@@ -1,13 +1,14 @@
-//! Fast system-call and system-return model-specific register representations.
+//! Register images for fast system-call entry and return.
 //!
-//! Raw types preserve architectural register snapshots. Checked types
-//! encode the selector and linear-address relationships used by long-mode
-//! SYSCALL and SYSRET.
+//! `MsrStar` encodes selector families checked by `SyscallSegments` and `SysretSegments`.
+//! Those checks describe the supplied descriptors, so the entry owner must also install
+//! them in the live GDT. Address helpers on `MsrLStar` and `MsrCStar` check canonicality
+//! against a selected paging mode without establishing handler lifetime or mappings.
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 
 use crate::x86::{
-    msr::{Cpl0Access, detail::snapshotted},
+    msr::detail::snapshotted,
     privilege::PrivilegeLevel,
     segmentation::{CodeSegment, DataSegment, RawSegmentSelector, TableIndicator},
 };
@@ -15,138 +16,83 @@ use crate::x86::{
 use crate::x86_64::paging::{La, LaMode};
 
 snapshotted::snapshot!(
-    /// `IA32_LSTAR` model-specific register snapshot.
+    /// The `IA32_LSTAR` long-mode system-call target model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawLStar for (0xC000_0082) use Cpl0Access
+    pub struct MsrLStar for (0xC000_0082)
+    for<'a> &'a crate::x86::privilege::Cpl<0, T>
 );
 
-/// Canonical long-mode system-call target.
 #[cfg(target_arch = "x86_64")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw `LSTAR` snapshot.
-pub struct LStar(La);
-
-#[cfg(target_arch = "x86_64")]
-impl LStar {
-    /// Constructs a system-call target from a linear address.
+impl MsrLStar {
+    /// Construct an image from a canonical linear address.
+    ///
+    /// The address's construction mode must agree with the processor mode at installation.
     #[inline]
     #[must_use]
-    pub const fn new(address: La) -> Self {
-        Self(address)
+    pub const fn at(address: La) -> Self {
+        Self::new(address.bits())
     }
 
-    /// Lifts a raw `LSTAR` snapshot when it is canonical under M.
+    /// Interpret the image as a canonical address under the selected paging mode.
     #[inline]
     #[must_use]
-    pub const fn lift<M>(target_value: RawLStar) -> Option<Self>
+    pub const fn la<M>(&self) -> Option<La>
     where
         M: LaMode,
     {
-        let RawLStar(target_value) = target_value;
-
-        match La::new::<M>(target_value) {
-            Some(address) => Some(Self(address)),
-            None => None,
-        }
-    }
-
-    /// Returns the canonical linear address.
-    #[inline]
-    #[must_use]
-    pub const fn la(self) -> La {
-        let Self(address) = self;
-
-        address
-    }
-
-    /// Lowers this checked target into its `LSTAR` snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawLStar {
-        let Self(address) = self;
-
-        RawLStar::new(address.bits())
+        La::new::<M>(self.raw())
     }
 }
 
 snapshotted::snapshot!(
-    /// `IA32_CSTAR` register snapshot.
+    /// The `IA32_CSTAR` compatibility-mode system-call target model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawCStar for (0xC000_0083) use Cpl0Access
+    pub struct MsrCStar for (0xC000_0083)
+    for<'a> &'a crate::x86::privilege::Cpl<0, T>
 );
 
-/// Canonical compatibility-mode system-call target.
 #[cfg(target_arch = "x86_64")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The stored value is a canonical linear address established by La construction
-// or checked lifting from a raw `CSTAR` snapshot.
-pub struct CStar(La);
-
-#[cfg(target_arch = "x86_64")]
-impl CStar {
-    /// Constructs a compatibility-mode target from a linear address.
+impl MsrCStar {
+    /// Construct an image from a canonical linear address.
+    ///
+    /// The address's construction mode must agree with the processor mode at installation.
     #[inline]
     #[must_use]
-    pub const fn new(address: La) -> Self {
-        Self(address)
+    pub const fn at(address: La) -> Self {
+        Self::new(address.bits())
     }
 
-    /// Lifts a raw `CSTAR` snapshot when it is canonical under M.
+    /// Interpret the image as a canonical address under the selected paging mode.
     #[inline]
     #[must_use]
-    pub const fn lift<M>(target_value: RawCStar) -> Option<Self>
+    pub const fn la<M>(&self) -> Option<La>
     where
         M: LaMode,
     {
-        let RawCStar(target_value) = target_value;
-
-        match La::new::<M>(target_value) {
-            Some(address) => Some(Self(address)),
-            None => None,
-        }
-    }
-
-    /// Returns the canonical linear address.
-    #[inline]
-    #[must_use]
-    pub const fn la(self) -> La {
-        let Self(address) = self;
-
-        address
-    }
-
-    /// Lowers this checked target into its `CSTAR` snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawCStar {
-        let Self(address) = self;
-
-        RawCStar::new(address.bits())
+        La::new::<M>(self.raw())
     }
 }
 
-/// Kernel code-selector field in RawStar.
-pub type StarKernelSelector<'value> = Field<'value, 32, 47, u64>;
+/// The kernel code-selector field in `MsrStar`.
+pub type StarKernelSelector<'a> = Field<'a, 32, 47, u64>;
 
-/// Mutable counterpart to StarKernelSelector.
-pub type StarKernelSelectorMut<'value> = <StarKernelSelector<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `StarKernelSelector`.
+pub type StarKernelSelectorMut<'a> = <StarKernelSelector<'a> as Counterpart>::Mut;
 
-/// User selector-base field in RawStar.
-pub type StarUserSelector<'value> = Field<'value, 48, 63, u64>;
+/// The user selector-base field in `MsrStar`.
+pub type StarUserSelector<'a> = Field<'a, 48, 63, u64>;
 
-/// Mutable counterpart to StarUserSelector.
-pub type StarUserSelectorMut<'value> = <StarUserSelector<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `StarUserSelector`.
+pub type StarUserSelectorMut<'a> = <StarUserSelector<'a> as Counterpart>::Mut;
 
 snapshotted::snapshot!(
-    /// `IA32_STAR` register snapshot.
+    /// The `IA32_STAR` system-call selector model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawStar for (0xC000_0081) use Cpl0Access
+    pub struct MsrStar for (0xC000_0081)
+    for<'a> &'a crate::x86::privilege::Cpl<0, T>
 );
 
-impl RawStar {
+impl MsrStar {
     /// Borrows the kernel code-selector field.
     #[inline]
     #[must_use]
@@ -182,7 +128,7 @@ impl RawStar {
     }
 }
 
-/// Adjacent ring-zero GDT segments supplied for long-mode SYSCALL.
+/// A pair of adjacent ring-zero GDT segments supplied for long-mode SYSCALL.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored selector names the supplied ring-zero GDT code segment and the
@@ -222,7 +168,7 @@ impl SyscallSegments {
     }
 }
 
-/// Adjacent ring-three GDT segments supplied for long-mode SYSRET.
+/// A pair of adjacent ring-three GDT segments supplied for long-mode SYSRET.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The stored selector is one GDT entry before the supplied ring-three data
@@ -275,71 +221,41 @@ impl SysretSegments {
     }
 }
 
-/// Checked long-mode `IA32_STAR` selector configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The wrapped raw snapshot is constructed only from independently proven SYSCALL
-// and SYSRET selector families and cannot be mutated through this semantic type.
-pub struct Star(RawStar);
-
-impl Star {
-    /// Constructs `STAR` from proven SYSCALL and SYSRET selector families.
+impl MsrStar {
+    /// Encode the supplied SYSCALL and SYSRET selector families.
+    ///
+    /// Their constructors check descriptor relationships. The installation owner must
+    /// arrange the corresponding live descriptor table before enabling the entry path.
     #[inline]
     #[must_use]
-    pub const fn new(kernel: SyscallSegments, user: SysretSegments) -> Self {
-        let kernel = kernel.raw().raw();
-        let user = user.raw().raw();
-        let mut target_value = RawStar::new(u64::MIN);
+    pub const fn segments(kernel: SyscallSegments, user: SysretSegments) -> Self {
+        let mut target_value = Self::new(u64::MIN);
 
-        target_value.kernel_mut().const_merge(kernel);
-        target_value.user_mut().const_merge(user);
-
-        Self(target_value)
-    }
-
-    /// Borrows the proven kernel selector field.
-    #[inline]
-    #[must_use]
-    pub const fn kernel(&self) -> StarKernelSelector<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.kernel()
-    }
-
-    /// Borrows the proven user selector-base field.
-    #[inline]
-    #[must_use]
-    pub const fn user(&self) -> StarUserSelector<'_> {
-        let &Self(ref target_value) = self;
-
-        target_value.user()
-    }
-
-    /// Lowers this checked selector configuration into the `STAR` snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawStar {
-        let Self(target_value) = self;
+        target_value.kernel_mut().const_merge(kernel.raw().raw());
+        target_value.user_mut().const_merge(user.raw().raw());
 
         target_value
     }
 }
 
 snapshotted::snapshot!(
-    /// `IA32_FMASK` register snapshot.
+    /// The `IA32_FMASK` system-call flag mask model-specific register snapshot.
     ///
     /// The bit positions correspond to RFLAGS positions, but a mask is not an
     /// RFLAGS machine state and therefore does not reuse the semantic Rflags type.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFMask for (0xC000_0084) use Cpl0Access
+    pub struct MsrFMask for (0xC000_0084)
+    for<'a> &'a crate::x86::privilege::Cpl<0, T>
 );
 
 #[cfg(test)]
 mod tests {
-    use super::{RawCStar, RawFMask, RawLStar, RawStar, Star, SyscallSegments, SysretSegments};
     use crate::x86::{
         descriptor::{DescriptorIndex, RawSegmentDescriptor},
-        msr::Msr,
+        msr::{
+            Msr,
+            syscall::{MsrCStar, MsrFMask, MsrLStar, MsrStar, SyscallSegments, SysretSegments},
+        },
         privilege::PrivilegeLevel,
         segmentation::{CodeSegment, DataSegment, SegmentSelector, TableIndicator},
     };
@@ -366,20 +282,15 @@ mod tests {
             .expect("is_adjacent kernel segments must validate");
         let user = SysretSegments::new(data(3, PrivilegeLevel::Ring3), code(4, PrivilegeLevel::Ring3))
             .expect("is_adjacent user segments must validate");
-        let star = Star::new(kernel, user);
+        let star = MsrStar::segments(kernel, user);
 
         assert_eq!(star.kernel().const_value(), 8);
         assert_eq!(star.user().const_value(), 16);
-
-        let raw = star.raw();
-
-        assert_eq!(raw.kernel().const_value(), 8);
-        assert_eq!(raw.user().const_value(), 16);
     }
 
     #[test]
     fn raw_star_preserves_arbitrary_snapshots() {
-        let raw = RawStar::new(u64::MAX);
+        let raw = MsrStar::new(u64::MAX);
 
         assert_eq!(raw.raw(), u64::MAX);
     }
@@ -395,9 +306,9 @@ mod tests {
 
     #[test]
     fn register_indices_match_architecture() {
-        assert_eq!(RawStar::REGISTER.address(), 0xC000_0081);
-        assert_eq!(RawLStar::REGISTER.address(), 0xC000_0082);
-        assert_eq!(RawCStar::REGISTER.address(), 0xC000_0083);
-        assert_eq!(RawFMask::REGISTER.address(), 0xC000_0084);
+        assert_eq!(MsrStar::REGISTER.address(), 0xC000_0081);
+        assert_eq!(MsrLStar::REGISTER.address(), 0xC000_0082);
+        assert_eq!(MsrCStar::REGISTER.address(), 0xC000_0083);
+        assert_eq!(MsrFMask::REGISTER.address(), 0xC000_0084);
     }
 }

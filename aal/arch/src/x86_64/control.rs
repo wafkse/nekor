@@ -1576,7 +1576,7 @@ mod tests {
 
     use super::{Cr0, Cr3, Cr4, LongModeControl, RawCr0, RawCr3, RawCr4};
     use crate::{
-        x86::msr::efer::{Efer, LongModeEfer},
+        x86::msr::efer::{LongModeEfer, MsrEfer},
         x86_64::paging::Pa,
     };
 
@@ -1620,7 +1620,7 @@ mod tests {
     #[test]
     fn long_mode_control_rejects_incomplete_control_state() {
         let cr3 = Pa::new(0x1000).and_then(Cr3::root_table);
-        let mut efer = Efer::RESET;
+        let mut efer = MsrEfer::RESET;
 
         efer.lme_mut().const_set(State::Set);
 

@@ -1,75 +1,73 @@
 //! Flexible Return and Event Delivery model-specific register representations and access.
 //!
-//! Raw types preserve every architectural register snapshot. Checked values keep
-//! address alignment and policy constraints out of the raw transport layer.
+//! The images expose every register field. Configuration and stack-address helpers
+//! check their inputs while preparing bits, without claiming that entry resources are installed.
 
 use nekor_bitwise::prelude::{Bit, Counterpart, Field};
 
-use crate::x86::{
-    fred::FredLevel,
-    msr::{FredAccess, UnavailableAccess, detail::snapshotted},
-};
+use crate::x86::{fred::FredLevel, msr::detail::snapshotted};
 #[cfg(target_arch = "x86_64")]
 use crate::x86_64::paging::{La, LaMode};
 
-/// Current stack-level field in RawFredConfig.
-pub type FredConfigLevel<'value> = Field<'value, 0, 1, u64>;
+/// The current stack-level field in `MsrFredConfig`.
+pub type FredConfigLevel<'a> = Field<'a, 0, 1, u64>;
 
-/// Reserved bit two in RawFredConfig.
-pub type FredConfigReserved2<'value> = Bit<'value, u64, 2>;
+/// The reserved bit at position two in `MsrFredConfig`.
+pub type FredConfigReserved2<'a> = Bit<'a, u64, 2>;
 
-/// Same-stack shadow-stack decrement control in RawFredConfig.
-pub type FredConfigShadow<'value> = Bit<'value, u64, 3>;
+/// The same-stack shadow-stack decrement control in `MsrFredConfig`.
+pub type FredConfigShadow<'a> = Bit<'a, u64, 3>;
 
-/// Reserved bits four and five in RawFredConfig.
-pub type FredConfigReserved4_5<'value> = Field<'value, 4, 5, u64>;
+/// The reserved bits at positions four and five in `MsrFredConfig`.
+pub type FredConfigReserved4_5<'a> = Field<'a, 4, 5, u64>;
 
-/// Same-stack regular-stack decrement count in RawFredConfig.
-pub type FredConfigRegular<'value> = Field<'value, 6, 8, u64>;
+/// The same-stack regular-stack decrement count in `MsrFredConfig`.
+pub type FredConfigRegular<'a> = Field<'a, 6, 8, u64>;
 
-/// Ring-zero maskable-interrupt stack level in RawFredConfig.
-pub type FredConfigInterrupt<'value> = Field<'value, 9, 10, u64>;
+/// The ring-zero maskable-interrupt stack level in `MsrFredConfig`.
+pub type FredConfigInterrupt<'a> = Field<'a, 9, 10, u64>;
 
-/// Reserved bit eleven in RawFredConfig.
-pub type FredConfigReserved11<'value> = Bit<'value, u64, 11>;
+/// The reserved bit at position eleven in `MsrFredConfig`.
+pub type FredConfigReserved11<'a> = Bit<'a, u64, 11>;
 
-/// Event-handler page field in RawFredConfig.
-pub type FredConfigHandler<'value> = Field<'value, 12, 63, u64>;
+/// The event-handler page field in `MsrFredConfig`.
+pub type FredConfigHandler<'a> = Field<'a, 12, 63, u64>;
 
-/// Mutable counterpart to FredConfigLevel.
-pub type FredConfigLevelMut<'value> = <FredConfigLevel<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigLevel`.
+pub type FredConfigLevelMut<'a> = <FredConfigLevel<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigReserved2.
-pub type FredConfigReserved2Mut<'value> = <FredConfigReserved2<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigReserved2`.
+pub type FredConfigReserved2Mut<'a> = <FredConfigReserved2<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigShadow.
-pub type FredConfigShadowMut<'value> = <FredConfigShadow<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigShadow`.
+pub type FredConfigShadowMut<'a> = <FredConfigShadow<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigReserved4_5.
-pub type FredConfigReserved4_5Mut<'value> = <FredConfigReserved4_5<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigReserved4_5`.
+pub type FredConfigReserved4_5Mut<'a> = <FredConfigReserved4_5<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigRegular.
-pub type FredConfigRegularMut<'value> = <FredConfigRegular<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigRegular`.
+pub type FredConfigRegularMut<'a> = <FredConfigRegular<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigInterrupt.
-pub type FredConfigInterruptMut<'value> = <FredConfigInterrupt<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigInterrupt`.
+pub type FredConfigInterruptMut<'a> = <FredConfigInterrupt<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigReserved11.
-pub type FredConfigReserved11Mut<'value> = <FredConfigReserved11<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigReserved11`.
+pub type FredConfigReserved11Mut<'a> = <FredConfigReserved11<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredConfigHandler.
-pub type FredConfigHandlerMut<'value> = <FredConfigHandler<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredConfigHandler`.
+pub type FredConfigHandlerMut<'a> = <FredConfigHandler<'a> as Counterpart>::Mut;
 
-/// Low page-offset classification used by checked `FRED` handler construction.
-type FredHandlerOffset<'value> = Field<'value, 0, 11, u64>;
+/// The page-offset field checked when constructing a FRED handler configuration.
+type FredHandlerOffset<'a> = Field<'a, 0, 11, u64>;
 
 snapshotted::snapshot!(
-    /// `IA32_FRED_CONFIG` model-specific register snapshot.
+    /// The `IA32_FRED_CONFIG` event-delivery configuration model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFredConfig for (0x0000_01D4) use FredAccess
+    pub struct MsrFredConfig for (0x0000_01D4)
+    for<'a> (&'a crate::x86::privilege::Cpl<0, T>, &'a crate::x86::fred::FredCapability)
 );
 
-impl RawFredConfig {
+impl MsrFredConfig {
     /// Borrows the current stack-level field.
     #[inline]
     #[must_use]
@@ -207,94 +205,59 @@ impl RawFredConfig {
     }
 }
 
-/// Checked baseline `FRED` configuration.
 #[cfg(target_arch = "x86_64")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// NOTE(invariant): The handler is page aligned and canonical. Lowering clears reserved fields,
-// current stack level, and same-stack decrement controls while preserving the selected interrupt
-// stack level.
-pub struct FredConfig {
-    /// Canonical page-aligned event-handler address.
-    handler: La,
-
-    /// Stack level used for ring-zero maskable interrupts.
-    interrupt: FredLevel,
-}
-
-#[cfg(target_arch = "x86_64")]
-impl FredConfig {
-    /// Creates a baseline `FRED` configuration.
+impl MsrFredConfig {
+    /// Prepare a baseline handler page and ring-zero interrupt stack level.
+    ///
+    /// The handler must be page aligned. Other fields begin clear, including the current
+    /// stack level and same-stack decrement controls. This prepares an image only;
+    /// installing it also requires the entry code, mappings and stack resources.
     #[inline]
     #[must_use]
-    pub const fn new(handler: La, interrupt: FredLevel) -> Option<Self> {
+    pub const fn configure(handler: La, interrupt: FredLevel) -> Option<Self> {
         let address = handler.bits();
 
         match FredHandlerOffset::wrap(&address).const_value() {
-            u16::MIN => Some(Self { handler, interrupt }),
+            u16::MIN => {
+                let mut target_value = Self::new(u64::MIN);
+                let page = FredConfigHandler::wrap(&address).const_value();
+
+                target_value.handler_mut().const_merge(page);
+                target_value.interrupt_mut().const_merge(interrupt.raw());
+
+                Some(target_value)
+            },
             _ => None,
         }
     }
-
-    /// Returns the configured event-handler page.
-    #[inline]
-    #[must_use]
-    pub const fn handler(self) -> La {
-        let Self { handler, .. } = self;
-
-        handler
-    }
-
-    /// Returns the maskable-interrupt stack level.
-    #[inline]
-    #[must_use]
-    pub const fn interrupt(self) -> FredLevel {
-        let Self { interrupt, .. } = self;
-
-        interrupt
-    }
-
-    /// Lowers this checked configuration into the register snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawFredConfig {
-        let Self { handler, interrupt } = self;
-
-        let address = handler.bits();
-        let page = FredConfigHandler::wrap(&address).const_value();
-        let mut target_value = RawFredConfig::new(u64::MIN);
-
-        target_value.handler_mut().const_merge(page);
-        target_value.interrupt_mut().const_merge(interrupt.raw());
-
-        target_value
-    }
 }
 
-/// NMI stack-level field in RawFredLevels.
-pub type FredLevelsNmi<'value> = Field<'value, 4, 5, u64>;
+/// The NMI stack-level field in `MsrFredLevels`.
+pub type FredLevelsNmi<'a> = Field<'a, 4, 5, u64>;
 
-/// Double-fault stack-level field in RawFredLevels.
-pub type FredLevelsDf<'value> = Field<'value, 16, 17, u64>;
+/// The double-fault stack-level field in `MsrFredLevels`.
+pub type FredLevelsDf<'a> = Field<'a, 16, 17, u64>;
 
-/// Machine-check stack-level field in RawFredLevels.
-pub type FredLevelsMc<'value> = Field<'value, 36, 37, u64>;
+/// The machine-check stack-level field in `MsrFredLevels`.
+pub type FredLevelsMc<'a> = Field<'a, 36, 37, u64>;
 
-/// Mutable counterpart to FredLevelsNmi.
-pub type FredLevelsNmiMut<'value> = <FredLevelsNmi<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredLevelsNmi`.
+pub type FredLevelsNmiMut<'a> = <FredLevelsNmi<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredLevelsDf.
-pub type FredLevelsDfMut<'value> = <FredLevelsDf<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredLevelsDf`.
+pub type FredLevelsDfMut<'a> = <FredLevelsDf<'a> as Counterpart>::Mut;
 
-/// Mutable counterpart to FredLevelsMc.
-pub type FredLevelsMcMut<'value> = <FredLevelsMc<'value> as Counterpart>::Mut;
+/// The mutable counterpart to `FredLevelsMc`.
+pub type FredLevelsMcMut<'a> = <FredLevelsMc<'a> as Counterpart>::Mut;
 
 snapshotted::snapshot!(
-    /// `IA32_FRED_STKLVLS` register snapshot.
+    /// The `IA32_FRED_STKLVLS` event stack-level selection model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFredLevels for (0x0000_01D0) use FredAccess
+    pub struct MsrFredLevels for (0x0000_01D0)
+    for<'a> (&'a crate::x86::privilege::Cpl<0, T>, &'a crate::x86::fred::FredCapability)
 );
 
-impl RawFredLevels {
+impl MsrFredLevels {
     /// Borrows the NMI stack-level field.
     #[inline]
     #[must_use]
@@ -347,82 +310,30 @@ impl RawFredLevels {
     }
 }
 
-/// Checked machine-safety `FRED` stack-level policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// NOTE(invariant): Construction fixes NMI to level one, double fault to level two, machine check
-// to level three, and leaves every other raw field clear when lowered.
-pub struct FredLevels {
-    /// Stack level selected for NMI delivery.
-    nmi: FredLevel,
-
-    /// Stack level selected for double-fault delivery.
-    df: FredLevel,
-
-    /// Stack level selected for machine-check delivery.
-    mc: FredLevel,
-}
-
-impl FredLevels {
-    /// Constructs the revision 1 machine-safety assignment.
+impl MsrFredLevels {
+    /// Prepare distinct stack levels for NMI, double fault and machine check.
+    ///
+    /// NMI uses level one, double fault level two and machine check level three.
+    /// The owner installing this policy must supply the corresponding stack resources.
     #[inline]
     #[must_use]
     pub const fn safety() -> Self {
-        Self {
-            nmi: FredLevel::One,
-            df: FredLevel::Two,
-            mc: FredLevel::Three,
-        }
-    }
+        let mut target_value = Self::new(u64::MIN);
 
-    /// Returns the NMI stack level.
-    #[inline]
-    #[must_use]
-    pub const fn nmi(self) -> FredLevel {
-        let Self { nmi, .. } = self;
-
-        nmi
-    }
-
-    /// Returns the double-fault stack level.
-    #[inline]
-    #[must_use]
-    pub const fn df(self) -> FredLevel {
-        let Self { df, .. } = self;
-
-        df
-    }
-
-    /// Returns the machine-check stack level.
-    #[inline]
-    #[must_use]
-    pub const fn mc(self) -> FredLevel {
-        let Self { mc, .. } = self;
-
-        mc
-    }
-
-    /// Lowers this policy into the stack-level register snapshot.
-    #[inline]
-    #[must_use]
-    pub const fn raw(self) -> RawFredLevels {
-        let Self { nmi, df, mc } = self;
-
-        let mut target_value = RawFredLevels::new(u64::MIN);
-
-        target_value.nmi_mut().const_merge(nmi.raw());
-        target_value.df_mut().const_merge(df.raw());
-        target_value.mc_mut().const_merge(mc.raw());
+        target_value.nmi_mut().const_merge(FredLevel::One.raw());
+        target_value.df_mut().const_merge(FredLevel::Two.raw());
+        target_value.mc_mut().const_merge(FredLevel::Three.raw());
 
         target_value
     }
 }
 
-/// Low six-bit alignment field used to validate `FRED` regular-stack pointers.
-pub type FredRspOffset<'value> = Field<'value, 0, 5, u64>;
+/// The alignment field checked when constructing FRED regular-stack pointers.
+pub type FredRspOffset<'a> = Field<'a, 0, 5, u64>;
 
-/// Implementation details for `FRED` regular-stack register pairs.
+/// The declarations shared by the regular-stack registers.
 mod detail {
-    /// Defines a raw and checked regular-stack register pair for a `FRED` level.
+    /// Declare a stack-pointer image with checked address helpers.
     macro_rules! stack {
         () => {};
         (
@@ -434,72 +345,48 @@ mod detail {
         ) => {
             tokel::stream!(
                 $crate::x86::msr::detail::snapshotted::snapshot!(
-                    /// `FRED` regular-stack register snapshot.
-                    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-                    $target_vis struct [< Raw $target_name >]:flatten:concatenate for ($target_address)
-                    use FredAccess
+                    $(
+                        #[$target_meta]
+                    )*
+                    $target_vis struct $target_name for ($target_address)
+                    for<'a> (&'a $crate::x86::privilege::Cpl<0, T>, &'a $crate::x86::fred::FredCapability)
                 );
 
-                impl [< Raw $target_name >]:flatten:concatenate {
-                    /// Architectural zero snapshot.
-                    $target_vis const ZERO: Self = Self(u64::MIN);
-                }
-
-                $(
-                    #[$target_meta]
-                )*
-                #[cfg(target_arch = "x86_64")]
-                #[repr(transparent)]
-                $target_vis struct $target_name(La);
-
-                #[cfg(target_arch = "x86_64")]
                 impl $target_name {
-                    /// Creates a checked regular-stack pointer.
+                    /// The architectural zero-image for this snapshot.
+                    $target_vis const ZERO: Self = Self::new(u64::MIN);
+
+                    /// Instantiate a regular-stack pointer for the corresponding FRED stack level.
+                    ///
+                    /// This requires a [`linear address`] that is aligned to a 64-byte boundary.
+                    ///
+                    /// [`linear address`]: La
+                    #[cfg(target_arch = "x86_64")]
                     #[inline]
                     #[must_use]
-                    $target_vis const fn new(address: La) -> Option<Self> {
+                    $target_vis const fn at(address: La) -> Option<Self> {
                         let target_value = address.bits();
 
                         match FredRspOffset::wrap(&target_value).const_value() {
-                            0 => Some(Self(address)),
+                            u8::MIN => Some(Self::new(target_value)),
                             _ => None,
                         }
                     }
 
-                    /// Lifts a raw snapshot when it is canonical under M and properly aligned.
+                    /// Interpret the image as a canonical, 64-byte-aligned stack address.
+                    #[cfg(target_arch = "x86_64")]
                     #[inline]
                     #[must_use]
-                    $target_vis const fn lift<M>(target_value: [< Raw $target_name >]:flatten:concatenate) -> Option<Self>
+                    $target_vis const fn la<M>(&self) -> Option<La>
                     where
                         M: LaMode,
                     {
-                        let target_value = target_value.raw();
+                        let target_value = self.raw();
 
-                        match (
-                            FredRspOffset::wrap(&target_value).const_value(),
-                            La::new::<M>(target_value),
-                        ) {
-                            (0, Some(address)) => Some(Self(address)),
+                        match FredRspOffset::wrap(&target_value).const_value() {
+                            u8::MIN => La::new::<M>(target_value),
                             _ => None,
                         }
-                    }
-
-                    /// Returns the canonical regular-stack address.
-                    #[inline]
-                    #[must_use]
-                    $target_vis const fn la(self) -> La {
-                        let Self(address) = self;
-
-                        address
-                    }
-
-                    /// Lowers this checked pointer into the register snapshot.
-                    #[inline]
-                    #[must_use]
-                    $target_vis const fn raw(self) -> [< Raw $target_name >]:flatten:concatenate {
-                        let Self(address) = self;
-
-                        <[< Raw $target_name >]:flatten:concatenate>::new(address.bits())
                     }
                 }
             );
@@ -510,69 +397,75 @@ mod detail {
 }
 
 detail::stack!(
-    /// Checked `FRED` regular-stack pointer for level 0.
+    /// The `IA32_FRED_RSP0` regular-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct FredRsp0 for (0x0000_01CC)
+    pub struct MsrFredRsp0 for (0x000001CC)
 );
 
 detail::stack!(
-    /// Checked `FRED` regular-stack pointer for level 1.
+    /// The `IA32_FRED_RSP1` regular-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct FredRsp1 for (0x0000_01CD)
+    pub struct MsrFredRsp1 for (0x000001CD)
 );
 
 detail::stack!(
-    /// Checked `FRED` regular-stack pointer for level 2.
+    /// The `IA32_FRED_RSP2` regular-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct FredRsp2 for (0x0000_01CE)
+    pub struct MsrFredRsp2 for (0x000001CE)
 );
 
 detail::stack!(
-    /// Checked `FRED` regular-stack pointer for level 3.
+    /// The `IA32_FRED_RSP3` regular-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct FredRsp3 for (0x0000_01CF)
+    pub struct MsrFredRsp3 for (0x000001CF)
 );
 
-// NOTE: `FRED` shadow-stack access requires a capability not modeled by the `FRED` proof alone.
+// NOTE: FRED shadow-stack access needs additional authorization beyond the
+// [`FredCapability`](crate::x86::fred::FredCapability) proof-type.
 snapshotted::snapshot!(
-    /// `IA32_FRED_SSP1` register snapshot.
+    /// The `IA32_FRED_SSP1` shadow-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFredSsp1 for (0x0000_01D1) use UnavailableAccess
-);
-
-snapshotted::snapshot!(
-    /// `IA32_FRED_SSP2` register snapshot.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFredSsp2 for (0x0000_01D2) use UnavailableAccess
+    pub struct MsrFredSsp1 for (0x0000_01D1)
 );
 
 snapshotted::snapshot!(
-    /// `IA32_FRED_SSP3` register snapshot.
+    /// The `IA32_FRED_SSP2` shadow-stack pointer model-specific register snapshot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RawFredSsp3 for (0x0000_01D3) use UnavailableAccess
+    pub struct MsrFredSsp2 for (0x0000_01D2)
+);
+
+snapshotted::snapshot!(
+    /// The `IA32_FRED_SSP3` shadow-stack pointer model-specific register snapshot.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct MsrFredSsp3 for (0x0000_01D3)
 );
 
 #[cfg(test)]
 mod tests {
     use nekor_bitwise::prelude::State;
 
-    use super::{
-        FredConfig, FredLevels, FredRsp1, RawFredConfig, RawFredLevels, RawFredRsp0, RawFredRsp1, RawFredRsp2,
-        RawFredRsp3, RawFredSsp1, RawFredSsp2, RawFredSsp3,
-    };
     use crate::{
-        x86::{fred::FredLevel, msr::Msr},
+        x86::{
+            fred::FredLevel,
+            msr::{
+                Msr,
+                fred::{
+                    MsrFredConfig, MsrFredLevels, MsrFredRsp0, MsrFredRsp1, MsrFredRsp2, MsrFredRsp3, MsrFredSsp1,
+                    MsrFredSsp2, MsrFredSsp3,
+                },
+            },
+        },
         x86_64::paging::{La, La48},
     };
 
     #[test]
     fn config_lowers_without_representation_leaks() {
         let handler = La::new::<La48>(0xffff_ffff_8000_1000).expect("fixture handler page must be canonical");
-        let config = FredConfig::new(handler, FredLevel::Zero).expect("page-aligned handler must configure FRED");
-        let raw = config.raw();
+        let config =
+            MsrFredConfig::configure(handler, FredLevel::Zero).expect("page-aligned handler must configure FRED");
+        let raw = config;
 
-        assert_eq!(config.handler(), handler);
-        assert_eq!(config.interrupt(), FredLevel::Zero);
+        assert_eq!(raw.handler().const_value(), handler.bits() / 4096);
         assert_eq!(raw.level().const_value(), 0);
         assert_eq!(raw.interrupt().const_value(), 0);
         assert_eq!(raw.regular().const_value(), 0);
@@ -583,17 +476,13 @@ mod tests {
 
         let unaligned = La::new::<La48>(handler.bits() + 8).expect("fixture address remains canonical");
 
-        assert!(FredConfig::new(unaligned, FredLevel::Zero).is_none());
+        assert!(MsrFredConfig::configure(unaligned, FredLevel::Zero).is_none());
     }
 
     #[test]
     fn safety_levels_lower_to_named_fields() {
-        let levels = FredLevels::safety();
-        let raw = levels.raw();
+        let raw = MsrFredLevels::safety();
 
-        assert_eq!(levels.nmi(), FredLevel::One);
-        assert_eq!(levels.df(), FredLevel::Two);
-        assert_eq!(levels.mc(), FredLevel::Three);
         assert_eq!(raw.nmi().const_value(), FredLevel::One.raw());
         assert_eq!(raw.df().const_value(), FredLevel::Two.raw());
         assert_eq!(raw.mc().const_value(), FredLevel::Three.raw());
@@ -603,16 +492,16 @@ mod tests {
     fn regular_stacks_require_sixty_four_byte_alignment() {
         let aligned = La::new::<La48>(0xffff_ffff_8000_2040).expect("fixture stack top must be canonical");
         let unaligned = La::new::<La48>(aligned.bits() + 8).expect("fixture address remains canonical");
-        let rsp = FredRsp1::new(aligned).expect("aligned `FRED` stack top must validate");
+        let rsp = MsrFredRsp1::at(aligned).expect("aligned `FRED` stack top must validate");
 
-        assert_eq!(rsp.la(), aligned);
-        assert_eq!(FredRsp1::lift::<La48>(rsp.raw()).map(FredRsp1::la), Some(aligned));
-        assert!(FredRsp1::new(unaligned).is_none());
+        assert_eq!(rsp.la::<La48>(), Some(aligned));
+        assert_eq!(MsrFredRsp1::new(rsp.raw()).la::<La48>(), Some(aligned));
+        assert!(MsrFredRsp1::at(unaligned).is_none());
     }
 
     #[test]
     fn raw_config_exposes_all_named_fields() {
-        let mut target_value = RawFredConfig::new(u64::MIN);
+        let mut target_value = MsrFredConfig::new(u64::MIN);
 
         target_value.level_mut().const_merge(FredLevel::Three.raw());
         target_value.reserved2_mut().const_set(State::Set);
@@ -635,14 +524,14 @@ mod tests {
 
     #[test]
     fn register_indices_match_architecture() {
-        assert_eq!(RawFredRsp0::REGISTER.address(), 0x1CC);
-        assert_eq!(RawFredRsp1::REGISTER.address(), 0x1CD);
-        assert_eq!(RawFredRsp2::REGISTER.address(), 0x1CE);
-        assert_eq!(RawFredRsp3::REGISTER.address(), 0x1CF);
-        assert_eq!(RawFredLevels::REGISTER.address(), 0x1D0);
-        assert_eq!(RawFredSsp1::REGISTER.address(), 0x1D1);
-        assert_eq!(RawFredSsp2::REGISTER.address(), 0x1D2);
-        assert_eq!(RawFredSsp3::REGISTER.address(), 0x1D3);
-        assert_eq!(RawFredConfig::REGISTER.address(), 0x1D4);
+        assert_eq!(MsrFredRsp0::REGISTER.address(), 0x1CC);
+        assert_eq!(MsrFredRsp1::REGISTER.address(), 0x1CD);
+        assert_eq!(MsrFredRsp2::REGISTER.address(), 0x1CE);
+        assert_eq!(MsrFredRsp3::REGISTER.address(), 0x1CF);
+        assert_eq!(MsrFredLevels::REGISTER.address(), 0x1D0);
+        assert_eq!(MsrFredSsp1::REGISTER.address(), 0x1D1);
+        assert_eq!(MsrFredSsp2::REGISTER.address(), 0x1D2);
+        assert_eq!(MsrFredSsp3::REGISTER.address(), 0x1D3);
+        assert_eq!(MsrFredConfig::REGISTER.address(), 0x1D4);
     }
 }
