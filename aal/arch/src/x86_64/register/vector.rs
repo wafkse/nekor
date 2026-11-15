@@ -1,31 +1,19 @@
-//! Raw vector-register values and their architectural subregisters.
-//!
-//! Wider registers preserve the identity of their lower and upper portions. XSAVE stores
-//! those portions in separate components, so each saved portion has its own representation.
+//! XMM, YMM and ZMM register values with access to their lower and upper halves.
 
 use nekor_bitwise::prelude::{Counterpart, Field};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-/// XMM0 through XMM15 in the x86-64 legacy save region.
-pub type XmmBank = [Xmm; 16];
-
-/// Upper YMM0 through YMM15 portions in the AVX extended-state component.
-pub type YmmHighBank = [YmmHigh; 16];
-
-/// Two consecutive 128-bit portions covering bits 256 through 511 of a ZMM register.
-pub type ZmmHighParts = [Xmm; 2];
-
 /// The lower 64 bits of an XMM register.
-pub type XmmLow64<'value> = Field<'value, 0, 63, u128>;
+pub type XmmLow64<'a> = Field<'a, 0, 63, u128>;
 
 /// The upper 64 bits of an XMM register.
-pub type XmmHigh64<'value> = Field<'value, 64, 127, u128>;
+pub type XmmHigh64<'a> = Field<'a, 64, 127, u128>;
 
 /// Mutable counterpart of [`XmmLow64`].
-pub type XmmLow64Mut<'value> = <XmmLow64<'value> as Counterpart>::Mut;
+pub type XmmLow64Mut<'a> = <XmmLow64<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`XmmHigh64`].
-pub type XmmHigh64Mut<'value> = <XmmHigh64<'value> as Counterpart>::Mut;
+pub type XmmHigh64Mut<'a> = <XmmHigh64<'a> as Counterpart>::Mut;
 
 /// A raw 128-bit XMM register.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
@@ -85,49 +73,17 @@ impl Xmm {
     }
 }
 
-/// The upper 128 bits of a YMM register, stored in the AVX XSAVE component.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
-#[repr(transparent)]
-// NOTE(invariant): None.
-pub struct YmmHigh(Xmm);
-
-impl YmmHigh {
-    /// Construct the upper portion from a 128-bit register image.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: Xmm) -> Self {
-        Self(target_value)
-    }
-
-    /// Borrow the 128-bit portion.
-    #[inline]
-    #[must_use]
-    pub const fn value(&self) -> &Xmm {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
-    /// Mutably borrow the 128-bit portion.
-    #[inline]
-    pub const fn value_mut(&mut self) -> &mut Xmm {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-/// A raw 256-bit YMM register with its separately saved subregisters.
+/// A 256-bit YMM register image.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
 #[repr(C)]
 // NOTE(invariant): None.
-pub struct Ymm(Xmm, YmmHigh);
+pub struct Ymm(Xmm, Xmm);
 
 impl Ymm {
-    /// Combine the lower XMM register and upper AVX portion.
+    /// Combine the lower and upper 128-bit portions.
     #[inline]
     #[must_use]
-    pub const fn new(low: Xmm, high: YmmHigh) -> Self {
+    pub const fn new(low: Xmm, high: Xmm) -> Self {
         Self(low, high)
     }
 
@@ -148,67 +104,35 @@ impl Ymm {
         low
     }
 
-    /// Borrow the upper AVX portion.
+    /// Borrow the upper 128-bit portion.
     #[inline]
     #[must_use]
-    pub const fn high(&self) -> &YmmHigh {
+    pub const fn high(&self) -> &Xmm {
         let Self(.., high) = self;
 
         high
     }
 
-    /// Mutably borrow the upper AVX portion.
+    /// Mutably borrow the upper 128-bit portion.
     #[inline]
-    pub const fn high_mut(&mut self) -> &mut YmmHigh {
+    pub const fn high_mut(&mut self) -> &mut Xmm {
         let Self(.., high) = self;
 
         high
     }
 }
 
-/// The upper 256 bits of a ZMM register, stored in the ZMM_Hi256 component.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
-#[repr(transparent)]
-// NOTE(invariant): None.
-pub struct ZmmHigh(ZmmHighParts);
-
-impl ZmmHigh {
-    /// Construct the high portion in increasing bit order.
-    #[inline]
-    #[must_use]
-    pub const fn new(target_value: ZmmHighParts) -> Self {
-        Self(target_value)
-    }
-
-    /// Borrow the two 128-bit portions in increasing bit order.
-    #[inline]
-    #[must_use]
-    pub const fn value(&self) -> &ZmmHighParts {
-        let Self(target_value) = self;
-
-        target_value
-    }
-
-    /// Mutably borrow the two 128-bit portions.
-    #[inline]
-    pub const fn value_mut(&mut self) -> &mut ZmmHighParts {
-        let Self(target_value) = self;
-
-        target_value
-    }
-}
-
-/// A raw 512-bit ZMM register with its separately saved portions.
+/// A 512-bit ZMM register image.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, FromBytes, IntoBytes, Immutable, KnownLayout)]
 #[repr(C)]
 // NOTE(invariant): None.
-pub struct Zmm(Ymm, ZmmHigh);
+pub struct Zmm(Ymm, Ymm);
 
 impl Zmm {
-    /// Combine the lower YMM register and upper AVX-512 portion.
+    /// Combine the lower and upper 256-bit portions.
     #[inline]
     #[must_use]
-    pub const fn new(low: Ymm, high: ZmmHigh) -> Self {
+    pub const fn new(low: Ymm, high: Ymm) -> Self {
         Self(low, high)
     }
 
@@ -229,18 +153,18 @@ impl Zmm {
         low
     }
 
-    /// Borrow the upper AVX-512 portion.
+    /// Borrow the upper 256-bit portion.
     #[inline]
     #[must_use]
-    pub const fn high(&self) -> &ZmmHigh {
+    pub const fn high(&self) -> &Ymm {
         let Self(.., high) = self;
 
         high
     }
 
-    /// Mutably borrow the upper AVX-512 portion.
+    /// Mutably borrow the upper 256-bit portion.
     #[inline]
-    pub const fn high_mut(&mut self) -> &mut ZmmHigh {
+    pub const fn high_mut(&mut self) -> &mut Ymm {
         let Self(.., high) = self;
 
         high
@@ -253,17 +177,13 @@ mod tests {
 
     use zerocopy::{FromBytes, IntoBytes};
 
-    use super::{Xmm, XmmBank, Ymm, YmmHigh, YmmHighBank, Zmm, ZmmHigh};
+    use crate::x86_64::register::vector::{Xmm, Ymm, Zmm};
 
     #[test]
-    fn vector_portions_have_the_architectural_extents() {
+    fn registers_have_their_architectural_extents() {
         assert_eq!(mem::size_of::<Xmm>(), 16);
-        assert_eq!(mem::size_of::<YmmHigh>(), 16);
         assert_eq!(mem::size_of::<Ymm>(), 32);
-        assert_eq!(mem::size_of::<ZmmHigh>(), 32);
         assert_eq!(mem::size_of::<Zmm>(), 64);
-        assert_eq!(mem::size_of::<XmmBank>(), 256);
-        assert_eq!(mem::size_of::<YmmHighBank>(), 256);
     }
 
     #[test]
@@ -276,14 +196,14 @@ mod tests {
         assert_eq!(xmm.low64().const_value(), u64::MAX);
         assert_eq!(xmm.high64().const_value(), 0x0123_4567_89ab_cdef);
 
-        let high = YmmHigh::new(Xmm::new(3));
+        let high = Xmm::new(3);
         let ymm = Ymm::new(xmm, high);
-        let high = ZmmHigh::new([Xmm::new(5), Xmm::new(7)]);
+        let high = Ymm::new(Xmm::new(5), Xmm::new(7));
         let zmm = Zmm::new(ymm, high);
         let decoded = Zmm::read_from_bytes(zmm.as_bytes()).expect("raw register bytes");
 
         assert_eq!(decoded, zmm);
         assert_eq!(decoded.low().low(), &xmm);
-        assert_eq!(decoded.low().high().value().raw(), 3);
+        assert_eq!(decoded.low().high().raw(), 3);
     }
 }
