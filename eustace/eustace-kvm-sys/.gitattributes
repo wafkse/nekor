@@ -1,2 +1,0 @@
-src/generated/lts/*/*.rs linguist-generated linguist-detectable=false
-src/generated/stable/*/*.rs linguist-generated linguist-detectable=false

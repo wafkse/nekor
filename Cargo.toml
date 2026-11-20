@@ -35,12 +35,6 @@ members = [
   "nekor-socal",
   "nekor-structure",
   "nekor-sync",
-  "verte/compose",
-  "verte/eval",
-  "verte/ir",
-  "verte/parse",
-  "verte/repl",
-  "eustace/eustace*",
 ]
 
 exclude = [
@@ -65,7 +59,6 @@ keywords = ["kernel", "unikernel", "no-std"]
 categories = ["no-std"]
 
 [workspace.dependencies]
-aldebaran = { git = "https://github.com/wafkse/aldebaran", tag = "v0.10.0", version = "0.1.0" }
 proc-macro2 = "1.0.107"
 syn = "3.0.6"
 quote = "1.0.47"
@@ -74,7 +67,6 @@ camino = "1.2.2"
 fack = "0.4.0"
 miette = { version = "7.6.0", features = ["derive"] }
 tokel = "0.4.1"
-rustyline = "18.0.1"
 criterion = "0.8.2"
 walkdir = "2.5"
 bindgen = "0.73.2"
