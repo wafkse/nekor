@@ -235,6 +235,7 @@ pub mod gdtr {
             );
         }
     }
+
     /// Store the current global descriptor-table register image.
     ///
     /// # Safety
@@ -244,8 +245,8 @@ pub mod gdtr {
     /// Privilege Level* must be zero.
     #[inline]
     pub unsafe fn sgdtd(target_register: &mut DescriptorTablePointer<Gdt, Bits32>) {
-        // SAFETY: The operation is inherently safe, presence of UMIP is bypassed with
-        // *Current Privilege Level* of zero.
+        // SAFETY: The caller establishes CPL0 or disabled UMIP. The destination is
+        // a writable register-image object borrowed exclusively for the instruction.
         unsafe {
             arch::asm!(
                 "sgdtd ({})",
