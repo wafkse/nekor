@@ -61,7 +61,7 @@ pub trait Extract<const N: usize, const M: usize>: Scalar + private::Sealed {
     /// The number of bits to be extracted.
     const BITSET_WIDTH: usize;
 
-    /// The bitwise mask composed of all to-be-extracted bits.
+    /// Low-aligned mask with one bit set for each selected position.
     const BITSET_MASK: Self;
 
     /// The fuse mask for the [`Extract::extract`] operation.

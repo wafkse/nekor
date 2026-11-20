@@ -51,7 +51,7 @@ pub trait Pointer: detail::Sealed + Copy {
     /// Read the address component without exposing provenance.
     fn address(target_value: Self) -> usize;
 
-    /// Map the pointer to an address while retaining its provenance.
+    /// Map the pointer to an address while preserving its inherent provenance.
     ///
     /// This changes only the address component. It does not establish that the
     /// resulting pointer is aligned or points into an allocation.
@@ -252,7 +252,7 @@ pub unsafe trait Taggable<T: Tag>: Sized {}
 /// }
 /// ```
 ///
-/// # Remarks
+/// # Notes
 ///
 /// Attributes on a declaration are forwarded to its generated implementation.
 /// Place configuration attributes on the macro invocation when they must also
@@ -309,7 +309,7 @@ pub use crate::taggable;
 /// original pointer. It does not change the stored tag. [`TaggedPtr::split()`]
 /// returns both the original pointer and the decoded tag.
 ///
-/// Address changes retain the original pointer's provenance. No operation
+/// Address changes preserve the original pointer's provenance. No operation
 /// dereferences the pointer or establishes that its allocation is still live.
 /// The caller remains responsible for the usual requirements when accessing
 /// memory through a recovered pointer.
@@ -414,7 +414,7 @@ where
     /// Replace the tag, returning the updated pointer and previous tag.
     ///
     /// The recovered pointer is unchanged. Since this takes `Self` by value,
-    /// existing copies retain their previous tag.
+    /// existing copies keep their previous tag.
     #[inline]
     #[must_use]
     pub fn replace(target_value: Self, target_tag: T) -> (Self, T) {

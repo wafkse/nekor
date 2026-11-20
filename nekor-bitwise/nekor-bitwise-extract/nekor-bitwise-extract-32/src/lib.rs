@@ -12,7 +12,7 @@
 #![doc = include_str!("../../README.md")]
 
 pub mod downstream {
-    //! The downstream metadata this crate unificates.
+    //! Extraction metadata combined from the output-width crates.
 
     pub use nekor_bitwise_extract_32_8::MetadataU32U8;
     pub use nekor_bitwise_extract_32_16::MetadataU32U16;

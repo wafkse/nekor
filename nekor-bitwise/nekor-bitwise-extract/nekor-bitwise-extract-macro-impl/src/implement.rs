@@ -213,13 +213,13 @@ impl Implement {
                         /// The number of bits to be extracted.
                         const BITSET_WIDTH: usize = #bitset_width_literal;
 
-                        /// The bitwise mask composed of all to-be-extracted bits.
+                        /// Low-aligned mask with one bit set for each selected position.
                         const BITSET_MASK: Self = #bitset_mask_value;
 
-                        /// The fuse mask for the extract operation.
+                        /// Mask of the selected positions in the source integer.
                         const EXTRACT_MASK: Self = #extract_mask_value;
 
-                        /// The fuse mask for the merge operation.
+                        /// Complement of the source-positioned mask, preserving unselected bits.
                         const FUSE_MASK: Self = #fuse_mask_value;
                     }
                 }

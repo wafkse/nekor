@@ -26,7 +26,7 @@ impl State {
         }
     }
 
-    /// Determine the complement of to the current [`State`].
+    /// Determine the complement of the current [`State`].
     #[inline]
     #[must_use]
     pub const fn complement(&self) -> Self {

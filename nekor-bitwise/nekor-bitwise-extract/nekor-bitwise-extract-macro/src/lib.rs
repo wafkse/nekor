@@ -20,38 +20,26 @@ use nekor_bitwise_extract_macro_impl::{
 };
 use proc_macro::TokenStream;
 
-/// Generate a metadata trait for bitwise extraction operations.
+/// Declare extraction metadata for one input and output width.
 ///
-/// This macro creates a trait that defines the metadata for extracting bits
-/// from one integer type to another. The trait includes associated constants
-/// for bit masks and widths.
+/// `metadata!([become] for Input -> Output as Name)` declares `Name<N, M>` with
+/// inclusive endpoints. `become` also creates the local sealing module. Exactly one
+/// expansion in that module must create it before implementations use the seal.
 ///
 /// # Syntax
 ///
 /// ```text
 /// metadata!([become] for input_type -> output_type as TraitName)
 /// ```
+/// use nekor_bitwise_extract_macro::{metadata, implement};
 ///
-/// - `become` (optional): Include a `detail::Sealed` trait in the output
-/// - `input_type`: The source integer type (e.g., `u16`)
-/// - `output_type`: The target integer type (e.g., `u8`)
-/// - `TraitName`: The name of the generated trait
+/// metadata!(become for u16 -> u8 as ByteField);
+/// implement!(for u16 -> u8 as ByteField);
 ///
-/// # Example
-///
-/// ```rust,ignore
-/// metadata!(become for u16 -> u8 as MetadataU16U8);
-/// ```
-///
-/// This generates a trait with associated constants for extraction metadata:
-///
-/// ```text
-/// pub trait MetadataU16U8<const N: usize, const M: usize>: detail::Sealed {
-///     const BITSET_WIDTH: usize;
-///     const BITSET_MASK: Self;
-///     const EXTRACT_MASK: Self;
-///     const FUSE_MASK: Self;
-/// }
+/// assert_eq!(<u16 as ByteField<4, 7>>::BITSET_WIDTH, 4);
+/// assert_eq!(<u16 as ByteField<4, 7>>::BITSET_MASK, 0x0f);
+/// assert_eq!(<u16 as ByteField<4, 7>>::EXTRACT_MASK, 0x00f0);
+/// assert_eq!(<u16 as ByteField<4, 7>>::FUSE_MASK, 0xff0f);
 /// ```
 #[proc_macro]
 pub fn metadata(input: TokenStream) -> TokenStream {
@@ -69,40 +57,15 @@ pub fn metadata(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Implement the metadata trait for specific bit ranges.
-///
-/// This macro generates implementations of a metadata trait for all valid
-/// bit extraction ranges between the input and output types. It creates
-/// implementations for each valid starting and ending bit position.
-///
-/// # Syntax
+/// Generate the field ranges assigned to one input and output width.
 ///
 /// ```text
-/// implement!([become] for input_type -> output_type as TraitName)
+/// implement!([become] for Input -> Output as MetadataTrait)
 /// ```
 ///
-/// - `become` (optional): Skip generating the `detail::Sealed` implementation
-/// - `input_type`: The source integer type (e.g., `u16`)
-/// - `output_type`: The target integer type (e.g., `u8`)
-/// - `TraitName`: The name of the trait to implement
-///
-/// # Example
-///
-/// ```rust,ignore
-/// implement!(for u16 -> u8 as MetadataU16U8);
-/// ```
-///
-/// This generates implementations for all valid bit ranges:
-///
-/// ```text
-/// impl MetadataU16U8<0, 1> for u16 {
-///     const BITSET_WIDTH: usize = 2;
-///     const BITSET_MASK: Self = Self::MAX >> (Self::BITS as usize - 2);
-///     // ... other constants
-/// }
-/// impl MetadataU16U8<0, 2> for u16 { /* ... */ }
-/// // ... more implementations for all valid ranges
-/// ```
+/// The metadata trait must already exist. `become` creates the local sealing module.
+/// Omit it when another expansion has created that module. Ranges use inclusive
+/// endpoints and the output-width partition selected by the range generator.
 #[proc_macro]
 pub fn implement(input: TokenStream) -> TokenStream {
     match syn::parse(input) {
@@ -119,53 +82,17 @@ pub fn implement(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Create a delegating trait that unifies multiple metadata traits.
-///
-/// This macro generates a trait that delegates to specific metadata traits
-/// based on the output type parameter. It's used to create a unified
-/// interface for extracting to multiple output types.
-///
-/// # Syntax
+/// Combine output-specific metadata traits under an output type parameter.
 ///
 /// ```text
-/// delegate!([become] input_type as DelegateTrait for [
-///     output_type1 become MetadataTrait1,
-///     output_type2 become MetadataTrait2,
+/// delegate!([become] Input as Name for [
+///     Output become MetadataTrait,
 /// ])
 /// ```
 ///
-/// - `become` (optional): Include a `detail::Sealed` trait in the output
-/// - `input_type`: The source integer type (e.g., `u16`)
-/// - `DelegateTrait`: The name of the generated delegating trait
-/// - `output_typeN`: Output types to delegate for
-/// - `MetadataTraitN`: The specific metadata trait for each output type
-///
-/// # Example
-///
-/// ```rust,ignore
-/// delegate!(become u16 as MetadataU16 for [
-///     u8 become MetadataU16U8,
-///     u16 become MetadataU16U16,
-/// ]);
-/// ```
-///
-/// This generates a trait with a generic output type parameter:
-///
-/// ```text
-/// pub trait MetadataU16<const N: usize, const M: usize, O> {
-///     const BITSET_WIDTH: usize;
-///     const BITSET_MASK: Self;
-///     const EXTRACT_MASK: Self;
-///     const FUSE_MASK: Self;
-/// }
-///
-/// impl<T, const N: usize, const M: usize> MetadataU16<N, M, u8> for T
-/// where
-///     T: MetadataU16U8<N, M>,
-/// {
-///     // ... delegates to MetadataU16U8
-/// }
-/// ```
+/// Each listed metadata trait supplies the constants for its output type. The resulting
+/// `Name<N, M, O>` interface selects that trait through `O`. `become` also declares the
+/// local sealing module when no earlier expansion has supplied it.
 #[proc_macro]
 pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
     match syn::parse(input) {
@@ -182,15 +109,11 @@ pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
     }
 }
 
-/// Forward trait implementations from source traits to a target trait.
+/// Forward extraction metadata to an existing trait.
 ///
-/// This macro creates trait implementations that forward associated constants
-/// from source metadata traits to a target trait. It supports two modes:
-/// split-off (multiple forwardings in separate modules) and direct forwarding.
-///
-/// # Syntax
-///
-/// ## Split-off mode
+/// The grouped form places each forwarding in a hidden module so separate width sets
+/// can be expanded independently. The direct form emits one forwarding in the current
+/// module. Source and destination traits must expose compatible metadata constants.
 ///
 /// ```text
 /// extract!(TargetTrait for [
@@ -211,25 +134,9 @@ pub fn delegate(input: proc_macro::TokenStream) -> TokenStream {
 /// extract!(MyExtractTrait for [
 ///     u16 use MetadataU16 become [u8, u16],
 ///     u32 use MetadataU32 become [u8, u16, u32],
-/// ]);
-/// ```
+/// ])
 ///
-/// This generates separate hidden modules for each type, implementing
-/// `MyExtractTrait` by forwarding to the source metadata traits.
-///
-/// # Example (Direct)
-///
-/// ```rust,ignore
-/// extract!(trait MyExtractTrait for u16 use MetadataU16 become [u8, u16]);
-/// ```
-///
-/// This directly generates implementations without creating separate modules:
-///
-/// ```text
-/// impl MyExtractTrait<0, 1, u8> for u16 {
-///     const BITSET_WIDTH: usize = <u16 as MetadataU16<0, 1, u8>>::BITSET_WIDTH;
-///     // ... other forwarded constants
-/// }
+/// extract!(trait TargetTrait for u16 use MetadataU16 become [u8, u16])
 /// ```
 #[proc_macro]
 pub fn extract(input: proc_macro::TokenStream) -> TokenStream {

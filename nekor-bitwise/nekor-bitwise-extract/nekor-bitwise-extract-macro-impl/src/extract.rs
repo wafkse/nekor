@@ -49,8 +49,7 @@ impl Forwarded {
     ///
     /// # Errors
     ///
-    /// This function is currently infallible, but may become fallible in the
-    /// future.
+    /// The current expansion is infallible.
     pub fn expand(self, target_trait: &Path) -> syn::Result<TokenStream> {
         let Self {
             target_type,

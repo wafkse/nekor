@@ -73,7 +73,7 @@ pub type U128High64Mut<'value> = <U128High64<'value> as Counterpart>::Mut;
 ///
 /// # Field Width
 ///
-/// `usize` fields use the target pointer width and retain the default fixed-width
+/// `usize` fields use the target pointer width and use the default fixed-width
 /// output selected by [`Size`]. A range extending beyond that width is rejected.
 ///
 /// ```compile_fail
@@ -129,7 +129,7 @@ where
     /// ```
     /// use nekor_bitwise::field::multi::Field;
     ///
-    /// type Tag<'value> = Field<'value, 4, 7, usize>;
+    /// type Tag<'a> = Field<'a, 4, 7, usize>;
     /// const MASK: usize = Tag::mask();
     ///
     /// assert_eq!(MASK, 0xf0);
@@ -140,7 +140,7 @@ where
         E::EXTRACT_MASK
     }
 
-    /// Determine the value of this [`Field`], as the correspondant
+    /// Determine the value of this [`Field`], as the corresponding
     /// [`Extract::Output`] type.
     #[inline]
     #[must_use]
@@ -277,7 +277,7 @@ macro_rules! field {
             where
                 $target_type: Extract<N, M, Output = $target_output>,
             {
-                /// Determine the value of this [`Field`], as the correspondant [`Extract::Output`] type.
+                /// Determine the value of this [`Field`], as the corresponding [`Extract::Output`] type.
                 ///
                 /// This is a const-fn-compatible alternative to the `value` associated function of this item.
                 #[inline]
@@ -343,7 +343,7 @@ where
         Self(target_value, marker::PhantomData)
     }
 
-    /// Determine the value of this [`FieldMut`], as the correspondant
+    /// Determine the value of this [`FieldMut`], as the corresponding
     /// [`Extract::Output`] type.
     #[inline]
     #[must_use]
@@ -480,7 +480,7 @@ macro_rules! field_mut {
             where
                 $target_type: Extract<N, M, Output = $target_output>,
             {
-                /// Determine the value of this [`FieldMut`], as the correspondant [`Extract::Output`] type.
+                /// Determine the value of this [`FieldMut`], as the corresponding [`Extract::Output`] type.
                 ///
                 /// This is a const-fn-compatible alternative to the `value` associated function.
                 #[inline]

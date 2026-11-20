@@ -106,7 +106,7 @@ le![i8, i16, i32, i64, i128];
 /// A newtype `repr(transparent)` wrapper over an integer primitive represented
 /// internally as a big-endian value.
 ///
-/// On platforms where big-endian is the de-facto endianess, this is a no-op.
+/// On platforms where big-endian is the de-facto endianness, this is a no-op.
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
 // NOTE(invariant): The stored primitive is interpreted as a big-endian encoded value.

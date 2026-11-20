@@ -2,8 +2,7 @@ use core::marker;
 
 use crate::bit::Bitwise;
 
-/// A newtype that validates that a stored bit index is indeed valid
-/// for an integer of type `B`.
+/// An index below `B::BITS`, counted from the least significant bit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 #[repr(transparent)]
 // NOTE(invariant): The stored bit index is strictly less than `B::BITS`.
@@ -38,8 +37,7 @@ where
         }
     }
 
-    /// Determine the [`Selected`] for the bit that is leftwards to the selected
-    /// one.
+    /// Select the next more significant bit, or return `None` at the integer's top bit.
     #[inline]
     #[must_use]
     pub const fn left(&self) -> Option<Self> {
@@ -52,8 +50,7 @@ where
         }
     }
 
-    /// Determine the [`Selected`] for the bit that is leftwards to the selected
-    /// one.
+    /// Select the next less significant bit, or return `None` at bit zero.
     #[inline]
     #[must_use]
     pub const fn right(&self) -> Option<Self> {
@@ -76,8 +73,9 @@ where
     }
 }
 
-/// A newtype that validates that a stored bit interval is indeed valid
-/// for an integer of type `B`.
+/// An inclusive multi-bit interval within `B`.
+///
+/// The start must be strictly below the end. Single-bit selections use [`Selected`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 // NOTE(invariant): The stored interval has `start < end`, and both endpoints are within `B::BITS`.
@@ -89,7 +87,8 @@ impl<B> Interval<B>
 where
     B: Bitwise,
 {
-    /// Attempt to construct a [`Interval`] newtype for a target bit interval.
+    /// Select `range_start..=range_end`, returning `None` for reversed, single-bit
+    /// or out-of-bounds endpoints.
     #[inline]
     #[must_use]
     pub const fn new(range_start: u32, range_end: u32) -> Option<Self> {

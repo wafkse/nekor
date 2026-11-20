@@ -37,7 +37,7 @@ where
         Self(target_value, target_interval)
     }
 
-    /// Move the selected interval inside this wrapper to a new interval.
+    /// Retarget the view without changing the borrowed integer.
     #[inline]
     #[must_use]
     pub const fn to(self, target_interval: Interval<B>) -> Self {
@@ -113,7 +113,7 @@ where
         Self(target_value, target_interval)
     }
 
-    /// Move the selected interval inside this wrapper to a new interval.
+    /// Retarget the view without changing the borrowed integer.
     #[inline]
     #[must_use]
     pub const fn to(self, target_interval: Interval<B>) -> Self {
@@ -319,7 +319,7 @@ mod tests {
         };
     }
 
-    /// Full-width and sign-bit fields retain their raw bit patterns.
+    /// Full-width and sign-bit fields preserve their raw bit patterns.
     #[test]
     fn primitive_range_boundaries() {
         ranges!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);

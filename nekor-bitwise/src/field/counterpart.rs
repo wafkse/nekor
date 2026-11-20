@@ -1,17 +1,10 @@
-//! Mutable and immutable counterparts to existing field types.
+//! Mutable and immutable views of the same kind of bit field.
 
-/// A marker trait to indicate the *mutable or immutable* alternative of either
-/// an immutable or mutable wrapper type.
+/// Associate a bit-field view with its mutable and immutable forms.
 pub trait Counterpart {
-    /// The mutable counterpart to this wrapper.
-    ///
-    /// In the case of this wrapper being already mutable, this is
-    /// self-referential.
+    /// The mutable view, or `Self` when the view is already mutable.
     type Mut;
 
-    /// The immutable counterpart to this wrapper.
-    ///
-    /// In the case of this wrapper being already immutable, this is
-    /// self-referential.
+    /// The immutable view, or `Self` when the view is already immutable.
     type Immut;
 }

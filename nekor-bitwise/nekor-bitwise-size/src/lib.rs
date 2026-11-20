@@ -16,7 +16,7 @@ use core::convert;
 
 use nekor_primitive::scalar::Scalar;
 
-/// A uninhabited, completely compile-time type selector for the minimum viable
+/// An uninhabited, completely compile-time type selector for the minimum viable
 /// integer type for a target bit width.
 ///
 /// This implements both the [`For`] and [`For2`] family of traits.
