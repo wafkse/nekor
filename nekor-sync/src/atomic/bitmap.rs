@@ -25,7 +25,12 @@ pub mod typeutil;
 
 pub mod conditional;
 
-/// An atomic bitmap backed by a single [`AtomicUsize`].
+/// Atomic bit operations and monitored waits on a machine-word bitmap.
+///
+/// Selecting an [`At`] captures an acquire snapshot but does not reserve its bit. The chosen
+/// operation mode decides whether to require a state transition through compare-and-exchange
+/// or perform an unconditional atomic update. [`Self::snapshot`] is a separate relaxed load
+/// and cannot publish unrelated data to a reader.
 #[repr(transparent)]
 #[derive(Debug)]
 // NOTE(invariant): None.
@@ -291,8 +296,8 @@ impl AtomicBitmap {
     ///
     /// # Remarks
     ///
-    /// Interrupts and spurious wakeups may return without a write. Recheck the
-    /// condition after waiting. Retain the [`BackoffState`] across calls.
+    /// Interrupts and spurious wakeups may return without a write. Recheck the condition
+    /// after waiting and use the same [`BackoffState`] for subsequent waits in the retry loop.
     #[inline]
     pub fn wait(&self, backoff_state: &mut BackoffState) {
         let &Self(ref target_value) = self;

@@ -20,28 +20,15 @@ use crate::atomic::bitmap::{
 /// A signal outcome for the [`Exclusive`] mode.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Outcome {
-    /// A failure occurred.
+    /// The transition was not performed, with its reason and an acquire snapshot.
     ///
-    /// This variant is accompanied with the latest bitmap state snapshot
-    /// observed. This can be in turn used to accelerate retries in specific
-    /// scenarios. Particularly, a [`Reason::Contended`] failure
-    /// reason corresponds to the [`Acquire`] failure ordering of the
-    /// compare-exchange operation, this can be used to omit an aditional atomic
-    /// load if the backoff state was not used.
-    ///
-    /// This generally corresponds to the operation not being able to be
-    /// completed with [`Exclusive`]-level guarantees.
+    /// Contention returns the value observed by the failed compare-and-exchange. Other
+    /// failures return the selection snapshot, which may already be stale.
     // NOTE: The last observed state must have been obtained with a
     // memory ordering of [`Acquire`] or stronger.
     Failure(Reason, usize),
 
-    /// The operation was successful.
-    ///
-    /// This outcome is guaranteed to be returned if the operation was
-    /// successful, as all [`Exclusive`] mode guarantees are upheld.
-    ///
-    /// This is accompanied by the latest observed value of the
-    /// [`crate::atomic::bitmap::AtomicBitmap`].
+    /// This operation changed the bit, with the word observed before that change.
     // NOTE: The last observed state must have been obtained with a
     // memory ordering of [`Acquire`] or stronger.
     Success(usize),
@@ -53,7 +40,7 @@ pub enum Reason {
     /// The engaged bit was already in the target state.
     Unchanged,
 
-    /// The engaged bit was modified concurrently.
+    /// The bitmap word differed from the selection snapshot during compare-and-exchange.
     Contended,
 
     /// The operation was attempted too many times and has reached the imposed
@@ -61,16 +48,12 @@ pub enum Reason {
     Limited,
 }
 
-/// An exclusive engagement [`Mode`].
+/// Change a selected bit only when the word still matches its acquire snapshot.
 ///
-/// # Provided Guarantees
-///
-/// This engagement mode provides *exclusive* guarantees regarding the Finalizer
-/// Operation, in other words, this mode ensures that only one contender may
-/// change the state of the bit successfully.
-///
-/// The exclusivity guarantee can be relied upon in unsafe code, it is a hard
-/// invariant.
+/// A successful compare-and-exchange uses acquire-release ordering. Failure observes the
+/// word with acquire ordering and reports contention, even if another bit caused the
+/// difference. An already matching bit reports `Unchanged`. The caller must select again
+/// when retrying after contention.
 // NOTE: Auto-derive all the following traits to allow types with generic
 // [`Mode`] parameters to derive them too without relaxing generic bounds.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

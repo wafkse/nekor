@@ -1,4 +1,4 @@
-//! A lock-free, fair mutual exclusion mechanism for critical sections.
+//! Blocking mutual exclusion with ordered bitmap reservations.
 
 pub mod guard;
 
@@ -15,22 +15,26 @@ use crate::mutex::{
 
 /// A blocking mutual exclusion primitive for shared program state.
 ///
+/// [`Self::lock`] reserves a turn, waits for earlier reservations and returns a guard that
+/// grants exclusive access to the value. Dropping that guard releases the turn.
+///
 /// # Fairness
 ///
-/// The algorithm used maintains perfect acquisition order for up to
-/// [`usize::BITS`] simultaneous lock contenders.
+/// Successful reservations are served in their reservation order. At most [`usize::BITS`]
+/// turns fit in the bitmap. Contenders waiting for a reservation have no arrival-order
+/// guarantee, and an occupied highest bit prevents reuse until the bitmap empties.
 ///
-/// In the case that the number of contenders breaches this boundary, the order
-/// becomes effectively undefined and first-come-first-serve for all consecutive
-/// contenders beyond [`usize::BITS`].
+/// # Panics
 ///
-/// # Non-poisoning
+/// Unwinding drops the guard and releases the lock. The mutex does not track poisoning, so
+/// a later owner can observe application state left partially updated by a panic. The
+/// application must decide how to recover its invariants.
 ///
-/// If a holding thread panics, it could either:
+/// # Notes
 ///
-/// - Remain locked away forever.
-/// - Be eventually unlocked, but with the ability to present itself or the underlying `T` with
-///   broken invariants.
+/// Forgetting a guard leaves its reservation occupied. The mutex is blocking even though
+/// its reservation bookkeeping uses atomics, and it must not be acquired by an interrupt
+/// handler that can interrupt its current owner.
 #[derive(Debug)]
 // NOTE(invariant): The lock state gates exclusive access to the value held in `UnsafeCell`.
 pub struct Mutex<T> {
@@ -154,8 +158,7 @@ mod tests {
         assert_eq!(value, "test");
     }
 
-    /// Test THE CRITICAL GUARANTEE: mutual exclusion
-    /// Only one thread can hold the lock at a time
+    /// Count overlapping critical sections while several threads acquire the mutex.
     #[test]
     fn mutual_exclusion_guarantee() {
         let mutex = Arc::new(Mutex::new(()));
@@ -482,8 +485,7 @@ mod tests {
         );
     }
 
-    /// Test that panicking while holding lock doesn't cause UB
-    /// (Note: the lock may remain locked, which is documented behavior)
+    /// Propagate a panic while a guard is held.
     #[test]
     #[should_panic(expected = "intentional panic")]
     fn panic_while_holding_lock() {

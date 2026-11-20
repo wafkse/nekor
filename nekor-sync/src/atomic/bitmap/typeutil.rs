@@ -20,11 +20,11 @@ pub trait InBound: detail::Sealed {}
 /// The default bit index type for a given bit count.
 pub type BitIndex<const N: u32> = BitIndexU32<N>;
 
-/// A maker type to signal that the (0-based) `N`-th bit is indeed inside an
+/// A marker for the zero-based bit index `N` in an
 /// [`usize`]-sized integer.
 pub enum BitIndexU32<const N: u32> {}
 
-/// A maker type to signal that the (0-based) `N`-th bit is indeed inside an
+/// A marker for the zero-based bit index `N` in an
 /// [`usize`]-sized integer.
 pub enum BitIndexUsize<const N: usize> {}
 
@@ -59,12 +59,10 @@ bitindex!(
 /// The default bit map type for a given bit count.
 pub type BitMap<const N: u32> = BitMapU32<N>;
 
-/// A maker type to signal that the `N`-th integer fits within an
-/// [`usize`]-sized integer.
+/// A marker for an `N`-bit bitmap that fits in [`usize`].
 pub enum BitMapU32<const N: u32> {}
 
-/// A maker type to signal that the `N`-th integer fits within an
-/// [`usize`]-sized integer.
+/// A marker for an `N`-bit bitmap that fits in [`usize`].
 pub enum BitMapUsize<const N: usize> {}
 
 impl<const N: u32> detail::Sealed for BitMapU32<N> {}

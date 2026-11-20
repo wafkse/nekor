@@ -64,16 +64,10 @@ pub unsafe trait Mode {
     fn one_with(at: At<'_>, mode_state: &mut Self::State, in_mode: &InMode) -> Self::Signal;
 }
 
-/// A marker struct to "provide proof" that the control-flow is in a [`Mode`]
-/// finalizer.
+/// Permission to expose a bit selection's atomic word inside a mode finalizer.
 ///
-/// This is used in situations where internal constructs or data is required to
-/// be exposed to the user, but where there are invariants and no wish or
-/// possibility to make the downstream user-defined present an safety
-/// contract.
-///
-/// This is not user-constructible, and is passed to each [`Mode`]
-/// associated function.
+/// [`At`] constructs this token when calling a [`Mode`] operation. The token lets that
+/// operation obtain the selected word, snapshot and index through [`At::disengage`].
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction requires execution inside a bitmap mode finalizer.
 pub struct InMode(marker::PhantomData<Self>);

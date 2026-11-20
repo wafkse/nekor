@@ -16,8 +16,8 @@ use crate::atomic::bitmap::{
 
 /// A snapshot of the shared [`AtomicUsize`].
 ///
-/// This is simply informative and does not provide any guarantees about the
-/// state of the bitmap.
+/// This is the word observed immediately before the atomic update. It may already be
+/// stale when returned, so it does not describe the bitmap's current state.
 ///
 /// [`AtomicUsize`]: core::sync::atomic::AtomicUsize
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]

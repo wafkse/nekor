@@ -15,7 +15,7 @@ use crate::mutex::{
 /// A raw [`Mutex`] lock guard, which encompasses all the required information
 /// for unlocking the lock afterwards.
 ///
-/// # Remarks
+/// # Ownership
 ///
 /// This structure does **not** release the underlying lock after its scope has
 /// ended, therefore, if not manually unlocked via [`RawMutexGuard::unlock`],
@@ -115,20 +115,14 @@ impl<'a, T> Guard<'a, T> {
 }
 
 impl<T> Guard<'_, T> {
-    /// Retrieve the guarded `T` value as an immutable reference.
-    ///
-    /// This is required in cases where one desires to prevent [`Deref`]'s
-    /// artificial shortening of the `'a` lifetime.
+    /// Borrow the protected value for the lifetime of this guard borrow.
     #[inline]
     #[must_use]
     pub const fn value(&self) -> &T {
         RawMutexGuard::value(Self::raw(self))
     }
 
-    /// Retrieve the guarded `T` value as a mutable reference.
-    ///
-    /// This is required in cases where one desires to prevent [`DerefMut`]'s
-    /// artificial shortening of the `'a` lifetime.
+    /// Mutably borrow the protected value for the lifetime of this guard borrow.
     #[inline]
     #[must_use]
     pub const fn value_mut(&mut self) -> &mut T {

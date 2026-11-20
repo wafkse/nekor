@@ -2,7 +2,7 @@
 
 use core::{fmt, marker};
 
-/// A condition to be applied to an [`crate::atomic::bitmap::AtomicBitmap`];
+/// A predicate evaluated against a bitmap snapshot.
 pub trait Condition {
     /// Determine the status of this condition.
     fn determine(self, target_value: usize) -> Status;

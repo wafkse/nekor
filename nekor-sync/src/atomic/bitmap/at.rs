@@ -4,13 +4,13 @@ use nekor_aal_signal::{monitor::MonitorGuard, prelude::Monitor};
 
 use crate::atomic::bitmap::mode::{InMode, Mode};
 
-/// An engaged [`crate::atomic::bitmap::AtomicBitmap`] bit.
+/// A selected bitmap bit and the acquire snapshot used to select it.
 ///
 /// This serves as the base for all bit-level atomic operations.
 ///
 /// # Engagement Finalization
 ///
-/// An [`At`] bit in an [`crate::atomic::bitmap::AtomicBitmap`] is finalized through a Finalizer
+/// An [`At`] bit in an [`AtomicBitmap`] is finalized through a Finalizer
 /// Operation.
 ///
 /// All associated functions contained within the [`At`] type are Finalizer
@@ -19,17 +19,20 @@ use crate::atomic::bitmap::mode::{InMode, Mode};
 /// A Finalizer Operation always has an *engagement* [`Mode`] associated to it.
 /// The engagement mode determines whether the Finalizer Operation is:
 ///
-/// - [`super::mode::exclusive::Exclusive`]: The engaged bit is guaranteed to have been uniquely
-///   interacted by us.
-/// - [`super::mode::cooperative::Cooperative`]: The engaged bit is guaranteed to have been
-///   interacted by us, but there is no guarantee that it was uniquely interacted by us.
+/// - [`Exclusive`]: The engaged bit is guaranteed to have been uniquely interacted by us.
+/// - [`Cooperative`]: The engaged bit is guaranteed to have been interacted by us, but there is no
+///   guarantee that it was uniquely interacted by us.
 ///
 /// This kind of distinction is required for subtle concurrency and
-/// synchronization needs. For instance, an [`super::mode::exclusive::Exclusive`] engagement mode is
+/// synchronization needs. For instance, an [`Exclusive`] engagement mode is
 /// required for operations that require exclusive access to the bit, such as
-/// setting or clearing it. In contrast, a [`super::mode::cooperative::Cooperative`] engagement mode
+/// setting or clearing it. In contrast, a [`Cooperative`] engagement mode
 /// is suitable for operations that only require read access to the bit, such as
 /// checking its value.
+///
+/// [`AtomicBitmap`]: crate::atomic::bitmap::AtomicBitmap
+/// [`Cooperative`]: super::mode::cooperative::Cooperative
+/// [`Exclusive`]: super::mode::cooperative::Exclusive
 #[derive(Debug, Copy, Clone)]
 // NOTE(invariant): The stored bit index is in bounds for the referenced `usize` bitmap.
 pub struct At<'a>(
@@ -95,19 +98,9 @@ impl<'a> At<'a> {
 }
 
 impl At<'_> {
-    /// Clear the engaged bit.
+    /// Clear the selected bit using the mode's default retry state.
     ///
-    /// # [`Mode`]-specific behavior
-    ///
-    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
-    ///
-    /// - Block until the engaged bit is zeroed.
-    /// - Bail out if the engaged bit was zeroed already, but not by us.
-    ///
-    /// For cases where a specified mode state is required, the
-    /// [`At::zero_with`] associated function can be used.
-    ///
-    /// This is equivalent to calling [`At::zero_with`] with the default mode state.
+    /// See [`Self::zero_with`] to provide that state explicitly.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn zero<M>(self) -> M::Signal
@@ -118,18 +111,11 @@ impl At<'_> {
         Self::zero_with::<M>(self, &mut Default::default())
     }
 
-    /// Clear the engaged bit.
+    /// Clear the selected bit using the supplied mode state.
     ///
-    /// # [`Mode`]-specific behavior
-    ///
-    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
-    ///
-    /// - Block until the engaged bit is zeroed.
-    /// - Bail out if the engaged bit was zeroed already, but not by us.
-    ///
-    /// This will use the specified mode state when the
-    /// [`crate::atomic::bitmap::AtomicBitmap`] is under contention and the operation warrants a
-    /// retry.
+    /// The mode determines the atomic operation and result. Exclusive mode reports
+    /// contention after a failed compare-and-exchange. It does not keep retrying this
+    /// selection until the bit changes.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn zero_with<M>(self, target_state: &mut M::State) -> M::Signal
@@ -142,19 +128,9 @@ impl At<'_> {
         M::zero_with(self, target_state, in_mode)
     }
 
-    /// Set the engaged bit.
+    /// Set the selected bit using the mode's default retry state.
     ///
-    /// # [`Mode`]-specific behavior
-    ///
-    /// On the [`super::mode::exclusive::Exclusive`] mode, this Finalizer Operation can:
-    ///
-    /// - Block until the engaged bit is zeroed.
-    /// - Bail out if the engaged bit was zeroed already, but not by us.
-    ///
-    /// For cases where a specified mode state is required, the
-    /// [`At::one_with`] associated function can be used.
-    ///
-    /// This is equivalent to calling [`At::one_with`] with the default mode state.
+    /// See [`Self::one_with`] to provide that state explicitly.
     #[inline]
     #[must_use = "the outcome signal may be particularly relevant"]
     pub fn one<M>(self) -> M::Signal
@@ -165,7 +141,7 @@ impl At<'_> {
         Self::one_with::<M>(self, &mut Default::default())
     }
 
-    /// Set the engaged bit.
+    /// Set the selected bit using the supplied mode state.
     ///
     /// # [`Mode`]-specific behavior
     ///
