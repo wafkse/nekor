@@ -30,8 +30,6 @@ This is the required feature baseline for the first usable release, before that,
 Nekor is dual-licensed under:
 
 - [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only), **or**
-- a **commercial license** by arrangement.
+- a future **commercial license** by arrangement.
 
 You may choose either license according to your needs.
-
-For commercial use, private deployment, certification, or miscellaneous support, please contact: `license.diner324@passinbox.com` (*initial contact only - replies will come from a verified address.*)
