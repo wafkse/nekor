@@ -188,9 +188,9 @@ where
     /// Attempt to patch the [`Delegator`] with the [`Delegated`]
     /// implementation.
     ///
-    /// For contention measure, this performs a single-try atomic
-    /// *Compare-and-Swap* operation. In the case of contention (but not
-    /// architectural spurious failure), it will *NOT* retry the operation.
+    /// A single strong compare-and-exchange replaces the eight-byte diversion.
+    /// If a contender changes the word after it is loaded, this call returns that
+    /// contender's diversion without retrying.
     ///
     /// # Safety
     ///

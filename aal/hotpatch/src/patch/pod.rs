@@ -1,16 +1,12 @@
 //! Plain-old-data modeling.
 
-/// A trait that describes a `Plain Old Data` type.
+/// Bounds for delegate markers and their static selection dependencies.
 ///
-/// In other words, this is a marker trait for a type that is:
-///
-/// - *Trivially copyable*.
-/// - *Can be shared between threads* (i.e., a [`Sync`]-implementor).
-/// - *Non-lifetime-dependant* (i.e., it must outlive the `'static` lifetime).
-///
-/// This trait is blanket implemented for all elegible types.
+/// Values can be copied and shared between threads, and cannot borrow temporary data.
+/// These bounds say nothing about padding, foreign calling conventions or whether every
+/// bit pattern is a valid value.
 #[diagnostic::on_unimplemented(message = "{Self} cannot serve as a `Delegator` and/or plain dependency")]
 pub trait Pod: Copy + Sync + 'static {}
 
-/// A blanket implementation of [`Pod`] for all elegible types.
+/// Any type satisfying these bounds can serve as a dependency.
 impl<D> Pod for D where D: Copy + Sync + 'static {}

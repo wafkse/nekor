@@ -4,23 +4,14 @@ use core::{convert, marker};
 
 use crate::patch::{choose::Chosen, pod::Pod};
 
-/// A trait that describes a *delegated implementation* for an input-to-output
-/// transformation.
+/// A callable implementation with a System V entry for assembly diversions.
 ///
 /// # Safety
 ///
-/// The implementor of this trait may require further safety constraints to be
-/// upheld before usage.
-///
-/// See each respective implementation for the safety contract.
-///
-/// <div class="warning">
-///
-/// ## Generic [`Delegated`] Implications
-///
-/// Due to each individual implementation having delegate safety requirements,
-/// it must be guarded against when this trait is used in generic code.
-/// </div>
+/// Implementations must document any architectural prerequisites shared by their Rust
+/// implementation and trampoline. A delegator must establish those prerequisites on
+/// every processor that can execute the selected entry. Generic code cannot infer
+/// instruction support or execution context from the input and output types.
 pub unsafe trait Delegated: Pod {
     /// The input type to this [`Delegated`].
     type Input;
@@ -58,10 +49,10 @@ pub unsafe trait Delegated: Pod {
 ///
 /// * The selection based on the input value must be performed in a way that it is deterministic and
 ///   side-effect free. Particularly, [`Delegator::choose`] must be a *pure function*.
-/// * If an output delegate can cause Undefined Behavior due to missmatching machine state or
-///   missing architectural features, the selection of such delegate must be guarded from. For
-///   instance, if a delegate has a baseline requirement on a specific architectural feature, the
-///   respective delegator must guard and verify the existence of such feature.
+/// * If an output delegate can cause Undefined Behavior due to mismatching machine state or missing
+///   architectural features, the selection of such delegate must be guarded from. For instance, if
+///   a delegate has a baseline requirement on a specific architectural feature, the respective
+///   delegator must guard and verify the existence of such feature.
 pub unsafe trait Delegator: Pod {
     /// The type of delegated implementation that is a target of this
     /// [`Delegator`].
@@ -79,31 +70,18 @@ pub unsafe trait Delegator: Pod {
     ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>;
 }
 
-/// A trait that describes a [`Delegator`] whose implementations remain safe
-/// under eventual instruction-stream coherence.
+/// Delegation that tolerates concurrent calls to old and new implementations.
 ///
-/// Each [`Delegator`] has a patchsite that diverts calls to a selected [`Delegated`]
-/// implementation. Updating the patchsite atomically guarantees that execution
-/// observes either the previous or the new implementation.
-///
-/// A CPU may keep executing the previous one from its I-cache until the new diversion becomes
-/// visible.
-///
-/// Since both implementations have the same input and output types,
-/// the interface remains valid even when CPUs observe different delegates.
-/// This permits patching without first quiescing every caller.
+/// Updating a patchsite changes its data word atomically. Instruction fetch has separate
+/// publication requirements, so [`crate::patch::site::Patchsite::stale`] still requires
+/// the caller to establish the architecture's cross-modifying-code protocol.
 ///
 /// # Safety
 ///
-/// For an eventual delegator to be deemed safe, it must satisfy all of the
-/// following requirements:
-///
-/// * Every selectable [`Delegated`] implementation must remain safe to call while earlier
-///   implementations may still be observed.
-/// * Concurrent execution of different implementations must preserve the delegator's safety
-///   invariants, including those involving shared state or related patchsites.
-///
-/// Matching input and output types alone does not guarantee these properties.
+/// Every selectable implementation must remain callable while an earlier diversion can
+/// still be executed. Concurrent calls through different diversions must preserve shared
+/// state invariants, including relationships with other patchsites. Matching input and
+/// output types does not establish these properties.
 pub unsafe trait Eventual: Delegator {}
 
 /// A [`Delegator`] that encompasses a single [`Delegated`] and a target value.

@@ -1,15 +1,14 @@
-//! Cross-modifying-code formal model.
+//! Instruction-stream publication support for runtime patching.
 //!
-//! # Why?
+//! A processor modifying code must arrange for every processor executing that code to
+//! observe a complete instruction stream. Atomic data stores alone do not establish
+//! this relationship, and executable aliases may need their own publication protocol.
 //!
-//! In a multi-CPU machine, code that is actively rewriting portions of itself
-//! and plans to have *foreign CPU cores* needs to guarantee that such new
-//! instruction stream is coherent and fully visible:
+//! The x86 implementation currently serializes only the calling processor. It ignores
+//! the supplied targets and performs no rendezvous with other processors. Callers must
+//! provide that coordination before relying on remote execution of a new diversion.
 //!
-//! - to distinct CPU-cores at some machine-wide, stable *Virtual Address*.
-//! - to a distinct or same CPU-core but at a distinct *Virtual Address*.
-//!
-//! Reference: <https://cr.openjdk.org/~jrose/jvm/hotspot-cmc.html>
+//! Background: <https://cr.openjdk.org/~jrose/jvm/hotspot-cmc.html>
 
 use core::{convert::Infallible, num::NonZero, ptr::NonNull};
 
@@ -29,7 +28,10 @@ pub enum Publish {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl Publish {
-    /// Perform a *CMC-Publish* operation for a set of [`Target`]s.
+    /// Serialize the calling processor after a code update.
+    ///
+    /// The current x86 implementation does not inspect the targets or notify other
+    /// processors. Their instruction-stream synchronization remains the caller's work.
     #[inline]
     pub fn now(target_list: impl Iterator<Item = Target>) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
