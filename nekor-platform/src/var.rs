@@ -136,7 +136,9 @@ where
 macro_rules! integer {
     ($target_name:literal $(,)?) => {
         const {
-            // Retain the builtin expansion for compiler environment dependency tracking.
+            // NOTE: `env!` makes Cargo track this environment variable as a compilation input.
+            // We ignore this as we are trying to make use of Tokel's facilities, but we still do need
+            // environment-variables sources via proc-macro to behave correctly in incremental builds.
             let _ = env!($target_name);
 
             let target_value = $crate::reexport::tokel::stream! {
