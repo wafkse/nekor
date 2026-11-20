@@ -166,6 +166,9 @@ macro_rules! integer {
 macro_rules! string {
     ($target_name:literal $(,)?) => {
         const {
+            // NOTE: `env!` makes Cargo track this environment variable as a compilation input.
+            // We ignore this as we are trying to make use of Tokel's facilities, but we still do need
+            // environment-variables sources via proc-macro to behave correctly in incremental builds.
             let target_content = env!($target_name);
 
             $crate::var::VarString::value($crate::var::VarString::new(target_content))

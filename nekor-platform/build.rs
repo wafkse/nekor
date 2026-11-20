@@ -1,4 +1,3 @@
 fn main() {
-    // TODO: Add platform ENV variables and make it add all tera and generated
-    // build files to dependency tree.
+    // TODO: Track platform environment variables and generated MiniJinja inputs for rebuilds.
 }
