@@ -1,6 +1,5 @@
 #![cfg_attr(not(any(test, miri)), no_std)]
 
-//! The System-on-Chip Abstraction Layer.
+//! Reserved crate for system-on-chip peripheral abstractions.
 //!
-//! This provides abstractions and utilities to interact with the peripherals
-//! built-in into a `SoC`.
+//! No peripheral interfaces are implemented yet.
