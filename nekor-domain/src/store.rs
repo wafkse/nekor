@@ -279,8 +279,6 @@ impl Static {
     /// A constructor panic propagates to the caller. If it unwinds, the initialization guard
     /// resets the header to `Uninitialized`, allowing another thread to try again.
     ///
-    /// # Notes
-    ///
     /// Recursively requesting the same value type and domain waits for the current
     /// initialization to finish, so such recursion deadlocks. A constructor must not depend
     /// on its own pending static value.
@@ -302,8 +300,6 @@ impl Static {
     ///
     /// A constructor panic propagates to the caller. If it unwinds, the initialization guard
     /// resets the header to `Uninitialized`, allowing another thread to try again.
-    ///
-    /// # Notes
     ///
     /// Recursively requesting the same value type and domain waits for the current
     /// initialization to finish, so such recursion deadlocks. A constructor must not depend

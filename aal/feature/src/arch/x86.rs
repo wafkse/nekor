@@ -25,7 +25,7 @@ mod private {
 
 /// A marker trait for the output of a `cpuid` invocation.
 ///
-/// # Notes
+/// # Remarks
 ///
 /// This trait is sealed.
 pub trait Output: Scalar + private::Sealed {

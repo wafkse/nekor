@@ -953,7 +953,7 @@ impl RawAccessByte {
     /// This determines what kind of system descriptor this *Access Byte* is
     /// part of.
     ///
-    /// # Notes
+    /// # Note
     ///
     /// This field overlaps with [`Self::executable`], [`Self::direction`],
     /// [`Self::read_write`], and [`Self::accessed`]. Use this accessor for
@@ -972,7 +972,7 @@ impl RawAccessByte {
     /// This determines what kind of system descriptor this *Access Byte* is
     /// part of.
     ///
-    /// # Notes
+    /// # Note
     ///
     /// This field overlaps with [`Self::executable`], [`Self::direction`],
     /// [`Self::read_write`], and [`Self::accessed`]. Use this accessor for

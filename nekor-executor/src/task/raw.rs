@@ -28,7 +28,7 @@ pub enum Finalize {
 /// A trait that encompasses the requirement baseline for a [`Future`] to be
 /// schedulable by the asynchronous executor.
 ///
-/// # Notes
+/// # Remarks
 ///
 /// This trait is automatically implemented for an eligible type.
 pub trait Schedulable: Future<Output = Finalize> + Store {}

@@ -252,7 +252,7 @@ pub unsafe trait Taggable<T: Tag>: Sized {}
 /// }
 /// ```
 ///
-/// # Notes
+/// # Remarks
 ///
 /// Attributes on a declaration are forwarded to its generated implementation.
 /// Place configuration attributes on the macro invocation when they must also

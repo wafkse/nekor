@@ -51,7 +51,7 @@ pub struct Task {
 
     /// The runqueue native to this task.
     ///
-    /// # Notes
+    /// # Remarks
     ///
     /// The task stores the queue reference directly, so it does not need another
     /// priority handle to resolve domain storage.

@@ -16,8 +16,6 @@ use crate::arch;
 
 /// A core-*Local Critical Section*.
 ///
-/// # Notes
-///
 /// This masks ordinary x86 interrupts outside usermode builds. It does not save the prior
 /// interrupt state, so nesting is forbidden and release always enables interrupts.
 pub enum Lcs {}

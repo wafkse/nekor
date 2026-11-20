@@ -30,8 +30,6 @@ use crate::mutex::{
 /// a later owner can observe application state left partially updated by a panic. The
 /// application must decide how to recover its invariants.
 ///
-/// # Notes
-///
 /// Forgetting a guard leaves its reservation occupied. The mutex is blocking even though
 /// its reservation bookkeeping uses atomics, and it must not be acquired by an interrupt
 /// handler that can interrupt its current owner.

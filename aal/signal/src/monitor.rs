@@ -20,7 +20,7 @@ use nekor_backoff::backoff::{Backoff, BackoffState};
 
 /// A value with selective monitor engagement and guarded access.
 ///
-/// # Notes
+/// # Remarks
 ///
 /// Direct mutation does not implicitly emit an explicit wakeup signal.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -96,7 +96,7 @@ impl<T> DerefMut for Monitor<T> {
 
 /// A monitor engagement that keeps the value borrowed until waiting.
 ///
-/// # Notes
+/// # Remarks
 ///
 /// Wakeups may be spurious. Recheck the condition after [`Monitored::wait`].
 // NOTE(invariant): None.
@@ -105,7 +105,7 @@ pub struct Monitored<'a, T>(marker::PhantomData<&'a Monitor<T>>);
 impl<T> Monitored<'_, T> {
     /// Wait for a possible monitored write or wake event.
     ///
-    /// # Notes
+    /// # Remarks
     ///
     /// [`BackoffState`] advances once, even if the selected monitor ignores the delay.
     /// Keep it across waits to increase timed delays. Without hardware monitoring,
