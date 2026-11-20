@@ -1,6 +1,6 @@
 //! Primitive types that are known to be scalars.
 
-/// A trait pertaining to a scalar value.
+/// Common bounds for copyable values used by low-level representations.
 ///
 /// When we say "scalar", we mean the following:
 ///

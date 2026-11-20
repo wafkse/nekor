@@ -8,7 +8,7 @@
 
 use crate::scalar::Scalar;
 
-/// A macro to implement both the [`Zero`] and [`One`] traits for a given type.
+/// Implement [`Zero`] for scalar types sharing the same zero expression.
 macro_rules! zero {
     () => {};
     (
