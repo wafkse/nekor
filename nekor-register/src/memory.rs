@@ -38,10 +38,11 @@ volatile!(u8, u16, u32, u64, usize);
 
 volatile!(i8, i16, i32, i64, isize);
 
-/// A compile-time wrapper over an address used for memory-mapped I/O.
+/// Volatile access to a memory-mapped register at a compile-time address.
 ///
-/// This type is uninhabited and only exist to indicate volatility of the target
-/// memory location.
+/// The address determines where an access occurs, and the chosen integer type determines
+/// its width. Reads and writes remain unsafe because this type neither maps the device nor
+/// checks the register's access rules. Volatile accesses do not synchronize threads.
 pub enum Memory<const A: usize> {}
 
 impl<const A: usize> Memory<A> {
@@ -49,12 +50,14 @@ impl<const A: usize> Memory<A> {
     ///
     /// # Safety
     ///
-    /// The const parameter `A` must be a [`valid pointer`] to `T`, i.e, it must
-    /// be non-null and aligned for `T`.
+    /// The configured address must be non-null, aligned for the selected integer type and
+    /// readable and initialized for an access of that type's size. The device must permit that
+    /// access width and any resulting side effects. Device accesses outside Rust allocations must
+    /// not modify Rust-allocated memory through those side effects.
     ///
-    /// Furthermore, volatile and non-volatile reads must not coexist.
-    ///
-    /// [`valid pointer`]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
+    /// Accesses to Rust-managed memory must also satisfy ordinary pointer-provenance and
+    /// aliasing requirements. Concurrent conflicting accesses require synchronization because
+    /// volatile operations are non-atomic. See [`ptr::read_volatile`].
     #[inline]
     #[must_use]
     pub unsafe fn read<T>() -> T
@@ -84,12 +87,14 @@ impl<const A: usize> Memory<A> {
     ///
     /// # Safety
     ///
-    /// The const parameter `A` must be a [`valid pointer`] to `T`, i.e., it
-    /// must be non-null and aligned for `T`.
+    /// The configured address must be non-null, aligned for the selected integer type and
+    /// writable for an access of that type's size. The device must permit that access
+    /// width and any resulting side effects. Device accesses outside Rust allocations must
+    /// not modify Rust-allocated memory through those side effects.
     ///
-    /// Furthermore, volatile and non-volatile writes must not coexist.
-    ///
-    /// [`valid pointer`]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
+    /// Accesses to Rust-managed memory must also satisfy ordinary pointer-provenance and
+    /// aliasing requirements. Concurrent conflicting accesses require synchronization because
+    /// volatile operations are non-atomic. See [`ptr::write_volatile`].
     #[inline]
     pub unsafe fn write<T>(target_value: T)
     where
