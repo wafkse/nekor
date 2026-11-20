@@ -10,7 +10,10 @@ use nekor_domain::zeroed::Zeroable;
 
 use crate::{limit::Cores, prelude::CoreId};
 
-/// A transparent wrapper over a value that is known to be cpu-local.
+/// A distinct value type used by processor-local APIs.
+///
+/// Access borrows the stored value. This type does not select a processor or prevent thread
+/// migration, so the surrounding API must establish any processor-local access rules.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The private marker keeps the wrapped value tied to its CPU-local context.
@@ -36,10 +39,11 @@ impl<T> DerefMut for Local<T> {
     }
 }
 
-/// A type to englobe all per-cpu data structures.
+/// A cache-padded storage slot for each configured processor identifier.
 ///
-/// This is a low-level type with no initialization guarantees. Use the
-/// [`Local`] type.
+/// Slots contain [`MaybeUninit`] because this interface does not provide initialized `T`
+/// references. [`Self::mine`] selects a slot through the current processor's installed
+/// [`CoreId`]. [`Self::core`] selects it explicitly.
 #[derive(Debug)]
 #[repr(transparent)]
 // NOTE(invariant): Each array position is distinct per-CPU storage and may remain uninitialized.

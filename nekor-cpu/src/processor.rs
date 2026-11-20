@@ -9,20 +9,21 @@ use nekor_domain::zeroed::{Zeroable, Zeroed};
 
 use crate::{domain::Cpu, limit::Cores};
 
-/// A reutilization response from a [`CoreId`] that has been revoked.
+/// Whether revocation made a processor identifier available for another allocation.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Reutilization {
-    /// Reutilization has been deemed impossible due to a counter overrun.
+    /// The identifier was not the last issued nonzero identifier, or it cannot be reused.
     Impossible,
 
-    /// Reutilization has been deemed possible, and will be performed.
+    /// The allocation counter was moved back so the identifier can be issued again.
     Yes,
 }
 
-/// A wrapper over an [`AtomicUsize`] that coordinates system-wide [`CoreId`]
-/// identification.
+/// Allocate processor identifiers from a shared atomic counter.
 ///
-/// This also serves as a central authority over [`CoreId`] initialization.
+/// [`Self::acquire`] advances the counter within the configured limit. [`Self::revoke`] can
+/// move it back only for the most recently issued nonzero identifier. Revocation does not
+/// stop that processor or wait for users of its local storage.
 #[derive(Debug)]
 #[repr(transparent)]
 // NOTE(invariant): The atomic counter allocates core identifiers below the configured maximum.
@@ -44,11 +45,9 @@ impl Handout {
     ///
     /// # Safety
     ///
-    /// Although this associated function does allow a core to acquire a
-    /// [`CoreId`] on behalf of other, however, it must guarantee that:
-    ///
-    /// - It does not access per-CPU data assigned to the same [`CoreId`] while the other is online.
-    /// - The [`CoreId`] is written to the per-CPU [`Area`] structure.
+    /// The identifier must be assigned to a single processor and installed in its per-CPU
+    /// [`Area`] before local storage is accessed. A processor allocating on another's behalf
+    /// must not use that identifier's local storage while the assigned processor is online.
     #[inline]
     pub unsafe fn acquire(&self) -> Option<CoreId> {
         let Self(target_counter) = self;
