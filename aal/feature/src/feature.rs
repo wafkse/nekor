@@ -4,8 +4,8 @@ use nekor_bitwise::prelude::State;
 
 /// A *feature support signal*.
 ///
-/// This contains all the required information for runtime feature detection,
-/// with baseline support.
+/// The source distinguishes a compile-time assumption from a runtime result.
+/// Neither source establishes the execution context needed to use an instruction.
 #[derive(Debug, Clone, Hash, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum Signal {
     /// The *Processor Feature* was hardcoded at compile-time.
@@ -25,7 +25,7 @@ impl Signal {
         Self::Guaranteed(target_state)
     }
 
-    /// The availability of the feature is unknown.
+    /// Report absence when no baseline or detection result is available.
     #[inline]
     #[must_use]
     pub const fn unknown() -> Self {
@@ -44,8 +44,8 @@ impl Signal {
         Self::Detected(target_state)
     }
 
-    /// Require that an extraneous [`Signal`] must be present on top of the
-    /// current one.
+    /// Combine support requirements. The result is guaranteed only when both
+    /// inputs are guaranteed. Otherwise its source remains runtime detection.
     #[inline]
     #[must_use]
     pub const fn and(&self, target_signal: Self) -> Self {
@@ -100,16 +100,11 @@ impl Present {
     }
 }
 
-/// A trait that encodes a possibly-absent optional extension in this processor.
+/// Reports instruction support from a baseline or a runtime query.
 ///
-/// # Feature Baselines
-///
-/// When desired, the runtime detection of specific processor core features can
-/// be superceded altogether.
-///
-/// This is done through *Feature Baselines*, a mechanism where the
-/// *configuration flags* can force the result of this trait to be fixed for
-/// select implementor types.
+/// A baseline substitutes a compile-time answer for detection. The platform must ensure
+/// that every processor using the compiled code satisfies that assumption. A positive
+/// answer does not establish privilege, operating-system enablement or CPU affinity.
 pub trait Feature {
     /// The predetermined [`Signal`] for this [`Feature`].
     const PREDETERMINED: Option<Signal> = None;

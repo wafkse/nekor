@@ -25,7 +25,7 @@ mod private {
 
 /// A marker trait for the output of a `cpuid` invocation.
 ///
-/// # Remarks
+/// # Notes
 ///
 /// This trait is sealed.
 pub trait Output: Scalar + private::Sealed {
@@ -53,7 +53,11 @@ pub trait Cached: Store + Sized {
     fn unconditional() -> Self::Output;
 }
 
-/// A newtype over a compile-time `cpuid` invocation.
+/// CPUID output for a leaf selected by the type parameters.
+///
+/// [`Cached::unconditional`] queries the current processor. The lazy path stores the
+/// first result in the active domain, so later reads need not describe the processor
+/// performing them. Leaf availability and processor migration are not checked here.
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
 pub struct Cpuid<const LEAF: u32, const SUBLEAF: u32 = 0>(pub CpuidResult);
@@ -78,11 +82,10 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cached for Cpuid<LEAF, SUBLEAF> {
     }
 }
 
-/// A helper struct to access and further cache the result of a `cpuid`
-/// invocation.
+/// One output register selected from a CPUID result.
 ///
-/// The const-generic pair (`LEAF`, `SUBLEAF`) correspond to the leaf and the
-/// sub-leaf, respectively.
+/// Cached reads share the leaf result used by [`Cpuid`]. They do not establish a
+/// separate processor-local cache.
 #[derive(Debug, Clone, Copy)]
 // NOTE(invariant): The value comes from output register `R` for the selected leaf and subleaf.
 pub struct CpuidReg<R, const LEAF: u32, const SUBLEAF: u32 = 0>(pub u32, marker::PhantomData<R>)
