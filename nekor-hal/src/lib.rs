@@ -1,2 +1,2 @@
 #![no_std]
-//! A Hardware Abstraction Layer (HAL) for the Nekor unikernel.
+//! Reserved crate for hardware-device abstractions. No interfaces are implemented yet.
