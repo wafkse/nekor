@@ -56,9 +56,8 @@ use syn::{DeriveInput, parse_macro_input};
 
 /// Derive immutable and mutable pin projections.
 ///
-/// The macro parses the input into a validated `ProjectItem`, then expands the
-/// projection types, trait implementation, structural `Unpin` logic, and trait
-/// blockers.
+/// The macro checks the input's representation and helper attributes before emitting
+/// projection types, the trait implementation, structural `Unpin` logic and trait blockers.
 ///
 /// # Errors
 ///

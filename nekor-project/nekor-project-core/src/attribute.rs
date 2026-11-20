@@ -27,8 +27,8 @@ use syn::{
 
 /// One parsed `project` helper attribute.
 ///
-/// This type represents syntax only. Placement and duplicate validation happen
-/// when a complete source item or field is constructed.
+/// Parsing records the option. The item and field constructors then check its placement
+/// and reject duplicate options before expansion.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProjectAttribute {
     /// A type-level opt-out from one generated safety enforcement rule.

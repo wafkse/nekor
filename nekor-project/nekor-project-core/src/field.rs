@@ -15,7 +15,7 @@ use syn::{Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Index, Type, Visibil
 
 use crate::attribute::{ProjectAttribute, UnsafeClauseTarget};
 
-/// A validated source field shape.
+/// Named, positional or unit source fields used to construct a projection.
 ///
 /// Expansion uses the variant to preserve source syntax. Named fields become a
 /// projection structure or enum variant with named fields. Unnamed fields keep
@@ -36,7 +36,7 @@ pub enum ProjectFields {
 }
 
 impl ProjectFields {
-    /// Transform source fields into validated project fields.
+    /// Parse the field shape and check each projection attribute.
     ///
     /// Field order and field shape are preserved exactly. Named fields receive
     /// identifier members. Unnamed fields receive zero-based positional
@@ -91,7 +91,8 @@ impl ProjectFields {
 
 /// A source-order collection of named project fields.
 ///
-/// Every contained field has an [`IdentOrIndex::Ident`] name.
+/// Normal parsing supplies identifier members. The explicit constructor stores the supplied
+/// list without checking member kinds. Expansion reports a missing name when necessary.
 // NOTE(invariant): Every stored field has an identifier and source declaration order is preserved.
 pub struct ProjectFieldsNamed {
     /// Fields in source order.
@@ -116,8 +117,8 @@ impl ProjectFieldsNamed {
 
 /// A source-order collection of unnamed project fields.
 ///
-/// Every contained field has an [`IdentOrIndex::Index`] name that matches its
-/// position in this collection.
+/// Normal parsing assigns positional indices in declaration order. The explicit constructor
+/// stores the supplied list without checking those indices.
 // NOTE(invariant): Every stored field carries the positional index matching its place in the list.
 pub struct ProjectFieldsUnnamed {
     /// Fields in source order.
@@ -140,7 +141,7 @@ impl ProjectFieldsUnnamed {
     }
 }
 
-/// One validated field in a projected source item.
+/// A source field's type, visibility, member identity and pinning option.
 ///
 /// The private representation prevents later stages from changing the source
 /// type, visibility, member identity, or structural pinning decision.
@@ -161,9 +162,9 @@ pub struct ProjectField {
 }
 
 impl ProjectField {
-    /// Transform one source field into a validated project field.
+    /// Parse a source field and reject duplicate or misplaced projection attributes.
     ///
-    /// Named fields retain their source identifier. Unnamed fields use the
+    /// Named fields use their source identifier. Unnamed fields use the
     /// supplied source index. `project(pin)` becomes the stored pinning policy.
     ///
     /// # Errors

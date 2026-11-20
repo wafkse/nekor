@@ -1,10 +1,8 @@
-//! Complete source item validation and projection expansion.
+//! Parse source structs and enums before expanding pin projections.
 //!
-//! [`ProjectItem`] owns the transition from a `syn::DeriveInput` to generated
-//! tokens. Parsing validates representation attributes and helper placement,
-//! then constructs a structure-specific or enum-specific model. Expansion
-//! consumes that model so validated configuration cannot be reused or mutated
-//! after code generation.
+//! [`ProjectItem::input`] checks representation attributes and helper placement before
+//! constructing a struct or enum model. [`ProjectItem::expand`] consumes that model and
+//! emits the borrowing views and trait implementations.
 //!
 //! A source type named `Value` generates `ValueProjection` and
 //! `ValueProjectionMut`. Projection types preserve source visibility, field
@@ -30,7 +28,7 @@ use crate::{
     field::{IdentOrIndex, ProjectField, ProjectFields},
 };
 
-/// A validated struct or enum awaiting projection expansion.
+/// A parsed struct or enum awaiting projection expansion.
 ///
 /// Construction is available only through [`ProjectItem::input`]. This keeps
 /// unsupported unions, packed fields, malformed helper attributes, duplicate
@@ -44,10 +42,10 @@ pub enum ProjectItem {
 }
 
 impl ProjectItem {
-    /// Parse a derive input into a validated project item.
+    /// Parse a derive input and check the attributes required for pin projection.
     ///
-    /// Parsing preserves the complete generic signature and source visibility.
-    /// It validates all type and field helper attributes before returning.
+    /// Parsing preserves generic parameters, bounds and source visibility.
+    /// It checks type and field helper attributes before returning.
     ///
     /// # Errors
     ///
@@ -111,7 +109,7 @@ impl ProjectItem {
     ///
     /// # Errors
     ///
-    /// Returns an error if the validated field shape cannot be represented by
+    /// Returns an error if the parsed field shape cannot be represented by
     /// the corresponding generated projection shape.
     pub fn expand(self) -> syn::Result<TokenStream> {
         match self {
@@ -173,7 +171,7 @@ impl ProjectItem {
     }
 }
 
-/// A validated structure projection model.
+/// A structure model containing the fields and options used by projection expansion.
 ///
 /// The model owns source visibility, identity, generics, type options, and the
 /// exact field shape consumed by expansion.
@@ -225,7 +223,7 @@ impl ProjectStruct {
     }
 }
 
-/// Validated structure data relevant to projection expansion.
+/// The field shape used to expand a structure projection.
 ///
 /// The contained [`ProjectFields`] distinguishes named, unnamed, empty, and
 /// unit structures.
@@ -235,7 +233,7 @@ pub struct ProjectStructData {
     field_list: ProjectFields,
 }
 
-/// A validated enumeration projection model.
+/// An enum model containing the variants and options used by projection expansion.
 ///
 /// Expansion preserves each variant name and field shape. Source discriminants
 /// remain metadata only and are not assigned to projection variants.
@@ -288,7 +286,7 @@ impl ProjectEnum {
     }
 }
 
-/// Validated enumeration data relevant to projection expansion.
+/// Source variants used to expand an enum projection.
 ///
 /// Variant order matches source declaration order.
 // NOTE(invariant): `variant_list` preserves validated source variant declaration order.
@@ -297,10 +295,10 @@ pub struct ProjectEnumData {
     variant_list: Vec<ProjectEnumVariant>,
 }
 
-/// One validated enumeration variant.
+/// A source variant and its field projection options.
 ///
-/// The source discriminant is retained only so generated documentation can
-/// explain that projection enums do not copy it.
+/// The stored source discriminant lets generated documentation
+/// explain why it is omitted from the projection enum.
 // NOTE(invariant): The identifier, fields, and optional discriminant all belong to the same
 // validated source variant.
 pub struct ProjectEnumVariant {
@@ -315,7 +313,7 @@ pub struct ProjectEnumVariant {
 }
 
 impl ProjectEnumVariant {
-    /// Transform one source variant into a validated project variant.
+    /// Parse a source variant and check its helper attribute placement.
     ///
     /// Field order, field shape, and any explicit discriminant are preserved in
     /// the model. The discriminant is not emitted on the projection variant.
@@ -350,7 +348,7 @@ impl ProjectEnumVariant {
     }
 }
 
-/// Validated data used by a single expansion.
+/// Structure fields or enum variants used by an expansion.
 enum ExpansionData {
     /// Structure fields.
     Struct(ProjectFields),
@@ -372,7 +370,7 @@ impl ExpansionData {
     }
 }
 
-/// Complete context for one derive expansion.
+/// Source identity, generics and fields used by a derive expansion.
 // NOTE(invariant): Identity, generics, visibility, attributes, and source shape all belong to the
 // same validated derive input.
 struct Expansion {

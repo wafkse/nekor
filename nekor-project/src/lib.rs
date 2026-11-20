@@ -30,7 +30,7 @@
 //!     priority: usize,
 //! }
 //!
-//! let mut task = Box::pin(Task {
+//! let mut task = core::pin::pin!(Task {
 //!     state: PhantomPinned,
 //!     priority: 4,
 //! });
@@ -183,11 +183,11 @@
 //!
 //! impl Drop for Resource {
 //!     fn drop(&mut self) {
-//!         // SAFETY
-//!         //
-//!         // Destructor execution keeps this value in place. This
-//!         // implementation forwards exactly once for the same value.
+//!         // SAFETY: Destruction keeps this value at its pinned address, and the
+//!         // destructor never moves a pinned field.
 //!         let pinned = unsafe { Pin::new_unchecked(self) };
+//!         // SAFETY: This destructor forwards exactly once for the same value and
+//!         // does not use it after the hook returns.
 //!         unsafe { <Self as PinnedDrop>::drop(pinned) };
 //!     }
 //! }
@@ -285,8 +285,7 @@ pub use nekor_project_derive::Project;
 /// A trait that describes immutable and mutable [`Pin`] projections.
 ///
 /// The derive macro implements this trait for structs and enums. Manual
-/// implementations are possible, but they must uphold the complete safety
-/// contract below.
+/// implementations must uphold the borrowing and pinning requirements below.
 ///
 /// # Safety
 ///
