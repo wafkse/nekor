@@ -89,8 +89,8 @@ impl VarString {
 
 /// An integer supplied by the platform build configuration.
 ///
-/// [`integer!`] supplies the value with its primitive type inferred from the caller.
-/// The wrapper stores only the value. Environment names are compilation inputs.
+/// The [`integer!`] macro reads the environment variable during compilation and infers the integer
+/// type from its use. The stored value has no association with the variable name afterwards.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 // NOTE(invariant): The sealed integer bound restricts the value to a primitive integer.
 pub struct VarInteger<T>(T)
