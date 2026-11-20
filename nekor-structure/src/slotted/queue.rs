@@ -46,7 +46,7 @@ where
     /// [`SlotState`].
     ///
     /// For an alternative with self-imposed limits and backoff, see
-    /// [`Reserved::acquire_with`].
+    /// [`Self::reserve_with`].
     #[inline]
     fn reserve(target_state: &'a SlotState<N>) -> Option<Self> {
         Self::reserve_with(target_state, &mut Retry::unlimited(Backoff::minimal()))
@@ -105,12 +105,11 @@ impl<'a, const N: usize, T> Reserved<'a, N, T>
 where
     BitMapUsize<N>: InBound,
 {
-    /// Initialize the provided [`Reserve`] in the target storage.
+    /// Write the reserved slot and publish its initialization bit.
     ///
     /// # Safety
     ///
-    /// The target storage must be for the specific [`SlotState`] in which the
-    /// [`Reserve`] was created.
+    /// The storage array must belong to the same [`SlotState`] that issued this reservation.
     unsafe fn slot(
         Self {
             reserve_index,
@@ -162,7 +161,7 @@ where
     /// [`SlotState`].
     ///
     /// For an alternative with self-imposed limits and backoff, see
-    /// [`Reserved::acquire_with`].
+    /// [`Self::acquire_with`].
     #[inline]
     fn acquire(target_state: &'a SlotState<N>) -> Option<Self> {
         Self::acquire_with(target_state, &mut Retry::unlimited(Backoff::minimal()))
@@ -199,38 +198,28 @@ where
     }
 }
 
-/// A lock-free, concurrent first-in-first-out (*FIFO*) queue.
+/// A bounded concurrent queue whose slots are reserved and published through bitmaps.
 ///
-/// This queue uses bitmap-based slot management to provide lock-free enqueue
-/// and dequeue operations. The queue has a fixed capacity of `N` elements.
+/// Enqueue reserves the next lower slot, writes the value and sets its initialization bit.
+/// Dequeue claims the highest initialized slot and moves out the value before releasing its
+/// reservation. Non-overlapping enqueues are consumed in insertion order within a fill cycle.
+/// Overlapping producers may publish in a different order from their reservations.
 ///
 /// # Capacity
 ///
-/// The queue can hold at most `N` elements, where `N` must be less than or
-/// equal to [`usize::BITS`]. Attempting to enqueue when full will return a
-/// [`BusyOrFull`] error.
+/// `N` is nonzero and no greater than [`usize::BITS`]. A freed slot is not necessarily the
+/// next slot eligible for enqueue. Once the lowest slot has been reserved, the remaining
+/// reservations must drain before enqueue can restart from the highest slot.
 ///
-/// # Busy State
+/// For example, a four-slot queue that is filled and then dequeued once has three values and
+/// a free highest slot. Enqueue still fails because the next lower reservation is beyond the
+/// array. Draining the remaining values allows the next fill cycle to begin.
 ///
-/// This queue can become busy under special conditions, where at maximum a full
-/// `N`-element dequeue can restore normal operation.
+/// # Concurrency
 ///
-/// This primarily happens when concurrent queue dequeues are not performed in a
-/// sufficiently steady rate compared to queue enqueues. In this case, the queue
-/// will be considered busy and it will be impossible to enqueue further
-/// elements until a full "flush" (i.e., a total dequeue of every existing
-/// element) is performed.
-///
-/// # Interrupt Safety
-///
-/// This type is interrupt-safe, and can be used without engaging in a Local
-/// Critical Section (*LCS*).
-///
-/// # FIFO Ordering
-///
-/// The queue maintains FIFO ordering through its bitmap operations:
-/// - Enqueue finds slots using rightmost-one + right (or MSB if empty), growing leftward.
-/// - Dequeue finds slots using leftmost-one, consuming from the oldest end.
+/// Reservation and initialization are separate atomic operations. A producer that has not
+/// published its slot is not visible to dequeue, and `None` therefore means that no
+/// initialized slot was acquired. It does not prove that no producer is in progress.
 #[derive(Debug)]
 // NOTE(invariant): Reservation and initialization bits correspond positionally to storage, and
 // initialized bits identify live `T` values whose reservation bits remain set.
@@ -299,14 +288,8 @@ where
     /// If the [`Queue`] is either busy or full, a [`BusyOrFull`] error is
     /// returned containing the value that could not be enqueued.
     ///
-    /// # Busy vs Full
-    ///
-    /// - *Full*: All `N` slots are actively in use (reserved or initialized).
-    /// - *Busy*: Concurrent operations and inherent bitmap positional layout are preventing
-    ///   progress, but slots may become available in the future.
-    ///
-    /// In most cases, retrying after a brief delay will succeed once dequeue
-    /// operations complete.
+    /// The error does not distinguish a full array from a reservation position that cannot
+    /// advance. A later attempt can succeed after consumers release the blocking slots.
     #[inline]
     pub fn enqueue(&self, target_value: T) -> Result<(), BusyOrFull<T>> {
         let Self {
@@ -331,15 +314,8 @@ where
     /// This operation acquires the oldest initialized slot, reads the value,
     /// and returns the slot to the empty state.
     ///
-    /// # Returns
-    ///
-    /// - `Some(value)` if an element was successfully dequeued.
-    /// - `None` if the queue is empty.
-    ///
-    /// # FIFO Ordering
-    ///
-    /// This operation always returns the oldest enqueued element that has not
-    /// yet been dequeued, maintaining strict FIFO semantics.
+    /// Returns `None` when no initialized slot can be acquired. An unfinished enqueue may
+    /// still own a reserved slot, so this is not a snapshot of all producer activity.
     #[inline]
     pub fn dequeue(&self) -> Option<T> {
         let Self {

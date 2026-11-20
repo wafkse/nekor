@@ -1,5 +1,7 @@
-//! A static array data structure that allocates elements in a constant-time
-//! manner.
+//! Fixed-capacity allocation through an atomic reservation bitmap.
+//!
+//! The bitmap selects a free slot in a bounded array. Reservation may retry when another
+//! caller changes the bitmap, so bounded slot selection does not bound contention time.
 
 use core::{cell::UnsafeCell, mem::MaybeUninit, ptr};
 
@@ -234,9 +236,7 @@ where
     }
 }
 
-/// A reservation in the [`Arena`].
-///
-/// This can be used to to nonpreemptively reserve a [`MaybeUninit`]-based slot.
+/// An item that represents a reservation in an [`Arena`].
 // NOTE(invariant): The stored index is reserved in the referenced reservation bitmap while this
 // capability is alive.
 pub struct Reserve<'a>(ReserveState<'a>, SlotIndex);

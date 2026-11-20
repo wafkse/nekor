@@ -1,9 +1,4 @@
-//! An intrusive doubly-linked list where list operations are not unsafe.
-//!
-//! Unsafety is removed through the introduction of an [`Inserted`]
-//! pseudo-handle.
-//!
-//! To access a value in a list, you must first borrow the totality of the list.
+//! An intrusive, doublyñ-linked list with externally owned, pinned nodes.
 
 use core::{
     marker,
@@ -99,11 +94,10 @@ pub unsafe trait Backward: Linked {
         self.prior().unwrap_or_else(|| NonNull::from_ref(prior_default))
     }
 
-    /// Retrieve a reference to the pointer to the next node in the list.
+    /// Borrow the pointer to the previous node in the list.
     fn prior_slot(self: Pin<&Self>) -> &Option<NonNull<Self>>;
 
-    /// Retrieve a reference to the pointer to the next node in the list, in a
-    /// mutable manner.
+    /// Modify the pointer to the previous node in the list.
     fn prior_slot_mut(self: Pin<&mut Self>) -> &mut Option<NonNull<Self>>;
 
     /// Replace the prior node in the list with the provided value.
@@ -165,10 +159,11 @@ pub unsafe trait Linked {
 
 /// A self-contained link between two distinct nodes in a doubly-linked list.
 ///
-/// # Pinned
+/// # Ownership
 ///
-/// This type is pinned to ensure that the list pointers are not invalidated by
-/// accident.
+/// The embedding node must keep this link at a stable address while it belongs to a list.
+/// The marker prevents automatic unpinning, but the owner must still honor the insertion
+/// and removal contracts before destroying the node.
 #[derive(Debug)]
 // NOTE(invariant): Once pinned, neighboring pointers remain valid while the node belongs to a list.
 pub struct Link<T>
@@ -288,7 +283,7 @@ impl<T> Link<T> {
         next_node
     }
 
-    /// Retrieve the pair of nodes that this link connects, as a 2-tuple.
+    /// Return the next and previous pointers, in that order.
     #[inline]
     #[must_use]
     pub const fn pair(&self) -> (Option<NonNull<T>>, Option<NonNull<T>>) {
@@ -365,7 +360,7 @@ where
         node_address
     }
 
-    /// Determine the [`NonNull<T>`] pointer to the list used.
+    /// Address of the list that issued this handle.
     #[inline]
     #[must_use]
     pub const fn list(&self) -> NonNull<IntrusiveList<T>> {
@@ -430,14 +425,14 @@ where
 {
     /// Attempt to insert the target value `T` at the back of the list.
     ///
-    /// This will unequivocally fail if the value is already present in another
-    /// list.
+    /// Returns `None` if either neighboring link is set. This check cannot recognize a
+    /// singleton already owned by another list because both of its links can be empty.
     ///
     /// # Safety
     ///
-    /// The [`Inserted`] handle must be consumed again into this
-    /// [`IntrusiveList`] with a proper [`IntrusiveList::try_remove`]
-    /// invocation.
+    /// The node must not belong to another list. The returned [`Inserted`] handle must be
+    /// consumed by [`Self::try_remove`] on this list before the node is destroyed or reused.
+    /// Both the list and node must stay at their original addresses until removal.
     #[must_use]
     pub unsafe fn try_insert_back<'a>(&mut self, target_value: Pin<&'a mut T>) -> Option<Inserted<'a, T>> {
         let &mut Self {
@@ -491,14 +486,14 @@ where
 
     /// Attempt to insert the target value `T` at the front of the list.
     ///
-    /// This will unequivocally fail if the value is already present in another
-    /// list.
+    /// Returns `None` if either neighboring link is set. This check cannot recognize a
+    /// singleton already owned by another list because both of its links can be empty.
     ///
     ///  # Safety
     ///
-    /// The [`Inserted`] handle must be consumed again into this
-    /// [`IntrusiveList`] with a proper [`IntrusiveList::try_remove`]
-    /// invocation.
+    /// The node must not belong to another list. The returned [`Inserted`] handle must be
+    /// consumed by [`Self::try_remove`] on this list before the node is destroyed or reused.
+    /// Both the list and node must stay at their original addresses until removal.
     #[must_use]
     pub unsafe fn try_insert_front<'a>(&mut self, target_value: Pin<&'a mut T>) -> Option<Inserted<'a, T>> {
         let &mut Self {

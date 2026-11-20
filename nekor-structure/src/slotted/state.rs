@@ -8,13 +8,13 @@ use nekor_sync::atomic::bitmap::{
     typeutil::{BitMapUsize, InBound},
 };
 
-/// A runtime slot index validated against a slotted structure width.
+/// A slot index below the capacity of the structure that produced it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): The stored bit index is less than the width of the slot state that produced it.
 pub(in crate::slotted) struct SlotIndex(u32);
 
 impl SlotIndex {
-    /// Validates the engaged bit index against an `N`-slot state.
+    /// Check that an engaged bit is below the `N`-slot capacity.
     #[inline]
     pub(in crate::slotted) fn from_at<const N: usize>(at: &At<'_>) -> Option<Self>
     where
@@ -105,27 +105,21 @@ impl Deref for InitializationState<'_> {
     }
 }
 
-/// A self-contained lock-free slot state.
+/// Reservation and initialization bitmaps for an array of `N` slots.
 ///
-/// This imposes controlled, concurrent access to a higher-level construct's
-/// *storage array*.
+/// A reservation grants exclusive use of the corresponding storage slot. The owner writes
+/// a value before setting its initialization bit, which publishes the value to a consumer.
+/// A consumer clears initialization before reading or destroying that value and releases
+/// the reservation only after it has finished using the storage.
 ///
-/// The slot state is composed of two `N`-bit atomic bitmaps, a *reservation
-/// state*, and an *initialization state*, where `N` corresponds to a nonzero
-/// positive integer less than or equal to [`usize::BITS`].
+/// | Reservation bit | Initialization bit | Slot use |
+/// | --- | --- | --- |
+/// | 0 | 0 | Available for reservation. |
+/// | 1 | 0 | Owned by a producer or consumer, with no published value. |
+/// | 1 | 1 | Contains a published value. |
 ///
-/// Each bitmap indicates the downstream state of the *storage array*,
-/// particularly:
-///     - The *Reservation State*: Indicates the mutable, mutually exclusive state of the `I`th slot
-///       in the storage array. This can be *relied upon in unsafe code*, as it is a strong
-///       *invariant* for the same `(slot-state, storage-array)` 2-tuple.
-///     - The *Initialization State*: Indicates the initialization and availability of the `I`th
-///       slot in the storage array. Storage slot availability implies that any future dequeue
-///       operation may acquire and *consume* the value in the downstream slot `I` in the storage
-///       array. This can be *relied upon in unsafe code*, as it is a strong *invariant* for the
-///       same `(slot-state, storage-array)` 2-tuple.
-///
-/// The downstream *storage array* must be exactly `N`-elements long.
+/// The paired storage array must have exactly `N` elements. Separate loads of the two
+/// bitmaps may observe different instants, so their snapshots do not form an atomic view.
 #[derive(Debug)]
 // NOTE(invariant): Every initialized slot is also reserved in the paired reservation bitmap.
 pub struct SlotState<const N: usize>
@@ -192,7 +186,7 @@ impl<const N: usize> SlotState<N>
 where
     BitMapUsize<N>: InBound,
 {
-    /// Validates an engaged bitmap bit as an index in this slot state.
+    /// Check that an engaged bit names a slot in this state.
     #[inline]
     pub(in crate::slotted) fn index(at: &At<'_>) -> Option<SlotIndex> {
         SlotIndex::from_at::<N>(at)
