@@ -1,3 +1,5 @@
 #![no_std]
 
-//! Bootloader implementation for the Nekor Boot Protocol for UEFI systems.
+//! Reserved crate for a UEFI-based Nekor loader.
+//!
+//! No loading or handoff operations are implemented yet.
