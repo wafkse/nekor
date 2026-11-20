@@ -4,10 +4,10 @@ use core::mem;
 
 use crate::padded::CachePadded;
 
-/// A cacheline dummy.
+/// A byte block whose size and alignment follow the target's cache-padding choice.
 ///
-/// This is a dummy structure to take up a single architecture-specific cache
-/// line.
+/// This supplies storage for line-oriented operations without measuring the processor's
+/// actual cache-line geometry.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
 // NOTE(invariant): The wrapped padding occupies one target cache line at its required alignment.
