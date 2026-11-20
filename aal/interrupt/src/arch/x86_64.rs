@@ -46,15 +46,16 @@ pub enum RawIst {
     Ist7 = 0b111,
 }
 
-/// An enumeration that determines the presence (and, ultimately its validity)
-/// of a *Gate Descriptor*.
+/// Whether the processor may attempt to use a gate descriptor.
+///
+/// Presence alone does not establish a valid selector, handler address or gate type.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(u8)]
 pub enum Present {
     /// No, the specified [`RawGateDescriptor`] is not present.
     ///
     /// An *Interrupt Service Routine* dispatch to the gate will result in a
-    /// *General Protection* fault.
+    /// segment-not-present fault.
     No = 0b0000_0000,
 
     /// Yes, the specified [`RawGateDescriptor`] is present.
@@ -74,7 +75,7 @@ pub type TypeAttributesPrivilegeLevel<'a> = Field<'a, 5, 6, u8>;
 
 /// The bit of the *Present* field of this [`RawTypeAttributes`].
 ///
-/// This determines whether the gate descriptor is present and valid.
+/// A set bit permits descriptor use. The remaining fields still need to be legal.
 pub type TypeAttributesPresent<'a> = Bit<'a, u8, 7>;
 
 /// The mutable bitwise field of the *Gate Type* field of this
@@ -94,7 +95,7 @@ pub type TypeAttributesPresentMut<'a> = <TypeAttributesPresent<'a> as Counterpar
 ///
 /// | Bits | Field           | Size (bits) | Description                    |
 /// |------|-----------------|-------------|--------------------------------|
-/// | 3-0  | Gate Type       | 4           | Type of gate (interrupt/trap)  |
+/// | 3-0  | Gate Type       | 4           | Interrupt gate or trap gate    |
 /// | 4    | Reserved        | 1           | Must be 0                      |
 /// | 6-5  | Privilege Level | 2           | Descriptor Privilege Level     |
 /// | 7    | Present         | 1           | Present bit                    |
@@ -452,7 +453,7 @@ impl RawGateDescriptor {
     }
 }
 
-/// Assert that the this *Gate Descriptor* attribute is 16-bytes long and is
+/// Check that a gate descriptor occupies 16 bytes and is
 /// aligned to a 8-byte boundary.
 const _: () = {
     assert!(
@@ -503,8 +504,10 @@ mod representation_tests {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Vector<const K: u8> {}
 
-/// A marker trait to indicate that the `N`th *Interrupt Vector* is valid and
-/// available for use.
+/// Vector numbers accepted by this module.
+///
+/// All byte values implement this trait. It does not distinguish reserved exception
+/// vectors, vectors requiring error codes or vectors available to an interrupt controller.
 pub trait Available: private::Sealed {}
 
 /// Implement the [`Available`] trait for a sequence of interrupt vectors.
@@ -557,8 +560,10 @@ impl Service {
     }
 }
 
-/// A 32-bit *Error Code* that is obtained through interrupt vectors that signal
-/// its existence.
+/// A nonzero interrupt error code.
+///
+/// This representation cannot hold zero, although some architectural exception
+/// frames contain a zero error code. It therefore cannot represent every such frame.
 #[derive(Debug, Hash, PartialEq, PartialOrd, Ord, Eq)]
 #[repr(transparent)]
 // NOTE(invariant): The architectural error code is nonzero and remains a 32-bit value.
@@ -608,7 +613,7 @@ pub struct Become<I>(marker::PhantomData<fn() -> I>);
 
 /// A trait that describes an *Interrupt Service Routine*.
 ///
-/// ## Multiple Entrance Vectors
+/// # Entry vectors
 ///
 /// This *Interrupt Service Routine* can be entered from many distinct vectors.
 ///
