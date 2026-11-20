@@ -1,4 +1,4 @@
-//! Build command orchestration,
+//! Ordered build-command scheduling.
 
 pub mod command;
 
@@ -30,19 +30,12 @@ pub trait Orchestrate {
     fn execute(self, context: &InvokeContext) -> Result<(), Self::Error>;
 }
 
-/// A orchestration context.
+/// Ordered batches of build commands.
 ///
-/// The `nekor-build` system self-invokes itself to satisfy requirements of a
-/// top-level invocation.
-///
-/// A set of delegate orchestration commands are combined in their own vector so
-/// that orchestration commands that can progress in parallel are indeed
-/// performed in parallel. Orchestration commands that reside in distinct
-/// vectors are effectively barriered and a posterior vector will not
-/// commence unless anterior vectors all have been exhausted.
-///
-/// Optionally, both command vectors and individual orchestration commands can
-/// have their own names, for clarity.
+/// Commands in one batch run on scoped worker threads. The invocation joins every
+/// worker before starting the next batch, which lets scheduling express dependencies
+/// without launching a separate copy of the build tool. A failed worker prevents later
+/// batches from starting. Already running workers finish when their scope is joined.
 #[derive(Debug, Clone)]
 // NOTE(invariant): Vector order is barrier order; commands inside one vector may execute
 // concurrently.
@@ -58,7 +51,7 @@ impl OrchestrationContext {
 }
 
 impl OrchestrationContext {
-    /// Append a set concurrent commands to the current burst.
+    /// Append concurrent commands to the current burst.
     ///
     /// This represents a set of commands that do not have any dependencies, and
     /// can be executed with other commands apart from themselves.
@@ -141,7 +134,7 @@ pub struct OrchestrateVector {
 }
 
 impl OrchestrateVector {
-    /// Creates a new unnamed [`OrchestrateVector`].
+    /// Creates an empty [`OrchestrateVector`].
     #[inline]
     #[must_use]
     pub const fn new() -> Self {

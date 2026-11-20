@@ -89,8 +89,9 @@ impl PlatformTemplateCommand {
     ///
     /// # Errors
     ///
-    /// Returns an error when template discovery fails. Individual missing
-    /// generated files are ignored so cleaning remains idempotent.
+    /// Returns an error when template discovery fails. Individual removal errors,
+    /// including missing files and permission failures, are ignored. The output lists
+    /// only files whose removal succeeded.
     fn clean(platform: &Platform) -> Result<PlatformTemplateOutput, PlatformTemplateError> {
         let sources = platform.template_files()?;
         let mut files = Vec::new();

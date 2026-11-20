@@ -225,7 +225,7 @@ impl Invoke {
 /// An invocation error.
 #[derive(Debug, Error)]
 pub enum InvokeError {
-    /// An orchestration error occured.
+    /// An orchestration error occurred.
     #[error(transparent(0))]
     Orchestrate(OrchestrateError),
 

@@ -72,7 +72,7 @@ pub trait Execute {
     fn command<'a>(self, context: &'a InvokeContext, data: Self::Data<'a>) -> Result<Self::Output<'a>, Self::Error>;
 }
 
-/// A hint to tell the program in which output format should
+/// Structured output format requested by the invocation.
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum OutputStructured {
     /// Output in JSON format.
