@@ -1,4 +1,4 @@
-//! Boot Protocol container primitives.
+//! Boot record headers and storage shared by requests and responses.
 
 use core::{
     cell::UnsafeCell,
@@ -112,8 +112,7 @@ impl<R> Storage<R>
 where
     R: BootRequest,
 {
-    /// Construct a bootloader [`Storage`] that encompasses a singular
-    /// constructed request `R`.
+    /// Initialize the request member of the handoff storage.
     #[inline]
     pub const fn request(request: R) -> Self {
         let request = ManuallyDrop::new(MaybeUninit::new(request));
@@ -121,8 +120,7 @@ where
         Self { request }
     }
 
-    /// Construct a bootloader [`Storage`] that encompasses a singular
-    /// constructed response `R`.
+    /// Initialize the response member of the handoff storage.
     #[inline]
     pub const fn response(response: R::Response) -> Self {
         let response = ManuallyDrop::new(MaybeUninit::new(response));

@@ -1,17 +1,15 @@
-//! Baseline *Boot Protocol* declaration.
+//! Record identifiers and the type relationships between boot requests and responses.
 
 use nekor_bitwise::prelude::Le;
 
-/// The slug of a boot-protocol [`crate::storage::Block`].
-///
-/// This is used to identify a particular [`crate::storage::Block`] dynamically.
+/// Identifier used in a boot record header to select its request or response type.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 // NOTE(invariant): The stored little-endian value is the stable identifier hash for this slug.
 pub struct Slug(Le<u64>);
 
 impl Slug {
-    /// Determine the [`Slug`] value that corresponds to a standalone buffer.
+    /// Hash the supplied signature bytes with 64-bit FNV-1a.
     #[inline]
     #[must_use]
     pub const fn standalone<const N: usize>(target_buffer: [u8; N]) -> Self {
@@ -55,12 +53,12 @@ impl PartialEq for Slug {
 
 impl Eq for Slug {}
 
-/// A marker trait that describes a singular protocol structure.
+/// A boot record payload with a stable C-compatible layout.
 ///
 /// # Safety
 ///
 /// * The implementor type of this trait is required to be `repr(C)`, for a stable Application
-///   Binary Interface.
+///   Binary Interface (ABI).
 pub unsafe trait Protocol {}
 
 /// A trait that describes a boot-protocol request-response structure sequence.
@@ -72,11 +70,11 @@ pub unsafe trait BootRequest: Protocol {
     /// The unique [`Slug`] that identifies this bootloader request.
     const ID: Slug;
 
-    /// The type of the response type block.
+    /// Response payload associated with this request.
     type Response: BootResponse;
 }
 
-/// A marker trait that describles a boot-protocol response structure.
+/// A response payload identified by its own slug.
 ///
 /// # Safety
 ///
