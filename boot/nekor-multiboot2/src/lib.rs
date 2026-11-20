@@ -1,4 +1,5 @@
 #![no_std]
 
-//! Bootloader implementation for the Nekor Boot Protocol using Multiboot2 as a
-//! load proxy.
+//! Reserved crate for a Multiboot2-based Nekor loader.
+//!
+//! No loading or handoff operations are implemented yet.
