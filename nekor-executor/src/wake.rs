@@ -5,8 +5,8 @@
 //! - A *wake source* is an external trigger that can make one or more tasks runnable.
 //! - A *wake sink* is the task affected by a wake source.
 //! - A *sleeper* is a task with an active registration in a wake source.
-//! - A *wake target* is a validated static data pointer paired with one of the executor's supported
-//!   wake classes.
+//! - A *wake target* is a static data pointer admitted to a supported wake class paired with one of
+//!   the executor's supported wake classes.
 //!
 //! # Executor assumptions
 //!
@@ -280,7 +280,8 @@ const _: () = assert!(
     "task alignment must satisfy the erased wake-data alignment"
 );
 
-/// A validated static wake target from the kernel's supported class set.
+/// A static wake target with a supported class and aligned data from the kernel's supported class
+/// set.
 ///
 /// The target is copyable because every supported class has static data and
 /// trivial ownership behavior. Copying this value does not clone an owned
@@ -292,7 +293,7 @@ const _: () = assert!(
 pub struct WakeTarget(WakePointer);
 
 impl WakeTarget {
-    /// Validates and encodes a supported waker.
+    /// Check the vtable, data address and tag-bit alignment of a waker.
     ///
     /// Returns [`None`] when the vtable is not in the kernel's closed class
     /// set, when the data pointer is null, or when its address does not
@@ -328,7 +329,7 @@ impl WakeTarget {
     ///
     /// # Safety
     ///
-    /// `target_pointer` must retain the address and provenance produced by [`Self::raw()`].
+    /// `target_pointer` must preserve the address and provenance produced by [`Self::raw()`].
     #[inline]
     unsafe fn from_raw(target_pointer: NonNull<()>) -> Self {
         let target_address = target_pointer.as_ptr().addr();
@@ -393,7 +394,7 @@ unsafe impl Sync for WakeTarget {}
 
 /// A nullable tagged wake target managed through one atomic pointer.
 ///
-/// Null represents an inactive registration. A non-null value is a validated
+/// Null represents an inactive registration. A non-null value is a class-checked
 /// [`WakeTarget`]. Arm, cancellation, and wake claiming use atomic exchanges so
 /// an interrupt never waits for a registration owner.
 #[repr(transparent)]
@@ -408,7 +409,7 @@ impl AtomicWaker {
         Self(AtomicPtr::new(ptr::null_mut()))
     }
 
-    /// Arms this slot with a validated target.
+    /// Arms this slot with a supported target.
     ///
     /// The acquiring read-modify-write synchronizes with a preceding wake claim
     /// on the same slot. This is required by the list's arm-before-check
@@ -684,7 +685,7 @@ mod tests {
         assert!(!slot.is_armed());
     }
 
-    /// Packing and atomic registration retain a pointer-sized representation.
+    /// Packing and atomic registration have a pointer-sized representation.
     #[test]
     fn wake_storage_is_pointer_sized() {
         assert_eq!(mem::size_of::<WakeTarget>(), mem::size_of::<*mut ()>());

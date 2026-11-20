@@ -51,10 +51,10 @@ pub struct Task {
 
     /// The runqueue native to this task.
     ///
-    /// # Remarks
+    /// # Notes
     ///
-    /// This is not a [`Run`] because it requires no cache coherence between
-    /// distinct atomic accesses, as the sharing is always direct.
+    /// The task stores the queue reference directly, so it does not need another
+    /// priority handle to resolve domain storage.
     ///
     /// [`Run`]: super::run_queue::Run
     schedule_queue: Erased<TaskQueue>,
@@ -75,16 +75,10 @@ impl Task {
 }
 
 impl Task {
-    /// Attempt to acquire the target [`Task`] exclusively.
+    /// Claim a dormant task for exclusive access to its future.
     ///
-    /// ## Failure
-    ///
-    /// This will fail **iff**:
-    ///
-    /// - The target task is not in a dormant state, i.e., it is either pending or executing.
-    ///
-    /// See the distinct task states in [`StateDescriptor`] for further
-    /// information.
+    /// Returns `None` if the task is already pending or executing, or if another
+    /// thread wins the transition after the initial dormant-state observation.
     #[inline]
     pub fn acquire(target_task: &'static Self) -> Option<Acquired> {
         let Self {

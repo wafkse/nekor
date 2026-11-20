@@ -1,49 +1,19 @@
-//! Priority-based task queue system with per-priority global runqueues.
+//! Per-priority task queues and their linker-collected handles.
 //!
-//! This module provides a lock-free, multi-producer multi-consumer task queue
-//! for each priority level, using compile-time memory section management via
-//! the `nekor-domain` crate.
+//! [`Run::queue`] resolves a shared queue in a priority-specific domain. [`Run::global`]
+//! emits a handle in a linker section whose zero-padded priority suffix sorts numerically.
+//! [`Run::list`] borrows the collected handles between the linker boundary symbols.
 //!
-//! For a given priority `P` (`u16`, where `0` is the highest priority), a
-//! [`Run`] represents a handle to a global [`TaskQueue`] dedicated to tasks of
-//! that priority. These queues are backed by a `Queue<&'static Task, {
-//! Size::QUEUE }>` type, with a fixed, power-of-two size defined by the `Size`
-//! enum.
+//! Queue operations use the bounded concurrent queue in `nekor-structure`. A failed enqueue
+//! can mean contention or a full queue, so callers must decide how to keep work pending.
+//! The queue-capacity feature selects one power-of-two capacity for all priorities.
 //!
-//! Each priority queue is emitted into a dedicated linker section named
-//! `.nekor.queue.priority.{P}`, which are then merged and sorted by the linker
-//! script into a single global `.nekor.queue` section. The [`RunList`] type
-//! wraps this global list as a slice of all priority queues, ordered by
-//! priority.
+//! # Storage
 //!
-//! The [`Run::queue`] constructor provides a new handle to the queue for a
-//! given priority, while [`Run::global`] returns a reference to the globally
-//! available queue instance.
-//!
-//! The system leverages careful alignment, cache padding, and `naked` functions
-//! with linker section annotations to provide zero-cost, globally consistent
-//! runqueue handles.
-//!
-//! # Global Run-Queue List
-//!
-//! The global list of runqueues is defined entirely by linker symbols emitted
-//! per priority level. This allows the executor to iterate through all queues
-//! in priority order without additional runtime bookkeeping.
-//!
-//! # Technical Notes
-//!
-//! - Each [`Run`] is cache-padded and wraps an [`Erased<TaskQueue>`] to avoid false sharing and
-//!   enable lock-free access.
-//! - The global runqueue list slice is constructed from linker-provided start/end symbols
-//!   (`__nekor_queue_start` / `__nekor_queue_end`).
-//! - Queue sizes are configurable via `cfg` feature flags (`task-queue-size-{N}`), which must be
-//!   powers of two.
-//! - The system relies heavily on `unsafe` code for low-level pointer and section manipulation;
-//!   correctness is ensured by the static layout and linker guarantees.
-//! - The queue section name is provided by the `KERNEL_SCHEDULE_QUEUE_SECTION` environment variable
-//!   at compile-time.
-//!
-//! [`Erased`]: nekor_domain::prelude::Erased
+//! The platform must keep emitted queue handles aligned and contiguous between
+//! `__nekor_queue_start` and `__nekor_queue_end`. Their pointers refer to domain storage
+//! with program lifetime. Cache padding separates handles according to the target's
+//! configured alignment. It does not prove a particular processor's cache geometry.
 
 use core::{
     arch, ffi, fmt, mem,
@@ -194,10 +164,9 @@ impl fmt::Debug for RunList {
 /// simply a type-level aspect.
 pub type TaskQueue = Queue<&'static Task, { Size::QUEUE }>;
 
-/// A lock-free runqueue handle that is known to be exclusive for a priority
-/// level.
+/// A shared handle to the queue associated with one priority.
 ///
-/// This is a no-cost wrapper over a [`Erased`] smart pointer.
+/// Multiple handles for the same priority resolve the same domain-backed queue.
 #[repr(transparent)]
 // NOTE(invariant): The padded erased pointer refers to a statically allocated queue for its
 // priority.

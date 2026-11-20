@@ -6,7 +6,7 @@
 //! topology removes physical deletion, memory reclamation, and list ABA.
 //!
 //! Each node contains one [`AtomicWaker`]. A [`LinkedNode`] carries the
-//! validated [`WakeTarget`] used to arm that slot whenever its event remains
+//! supported [`WakeTarget`] used to arm that slot whenever its event remains
 //! pending. Registration arms before checking readiness. A racing wake
 //! therefore either claims the target or releases its event publication to the
 //! arming operation before the readiness predicate executes.

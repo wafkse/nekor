@@ -1,19 +1,9 @@
-//! Generalized behaviour for [`Future`] types.
+//! Type-erased access to statically stored futures.
 //!
-//! This is the standard way to operate on [`Future`]s of any type.
-//!
-//! This does type-erasure in two stages:
-//!
-//! - By requiring an unit (`()`) [`output type`] for a target [`Future`], `'static` lifetime, and
-//!   [`Sync`]-ness.
-//! - By wrapping it inside a [`RawTask`], and providing an accessor type: [`Erased`] and
-//!   [`ErasedMut`].
-//!
-//! Note that even if arbitrary [`output type`]s are unsupported from the
-//! executor level, value-producing [`Future`]s can be simulated through the use
-//! of an asynchronous oneshot channel.
-//!
-//! [`output type`]: Future::Output
+//! [`Schedulable`] futures return [`Finalize`] and satisfy the domain's [`Store`] bounds.
+//! [`RawTask`] stores their trait object, while [`Erased`] and [`ErasedMut`] borrow it under
+//! the enclosing task's ownership protocol. Application results need separate storage or
+//! a communication channel because the executor consumes the completion status.
 
 use core::{
     fmt,
@@ -25,7 +15,7 @@ use nekor_domain::prelude::Store;
 /// The result of a top-level [`Future`] completion.
 ///
 /// This is primarily used to determine whether a top-level [`Future`] has
-/// either succeded or failed.
+/// either succeeded or failed.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Finalize {
     /// A successful completion.
@@ -38,9 +28,9 @@ pub enum Finalize {
 /// A trait that encompasses the requirement baseline for a [`Future`] to be
 /// schedulable by the asynchronous executor.
 ///
-/// # Remarks
+/// # Notes
 ///
-/// This trait is automatically implemented for an elegible type.
+/// This trait is automatically implemented for an eligible type.
 pub trait Schedulable: Future<Output = Finalize> + Store {}
 
 /// Blanket implementation for all schedulable types.
@@ -117,7 +107,7 @@ impl RawTask {
     ///
     /// # Safety
     ///
-    /// This associated function has the same safety compromises as
+    /// This associated function has the same ownership requirements as
     /// [`RawTask::access`].
     #[inline]
     pub const unsafe fn access_mut(&mut self) -> ErasedMut<'_> {

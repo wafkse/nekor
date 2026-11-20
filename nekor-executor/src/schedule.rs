@@ -13,7 +13,10 @@ use crate::{
 pub enum Scheduler {}
 
 impl Scheduler {
-    /// Determine the target [`Task`] to be scheduled next.
+    /// Scan queues in priority order and try to claim the first dequeued task.
+    ///
+    /// Returns `None` if no queue yields a task or if that first task is already
+    /// claimed. A failed claim ends this cycle without scanning later queues.
     #[inline]
     #[must_use]
     pub fn cycle() -> Option<Acquired> {
@@ -30,7 +33,8 @@ impl Scheduler {
     ///
     /// # Errors
     ///
-    /// This will fail if the runqueue is full.
+    /// Returns the task when the queue is full or its current reservation cycle
+    /// prevents an enqueue. The task is not kept pending by this method.
     #[inline]
     pub fn try_schedule(target_task: &'static Task) -> Result<(), &'static Task> {
         target_task.queue().enqueue(target_task).map_err(BusyOrFull::unwrap)

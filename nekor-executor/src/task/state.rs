@@ -1,7 +1,19 @@
 //! Concurrent [`task state`] management.
 //!
-//! This module exposes a series of new-type items that provide an interface for
-//! sound [`task state`] transitions.
+//! Snapshot types select the expected state for atomic transitions. They can become
+//! stale immediately. Only a successful compare-and-exchange changes the state.
+//!
+//! | Observed state | Requested state | Meaning |
+//! | --- | --- | --- |
+//! | Dormant | Pending | Claim the task. |
+//! | Dormant | Executing | Claim and begin execution. |
+//! | Pending | Executing | Begin execution after claiming. |
+//! | Pending | Dormant | Release the unpolled claim. |
+//! | Executing | Pending | Return to pending work. |
+//! | Executing | Dormant | Release execution ownership. |
+//!
+//! The transition methods do not poll futures or end Rust borrows. Owners must settle
+//! their borrows before publishing dormancy so another executor can claim the task.
 //!
 //! [`task state`]: TaskState
 
@@ -51,12 +63,10 @@ pub struct StateDormant<'a>(
 );
 
 impl<'a> StateDormant<'a> {
-    /// Attempt to transition back into a *pending* state.
+    /// Attempt to transition into a pending state.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     #[inline]
     #[must_use]
     pub fn pending(&self) -> Option<StatePending<'a>> {
@@ -77,10 +87,8 @@ impl<'a> StateDormant<'a> {
 
     /// Attempt to transition back into a *executing* state.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     #[inline]
     #[must_use]
     pub fn executing(&self) -> Option<StateExecuting<'a>> {
@@ -118,12 +126,10 @@ pub struct StatePending<'a>(
 );
 
 impl<'a> StatePending<'a> {
-    /// Attempt to transition back into a *pending* state.
+    /// Attempt to begin execution of the pending task.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     #[inline]
     #[must_use]
     pub fn executing(&self) -> Option<StateExecuting<'a>> {
@@ -144,15 +150,14 @@ impl<'a> StatePending<'a> {
 
     /// Attempt to transition back into a *dormant* state.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     ///
     /// # Safety
     ///
-    /// The [`crate::task::Task`] associated to this state must not be accessed under any
-    /// circumstance after a successful call has been effectuated.
+    /// Every exclusive borrow of the associated task must end before dormancy is
+    /// published. After success, no access through the released ownership is allowed.
+    /// A later successful claim is required before accessing the future again.
     #[inline]
     #[must_use]
     pub unsafe fn dormant(&self) -> Option<StateDormant<'a>> {
@@ -190,12 +195,10 @@ pub struct StateExecuting<'a>(
 );
 
 impl<'a> StateExecuting<'a> {
-    /// Attempt to transition back into a *pending* state.
+    /// Attempt to transition into a pending state.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     #[inline]
     #[must_use]
     pub fn pending(&self) -> Option<StatePending<'a>> {
@@ -216,15 +219,14 @@ impl<'a> StateExecuting<'a> {
 
     /// Attempt to transition back into a *dormant* state.
     ///
-    /// # Failure
-    ///
-    /// This will only fail if the current *snapshot* is stale and does not
-    /// reflect the current task status.
+    /// Returns `None` when the atomic state no longer matches this snapshot.
+    /// A successful comparison does not prove that no intervening state cycle occurred.
     ///
     /// # Safety
     ///
-    /// The [`crate::task::Task`] associated to this state must not be accessed under any
-    /// circumstance after a successful call has been effectuated.
+    /// Every exclusive borrow of the associated task must end before dormancy is
+    /// published. After success, no access through the released ownership is allowed.
+    /// A later successful claim is required before accessing the future again.
     #[inline]
     #[must_use]
     pub unsafe fn dormant(&self) -> Option<StateDormant<'a>> {
@@ -246,7 +248,7 @@ impl<'a> StateExecuting<'a> {
 
 /// An enumeration of all valid state machine transitions.
 ///
-/// This serves as an unified interface to lock in to a specific task.
+/// This groups snapshots without granting exclusive task ownership.
 #[derive(Debug, Clone, Copy)]
 
 pub enum StateDescriptor<'a> {
@@ -257,7 +259,7 @@ pub enum StateDescriptor<'a> {
 
     /// A pending state.
     ///
-    /// See [`StatePending`] or further information.
+    /// See [`StatePending`] for further information.
     Pending(StatePending<'a>),
 
     /// An executing state.
