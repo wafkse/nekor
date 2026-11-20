@@ -38,7 +38,7 @@ pub enum Dispatch {
 impl Dispatch {
     /// Check instruction support on the current CPU.
     ///
-    /// # Remarks
+    /// # Notes
     ///
     /// A diversion requires support on every executing CPU. [`MonitorMwait`] also
     /// requires *CPL0*. Timed [`MonitorMwaitX`] and [`UmonitorMwait`] waits require *TSC* access.

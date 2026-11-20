@@ -6,7 +6,7 @@
 //! *Side-channel monitoring*, such as `monitor`/`mwait`, observes memory writes.
 //! *Event-based monitoring*, such as `wfe`/`sev`, requires explicit signals through access guards.
 //!
-//! # Remarks
+//! # Notes
 //!
 //! Monitoring is best-effort. Recheck the condition after engagement and after waking.
 //! [`Polling`] combines bounded optimistic retries with monitored waiting.
@@ -20,7 +20,7 @@ use nekor_backoff::backoff::{Backoff, BackoffState};
 
 /// A value with selective monitor engagement and guarded access.
 ///
-/// # Remarks
+/// # Notes
 ///
 /// Direct mutation does not implicitly emit an explicit wakeup signal.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -96,7 +96,7 @@ impl<T> DerefMut for Monitor<T> {
 
 /// A monitor engagement that keeps the value borrowed until waiting.
 ///
-/// # Remarks
+/// # Notes
 ///
 /// Wakeups may be spurious. Recheck the condition after [`Monitored::wait`].
 // NOTE(invariant): None.
@@ -105,10 +105,10 @@ pub struct Monitored<'a, T>(marker::PhantomData<&'a Monitor<T>>);
 impl<T> Monitored<'_, T> {
     /// Wait for a possible monitored write or wake event.
     ///
-    /// # Remarks
+    /// # Notes
     ///
     /// [`BackoffState`] advances once, even if the selected monitor ignores the delay.
-    /// Retain it across waits to increase timed delays. Without hardware monitoring,
+    /// Keep it across waits to increase timed delays. Without hardware monitoring,
     /// backoff returns after the requested delay for a condition recheck.
     #[inline]
     pub fn wait(self, backoff_state: &mut BackoffState) {
