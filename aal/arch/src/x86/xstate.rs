@@ -1,8 +1,4 @@
-//! x86 extended-control and XSTATE component masks.
-//!
-//! [`XstateComponents`] names architectural state components shared by XCR0,
-//! IA32_XSS, IA32_XFD, and IA32_XFD_ERR. Register wrappers retain their own
-//! identities while using the same component vocabulary.
+//! XSTATE component bitmaps and proofs of supervisor XSAVE and XFD support.
 
 use bitflags::bitflags;
 
@@ -24,7 +20,7 @@ impl XfdCapability {
     }
 }
 
-/// Proof that the current processor exposes IA32_XSS and supervisor XSAVE state.
+/// Proof that the current processor exposes `IA32_XSS` and supervisor XSAVE state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction requires the caller to establish supervisor XSAVE support.
 pub struct XsaveSupervisorCapability(());
@@ -35,7 +31,7 @@ impl XsaveSupervisorCapability {
     /// # Safety
     ///
     /// The current processor must report support for XSAVE supervisor state and
-    /// the IA32_XSS model-specific register.
+    /// the `IA32_XSS` model-specific register.
     #[inline]
     #[must_use]
     pub const unsafe fn assume() -> Self {
@@ -44,10 +40,7 @@ impl XsaveSupervisorCapability {
 }
 
 bitflags! {
-    /// XSTATE component bitmap shared by architectural XSTATE controls.
-    ///
-    /// The unnamed mask makes every bit part of the represented domain. Bitwise
-    /// operations therefore retain reserved and future architectural components.
+    /// XSTATE component bitmap, including reserved bits.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
     pub struct XstateComponents: u64 {
@@ -127,14 +120,14 @@ impl Xcr0 {
     /// Empty component bitmap.
     pub const EMPTY: Self = Self(XstateComponents::empty());
 
-    /// Constructs an XCR0 image from raw architectural bits.
+    /// Construct an `XCR0` image, preserving reserved bits.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
         Self(XstateComponents::from_bits_retain(target_value))
     }
 
-    /// Returns the raw XCR0 image.
+    /// Raw `XCR0` bits.
     #[inline]
     #[must_use]
     pub const fn bits(self) -> u64 {
@@ -143,7 +136,7 @@ impl Xcr0 {
         state_component.bits()
     }
 
-    /// Borrows the selected XSTATE components.
+    /// Selected XSTATE components.
     #[inline]
     #[must_use]
     pub const fn components(&self) -> &XstateComponents {
@@ -152,7 +145,7 @@ impl Xcr0 {
         state_component
     }
 
-    /// Mutably borrows the selected XSTATE components.
+    /// Modify the selected-component bitmap.
     #[inline]
     pub const fn components_mut(&mut self) -> &mut XstateComponents {
         let &mut Self(ref mut state_component) = self;

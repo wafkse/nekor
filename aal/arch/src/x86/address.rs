@@ -6,7 +6,7 @@ use crate::x86::mode::{Mode, Native};
 
 /// A memory address for the target processor [`Mode`].
 ///
-/// # Remarks
+/// # Notes
 ///
 /// This is a [`Mode`]-agnostic way to represent an address. This type is not
 /// meant to be a general-purpose pointer type.

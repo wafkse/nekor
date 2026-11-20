@@ -29,7 +29,7 @@ pub trait Mode: private::Sealed {
 
 /// The 32-bit operating mode, otherwise known as *Protected Mode*.
 ///
-/// # Remarks
+/// # Notes
 ///
 /// `N`-level paging is optional but desired in this mode.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]
@@ -44,7 +44,7 @@ impl Mode for Bits32 {
 
 /// The 64-bit operating mode, otherwise known as *Long Mode*.
 ///
-/// # Remarks
+/// # Notes
 ///
 /// `N`-level (where `N ∈ {4,5}`) paging is mandatory in this mode.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Eq, Ord)]

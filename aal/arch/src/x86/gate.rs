@@ -9,16 +9,14 @@
 ///
 /// ## Interrupt Gate
 ///
-/// An interrupt gate defines the *Interrupt Service Routine* as non-preemptable
-/// at the interrupt-level.
-///
-/// In other words, the processor takes care of configuring `IF` in the `FLAGS`
-/// register when serving an *Interrupt Service Routine* of this type.
+/// An interrupt gate clears IF on entry, suppressing maskable interrupts until
+/// the handler enables them or returns. Non-maskable interrupts and exceptions
+/// can still interrupt the handler.
 ///
 /// ## Trap Gate
 ///
-/// Identical to an *Interrupt Gate*, but the ISR can be preempted by another
-/// interrupt.
+/// A trap gate leaves IF unchanged. Maskable interrupts can interrupt the handler
+/// when IF was already set or the handler later sets it.
 ///
 /// ## Task Gate
 ///
@@ -29,9 +27,8 @@
 /// The *Task Link* in the newly-switched *TSS* will be set to point to the
 /// *TSS* that raised the interrupt.
 ///
-/// **Note**: Hardware multitasking is not used in Nekor, and the
-/// [`GateType::Task`] variant simply exists for completeness. It is recommended
-/// to amalgamate its behavior with non-exhaustivess handling.
+/// Nekor does not use hardware task switching. The task-gate variant represents
+/// legacy descriptor images and is unavailable in long mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum GateType {

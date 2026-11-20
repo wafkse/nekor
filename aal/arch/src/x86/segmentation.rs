@@ -180,16 +180,11 @@ pub struct SegmentSelector {
     /// Table* as source of this segment.
     descriptor_table: TableIndicator,
 
-    /// The *Requested Privilege Level* for this *Segment Selector*.
+    /// Requested privilege level used in segment access checks.
     ///
-    /// This is used by the processor to evaluate an *Effective Privilege
-    /// Level* to determine whether a segment descriptor is accessible, which
-    /// corresponds to `max(CPL, RPL)` (i.e., the maximum number between
-    /// the current *Current Privilege Level* and the *Requested Privilege
-    /// Level*).
-    ///
-    /// When unsure, use [`PrivilegeLevel::Ring0`] to avoid any possible
-    /// problems.
+    /// For ordinary data-segment access, the effective privilege is `max(CPL, RPL)`.
+    /// Code transfers and stack loads have their own checks, so choosing ring zero
+    /// does not by itself establish access to the selected descriptor.
     requested_privilege_level: PrivilegeLevel,
 }
 
@@ -350,7 +345,7 @@ pub type CodeSegmentSelectorCplMut<'value> = <CodeSegmentSelectorCpl<'value> as 
 /// A raw selector image intended for a *Code Segment Descriptor*.
 ///
 /// The image can be null or name a descriptor with different semantics;
-/// this type does not validate the installed descriptor.
+/// the installed descriptor is not inspected.
 ///
 /// For the higher-level [`SegmentSelector`] interface, defer to the
 /// [`CodeSegment`] new-type instead.
@@ -435,7 +430,7 @@ impl RawCodeSegment {
 
 /// A raw selector image intended for a *Data Segment Descriptor*.
 ///
-/// This type does not validate the installed descriptor.
+/// The installed descriptor is not inspected.
 ///
 /// For the higher-level [`SegmentSelector`] interface, defer to the
 /// [`DataSegment`] new-type instead.
@@ -466,11 +461,11 @@ impl Deref for RawDataSegment {
     }
 }
 
-/// A new-type with the sole invariant that the underlying
-/// [`RawSegmentSelector`] is for a valid *Code Segment Descriptor*.
+/// A selector admitted alongside a present long-mode code descriptor.
 ///
-/// For the lower-level [`RawSegmentSelector`]-based interface, defer to the
-/// [`RawCodeSegment`] new-type instead.
+/// Construction checks the supplied descriptor's flags, then stores only the selector.
+/// The descriptor-table owner must keep that selector associated with the intended
+/// descriptor, including after mutations through the selector accessors.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction checks the selected descriptor for present 64-bit code semantics.
@@ -483,8 +478,8 @@ impl CodeSegment {
     /// Returns `None` when the descriptor is absent, selects data semantics,
     /// uses compatibility-mode defaults, or is not marked for long mode.
     ///
-    /// This proves the semantic descriptor role represented by the pair. Installation into the
-    /// selected GDT or LDT remains the responsibility of the descriptor-table owner.
+    /// The selector is not compared with an installed table entry. The descriptor-table
+    /// owner must install the supplied descriptor at the selected index.
     #[inline]
     #[must_use]
     pub const fn new(selector: SegmentSelector, descriptor: RawSegmentDescriptor) -> Option<Self> {
@@ -582,11 +577,11 @@ impl CodeSegment {
     }
 }
 
-/// A new-type with the sole invariant that the underlying
-/// [`RawSegmentSelector`] is for a valid *Data Segment Descriptor*.
+/// A selector admitted alongside a present writable data descriptor.
 ///
-/// For the lower-level [`RawSegmentSelector`]-based interface, defer to the
-/// [`RawDataSegment`] new-type instead.
+/// Construction checks the supplied descriptor's flags, then stores only the selector.
+/// Installation and subsequent selector mutations must preserve its association with
+/// the intended descriptor table entry.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 // NOTE(invariant): Construction checks the selected descriptor for present writable data semantics.

@@ -76,10 +76,8 @@ where
     T: DescriptorTable,
     B: Mode,
 {
-    /// The size of this descriptor table.
-    ///
-    /// The value stored here is 1-biased, actual size is determined by the
-    /// expression `table size + 1`.
+    /// Byte offset of the table's last byte. The table occupies `table_size + 1`
+    /// bytes, with addition performed in a type wider than `u16`.
     pub table_size: u16,
 
     /// The mode-dependent address of the target descriptor table.
@@ -261,39 +259,25 @@ pub type SegmentGranularityMut<'value> = <SegmentGranularity<'value> as Counterp
 /// This is an alias to a [`Field`] monomorphization.
 pub type SegmentAccessByte<'value> = Field<'value, 40, 47, u64>;
 
-/// The *Limit* field (low part, bits 0-15) in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentLimitLow`].
+/// Mutable counterpart of [`SegmentLimitLow`].
 pub type SegmentLimitLowMut<'value> = <SegmentLimitLow<'value> as Counterpart>::Mut;
 
-/// The *Limit* field (high part, bits 16-19) in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentLimitHigh`].
+/// Mutable counterpart of [`SegmentLimitHigh`].
 pub type SegmentLimitHighMut<'value> = <SegmentLimitHigh<'value> as Counterpart>::Mut;
 
-/// The *Base* field (low part, bits 16-31) in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentBaseLow`].
+/// Mutable counterpart of [`SegmentBaseLow`].
 pub type SegmentBaseLowMut<'value> = <SegmentBaseLow<'value> as Counterpart>::Mut;
 
-/// The *Base* field (middle part, bits 32-39) in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentBaseMiddle`].
+/// Mutable counterpart of [`SegmentBaseMiddle`].
 pub type SegmentBaseMiddleMut<'value> = <SegmentBaseMiddle<'value> as Counterpart>::Mut;
 
-/// The *Base* field (high part, bits 56-63) in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentBaseHigh`].
+/// Mutable counterpart of [`SegmentBaseHigh`].
 pub type SegmentBaseHighMut<'value> = <SegmentBaseHigh<'value> as Counterpart>::Mut;
 
-/// The *Flags* field in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentFlags`].
+/// Mutable counterpart of [`SegmentFlags`].
 pub type SegmentFlagsMut<'value> = <SegmentFlags<'value> as Counterpart>::Mut;
 
-/// The *Access Byte* field in a *Segment Descriptor*.
-///
-/// This is an alias to the mutable counterpart of [`SegmentAccessByte`].
+/// Mutable counterpart of [`SegmentAccessByte`].
 pub type SegmentAccessByteMut<'value> = <SegmentAccessByte<'value> as Counterpart>::Mut;
 
 /// A raw *Segment Descriptor* representation.
@@ -653,14 +637,10 @@ impl RawSegmentDescriptor {
 /// This is an alias to a [`Bit`] monomorphization.
 pub type AccessBytePresent<'value> = Bit<'value, u8, 7>;
 
-/// The *Present* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Field`] monomorphization.
+/// Descriptor privilege level in an access byte.
 pub type AccessByteDpl<'value> = Field<'value, 5, 6, u8>;
 
-/// The *Present* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Bit`] monomorphization.
+/// Descriptor-class bit: set for code or data, clear for a system descriptor.
 pub type AccessByteSystem<'value> = Bit<'value, u8, 4>;
 
 /// The *Executable* bit in an *Access Byte*.
@@ -695,44 +675,28 @@ pub type AccessByteAccessed<'value> = Bit<'value, u8, 0>;
 /// This is an alias to a [`Field`] monomorphization.
 pub type AccessByteDescriptorType<'value> = Field<'value, 0, 3, u8>;
 
-/// The *Present* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessBytePresent`].
+/// Mutable counterpart of [`AccessBytePresent`].
 pub type AccessBytePresentMut<'value> = <AccessBytePresent<'value> as Counterpart>::Mut;
 
-/// The *Descriptor Privilege Level* field in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteDpl`].
+/// Mutable counterpart of [`AccessByteDpl`].
 pub type AccessByteDplMut<'value> = <AccessByteDpl<'value> as Counterpart>::Mut;
 
-/// The *System* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteSystem`].
+/// Mutable counterpart of [`AccessByteSystem`].
 pub type AccessByteSystemMut<'value> = <AccessByteSystem<'value> as Counterpart>::Mut;
 
-/// The *Executable* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteExecutable`].
+/// Mutable counterpart of [`AccessByteExecutable`].
 pub type AccessByteExecutableMut<'value> = <AccessByteExecutable<'value> as Counterpart>::Mut;
 
-/// The *Direction/Conforming* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteDc`].
+/// Mutable counterpart of [`AccessByteDc`].
 pub type AccessByteDcMut<'value> = <AccessByteDc<'value> as Counterpart>::Mut;
 
-/// The *Read/Write* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteRw`].
+/// Mutable counterpart of [`AccessByteRw`].
 pub type AccessByteRwMut<'value> = <AccessByteRw<'value> as Counterpart>::Mut;
 
-/// The *Accessed* bit in an *Access Byte*.
-///
-/// This is an alias to the mutable counterpart of [`AccessByteAccessed`].
+/// Mutable counterpart of [`AccessByteAccessed`].
 pub type AccessByteAccessedMut<'value> = <AccessByteAccessed<'value> as Counterpart>::Mut;
 
-/// The *Type* field in an *Access Byte* (for system descriptors).
-///
-/// This is an alias to the mutable counterpart of [`AccessByteDescriptorType`].
+/// Mutable counterpart of [`AccessByteDescriptorType`].
 pub type AccessByteDescriptorTypeMut<'value> = <AccessByteDescriptorType<'value> as Counterpart>::Mut;
 
 /// System Descriptor Type values for the *Type* field in an *Access Byte*.
@@ -879,7 +843,7 @@ impl RawAccessByte {
         AccessBytePresentMut::wrap(target_value)
     }
 
-    /// Access the *Described Privilege Level* field in this *Access Byte*.
+    /// Access the *Descriptor Privilege Level* field in this *Access Byte*.
     #[inline]
     #[must_use]
     pub const fn privilege(&self) -> AccessByteDpl<'_> {
@@ -888,7 +852,7 @@ impl RawAccessByte {
         AccessByteDpl::wrap(target_value)
     }
 
-    /// Mutably access the *Described Privilege Level* field in this *Access
+    /// Mutably access the *Descriptor Privilege Level* field in this *Access
     /// Byte*.
     #[inline]
     pub const fn privilege_mut(&mut self) -> AccessByteDplMut<'_> {
@@ -989,7 +953,7 @@ impl RawAccessByte {
     /// This determines what kind of system descriptor this *Access Byte* is
     /// part of.
     ///
-    /// # Note
+    /// # Notes
     ///
     /// This field overlaps with [`Self::executable`], [`Self::direction`],
     /// [`Self::read_write`], and [`Self::accessed`]. Use this accessor for
@@ -1008,7 +972,7 @@ impl RawAccessByte {
     /// This determines what kind of system descriptor this *Access Byte* is
     /// part of.
     ///
-    /// # Note
+    /// # Notes
     ///
     /// This field overlaps with [`Self::executable`], [`Self::direction`],
     /// [`Self::read_write`], and [`Self::accessed`]. Use this accessor for

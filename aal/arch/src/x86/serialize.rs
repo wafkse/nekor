@@ -1,15 +1,8 @@
-//! Architectural and Processor State serialization.
+//! Local instruction serialization.
 //!
-//! # Methodology
-//!
-//! We use the `serialize` instruction to ensure that all previous
-//! instructions have completed before proceeding. This is particularly
-//! important for code patching, where we need to ensure that the new code is
-//! executed after the old code has completed.
-//!
-//! In the case that the instruction is not available, we fall back to a
-//! self-iret, which is a self-interrupt return instruction that performs a full
-//! architectural pipeline flush and consequent serialize.
+//! These operations serialize the calling processor's instruction stream. They do not
+//! notify other processors, wait for remote execution to stop or establish a complete
+//! cross-modifying-code publication protocol.
 
 use core::{arch, hint::black_box};
 
@@ -20,24 +13,15 @@ use arch::x86_64::__cpuid;
 
 use crate::x86::instruction;
 
-/// An uninhabited type to act as a cohesive entity for all processor
-/// synchronization that depends on a self-*Interrupt Return* methodology.
-///
-/// This encompasses distinct methods of pipeline and microarchitectural
-/// serialization that are generally differing in terms of availability and
-/// performance.
+/// Serialization by returning to the current code segment through `iret`.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum IRet {}
 
 impl IRet {
     /// Perform a self-*Interrupt Return* in a core-local manner.
     ///
-    /// This is meant to perform a full architectural pipeline flush and
-    /// consequent serialize.
-    ///
-    /// This method is preferred over other methods, as it is available at any
-    /// privilege level, making it available to both usermode-based testing and
-    /// paravirtualization.
+    /// The assembly constructs a return frame for the current execution context.
+    /// It does not transfer to another privilege level.
     #[cfg(target_arch = "x86")]
     #[inline]
     pub fn x86() {
@@ -61,12 +45,8 @@ impl IRet {
 
     /// Perform a self-*Interrupt Return* in a core-local manner.
     ///
-    /// This is meant to perform a full architectural pipeline flush and
-    /// consequent serialize.
-    ///
-    /// This method is preferred over other methods, as it is available at any
-    /// privilege level, without requiring extra architectural features, making
-    /// it available to both usermode-based testing and paravirtualization.
+    /// The assembly constructs a return frame for the current execution context.
+    /// It does not transfer to another privilege level.
     #[cfg(target_arch = "x86_64")]
     #[inline]
     pub fn x86_64() {
@@ -105,8 +85,7 @@ impl IRet {
 pub enum CpuId {}
 
 impl CpuId {
-    /// A no-op function whose instruction stream is guaranteed to be executed
-    /// in a serialized manner.
+    /// Serialize local instruction execution.
     ///
     /// This function is useful for ensuring that all preceding instructions
     /// have completed before any subsequent instructions are executed.
@@ -126,8 +105,7 @@ impl CpuId {
 pub enum Serialize {}
 
 impl Serialize {
-    /// A no-op function whose instruction stream is guaranteed to be executed
-    /// in a serialized manner.
+    /// Serialize local instruction execution.
     ///
     /// This function is useful for ensuring that all preceding instructions
     /// have completed before any subsequent instructions are executed.

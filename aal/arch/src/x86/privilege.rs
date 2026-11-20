@@ -47,7 +47,7 @@ enumerate![
 ];
 
 mod detail {
-    //! Implementation etails for the `privilege` module.
+    //! Implementation details for the `privilege` module.
 
     /// A trait to act as a supertrait seal for the
     /// [`AssertPrivilegeLevelIsValid`] trait.

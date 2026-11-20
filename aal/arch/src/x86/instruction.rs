@@ -1,9 +1,9 @@
-//! Raw access to `x86` system-level and other miscenalleous instructions.
+//! Raw access to `x86` system-level and other miscellaneous instructions.
 
 use core::arch;
 
 pub mod relax {
-    //! Instructions that reduce processo activity while waiting.
+    //! Instructions that reduce processor activity while waiting.
 
     use core::arch;
 
@@ -178,9 +178,11 @@ pub mod gdtr {
         mode::Bits32,
     };
 
-    /// Load the *Protected Mode* *Global Descriptor Table*.
+    /// Replace the current processor's global descriptor-table register.
     ///
-    /// The use of this system instruction must be left as a last resort.
+    /// Existing segment caches are not reloaded by this instruction. Later segment
+    /// loads and event delivery resolve selectors through the new table, so its owner
+    /// must keep those selectors meaningful throughout the transition.
     ///
     /// # Safety
     ///
@@ -233,8 +235,7 @@ pub mod gdtr {
             );
         }
     }
-    /// Store the *Protected Mode* *Global Descriptor Table* into a *Global
-    /// Descriptor Table Register*.
+    /// Store the current global descriptor-table register image.
     ///
     /// # Safety
     ///
@@ -286,8 +287,7 @@ pub mod idtr {
         }
     }
 
-    /// Store the *Protected Mode* *Global Descriptor Table* into a *Global
-    /// Descriptor Table Register*.
+    /// Store the current interrupt descriptor-table register image.
     ///
     /// # Safety
     ///

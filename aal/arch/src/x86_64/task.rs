@@ -84,7 +84,7 @@ pub type TaskStackHigh = Partitioned<32, 63, u64>;
 pub struct RawPrivilegeStack(TaskStackLow, TaskStackHigh);
 
 impl RawPrivilegeStack {
-    /// Constructs a unconstrained raw privilege-stack image.
+    /// Constructs an unconstrained raw privilege-stack image.
     #[inline]
     #[must_use]
     pub const fn new(low: TaskStackLow, high: TaskStackHigh) -> Self {
@@ -163,7 +163,7 @@ impl RawPrivilegeStack {
 pub struct RawInterruptStack(TaskStackLow, TaskStackHigh);
 
 impl RawInterruptStack {
-    /// Constructs a unconstrained raw interrupt-stack image.
+    /// Constructs an unconstrained raw interrupt-stack image.
     #[inline]
     #[must_use]
     pub const fn new(low: TaskStackLow, high: TaskStackHigh) -> Self {
