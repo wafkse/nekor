@@ -1,5 +1,4 @@
-//! - *Local Critical Sections* (*LCS*) are those that are native to the currently-active core, and
-//!   thus correspond to *disabling interrupts* for the current core.
+//! Maskable-interrupt exclusion on the current processor.
 //!
 //! Very little delay, used for processor initialization and for contexts that
 //! are non preemptable.
@@ -17,7 +16,10 @@ use crate::arch;
 
 /// A core-*Local Critical Section*.
 ///
-/// This will inhibit all preemption for the currently-executing core.
+/// # Notes
+///
+/// This masks ordinary x86 interrupts outside usermode builds. It does not save the prior
+/// interrupt state, so nesting is forbidden and release always enables interrupts.
 pub enum Lcs {}
 
 // FIXME: Lcs needs to determine whether interrupts were already disabled. Do
@@ -39,7 +41,7 @@ impl Lcs {
     ///   [`compiler fence`].
     ///
     /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
-    ///   `usermode` crate feature is enabled.
+    ///   `usermode` configuration is enabled.
     ///
     /// [`SeqCst`]: core::sync::atomic::Ordering::SeqCst
     /// [`compiler fence`]: core::sync::atomic::compiler_fence
@@ -67,15 +69,12 @@ impl Lcs {
     ///
     /// # Safety
     ///
-    /// - A call to this function must be matched with an ulterior [`Lcs::acquire`] call.
-    /// - The output [`LcsToken`] must not outlive the actual *LCS*.
-    /// - The calling core must not be in the following Critical Section types:
-    ///     - [`Lcs`]: *Local Critical Section*, i.e., it is non-reentrant.
-    ///     - [`crate::gcs::Gcs`]: *Global Critical Section*
-    ///     - [`crate::mscs::MsCs`]: *Machine-Stop Critical Section*
+    /// Consume the token from the matching earlier [`Lcs::acquire`] call on the same
+    /// processor. No nested local, global or machine-stop critical section may depend
+    /// on interrupts remaining disabled, because release enables them unconditionally.
     ///
-    /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
-    ///   `usermode` crate feature is enabled.
+    /// Outside usermode builds, the current x86 privilege level must permit `sti`.
+    /// The compiler fences required by acquisition must also surround the protected code.
     pub unsafe fn release(_: LcsToken) {
         #[cfg(not(usermode))]
         // SAFETY: Caller asserts required IO privileges.
@@ -91,8 +90,11 @@ impl Lcs {
     /// Enter a core-*Local Critical Section* that is only active during the
     /// call frame of a target closure.
     ///
-    /// The provided closure should attempt to not panic, and should instead
-    /// rely on a [`Result`].
+    /// # Panics
+    ///
+    /// If the closure unwinds, release is not called because this function has no drop guard.
+    /// Maskable interrupts can therefore remain disabled. Use a result for expected failure
+    /// and arrange any required unwind cleanup outside this helper.
     ///
     /// # Safety
     ///
@@ -102,7 +104,7 @@ impl Lcs {
     ///     - [`crate::mscs::MsCs`]: *Machine-Stop Critical Section*
     ///
     /// - In `x86`, the calling core must have *I/O Privileges* as per its current `CPL`, unless the
-    ///   `usermode` crate feature is enabled.
+    ///   `usermode` configuration is enabled.
     #[inline]
     pub unsafe fn closure<F, O>(target_closure: F) -> O
     where
@@ -122,33 +124,11 @@ impl Lcs {
     }
 }
 
-/// A private-constructible token that can *prove* whether a caller is currently
-/// inside a [`Lcs`].
+/// Authority to access operations restricted to a local critical section.
 ///
-/// This token serves two purposes based on ownership:
-///
-/// ## Owned Token
-///
-/// When you own an `LcsToken`, you control the critical section's lifetime:
-///
-/// ```ignore
-/// let token = unsafe { Lcs::acquire() };  // CS begins
-/// // ... do work ...
-/// unsafe { Lcs::release(token) };         // CS ends, token consumed
-/// ```
-///
-/// ## Borrowed Token
-///
-/// When you receive `&LcsToken`, you have proof that a CS exists but cannot
-/// terminate it:
-///
-/// ```ignore
-/// fn critical_operation(cs: &LcsToken) {
-///     // Can prove we're in a CS
-///     // Cannot terminate it (no owned token)
-///     // Cannot store it (borrow checker prevents escaping)
-/// }
-/// ```
+/// The owned token is consumed by [`Lcs::release`]. A borrowed token lets an operation use
+/// that authority while leaving release to its owner. Construction is unsafe, and callers
+/// must keep the token within the critical section because it carries no section lifetime.
 #[derive(Debug)]
 // NOTE(invariant): Only a caller in the local critical section may construct this authority token.
 pub struct LcsToken(

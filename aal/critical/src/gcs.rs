@@ -1,13 +1,8 @@
-//! Global critical sections coordinate access across processor cores.
+//! Authority tokens for a caller-established global critical section.
 //!
-//! - *Global Critical Sections* (*GCS*) are those who:
-//!     - *Disable interrupts* for the currently-active core.
-//!     - Hold the corresponding global lock for the desired category. This inhibits other
-//!       contenders for the same *GCS* kind.
-//!
-//! Used for access control to a non-concurrent subsystem.
-//!
-//! Many *GCS* can coexist. Delay depends on per-*GCS* contention.
+//! The caller holds the lock associated with a [`Contender`] and establishes any required
+//! local interrupt masking before creating a token. This module does not acquire that lock,
+//! mask interrupts or release the surrounding critical section.
 
 use core::marker;
 
@@ -26,7 +21,7 @@ impl<C> Gcs<C>
 where
     C: Contender,
 {
-    /// Acquire a *Global Critical Section* for a [`Contender`] `C`.
+    /// Represent an already-held global critical section for contender `C`.
     ///
     /// # Safety
     ///
