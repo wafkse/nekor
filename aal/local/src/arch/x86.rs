@@ -1,16 +1,8 @@
-//! Per-CPU infrastructure for the `x86` architecture.
+//! Segment-relative access to the local area, or host TLS under `cfg(usermode)`.
 //!
-//! There is major diverging behavior in this module.
-//!
-//! Particularly, this is due to the required support of running the kernel at a
-//! higher *Current Privilege Level* (*CPL*). than `0`.
-//!
-//! On regular `x86{,_64}` kernel-space builds, either the `gs` or `fs` segment
-//! registers are used. In 32-bit mode, `fs` is set through the *General
-//! Descriptor Table* (*GDT*). In 64-bit mode, `gs` is populated through the
-//! `IA32_GS_BASE` *Model Specific Register*.
-//!
-//! In usermode builds, the native thread local mechanism is used instead.
+//! The kernel assembly accesses a word at segment offset zero, using `GS` in long mode and
+//! `FS` in the 32-bit instruction path. It does not read or write the segment base register.
+//! The platform must install a base addressing a live local word before ordinary Rust entry.
 
 #[cfg(not(usermode))]
 use core::arch;
@@ -24,9 +16,7 @@ thread_local!(static CPU_AREA: Cell<Area> = Cell::new(Area::local()));
 
 // TODO: Move to rdgsbase
 
-/// The entry point to accessing per-CPU data.
-///
-/// This is simply a getter for [`Area`], the mandatory per-CPU structure.
+/// Read the local word through the configured segment or host thread-local cell.
 #[inline]
 #[must_use]
 pub fn read_area() -> Area {
@@ -75,9 +65,7 @@ pub fn read_area() -> Area {
     );
 }
 
-/// The entry point to accessing per-CPU data.
-///
-/// This is simply a setter for [`Area`], the mandatory per-CPU structure.
+/// Write the local word through the configured segment or host thread-local cell.
 #[inline]
 pub fn write_area(area: Area) {
     #[cfg(usermode)]
