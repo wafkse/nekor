@@ -175,27 +175,11 @@ where
     /// Determine the address of the [`Allocation`] slot for `T` in the
     /// [`Domain`] `D`.
     ///
-    /// # Remarks
+    /// # Representation
     ///
-    /// Due to `const`-eval limitations, the following remarks must be
-    /// well-understood to be able to consume the [`Allocation`] in a safe
-    /// manner.
-    ///
-    /// The main issue is returned pointer *does (at least) partially point* to
-    /// an [`Allocation`], but is not guaranteed to be aligned.
-    ///
-    /// Therefore, any accesses to the target [`Allocation`] must make sure to
-    /// use an unaligned load.
-    ///
-    /// Nevertheless, since the respective storage address is known to the
-    /// compiler, the performance penalty of an explicit unaligned load may
-    /// be superceded altogheter.
-    ///
-    /// However, the returned pointer is always guaranteed to be aligned to
-    /// whatever the native function alignment is.
-    ///
-    /// This is a byte-level invariant, and therefore *can be relied upon in
-    /// unsafe code*, as long as the pointer is aligned manually.
+    /// Outside Miri, the pointer addresses an offset word emitted at a storage symbol. That
+    /// word may have function alignment instead of `Allocation<T>` alignment, so it must be
+    /// read with an unaligned load. The offset locates the separately aligned [`Container`].
     #[inline]
     #[cfg(not(miri))]
     #[must_use]
@@ -253,7 +237,7 @@ pub struct Container<T>
 where
     T: Store,
 {
-    /// The heads-first inline storage for `T`.
+    /// Value storage at the start of the aligned allocation.
     // NOTE(rationale): Static and zeroed storage paths require crate-wide access to this field.
     pub(crate) value_storage: UnsafeCell<MaybeUninit<T>>,
 
@@ -276,17 +260,10 @@ where
     /// Determine the address of the [`Container`] slot for `T` in the
     /// [`Domain`] `D`.
     ///
-    /// This method is safe due to intrinsic guarantees on storage layout.
-    ///
-    /// # Remarks
-    ///
-    /// The returned pointer is aligned to `T`'s alignment boundary.
-    /// And since the [`Header`] is 1-aligned, all fields can be read without
-    /// alignment issues whatsoever.
-    ///
-    /// This *can be relied upon in unsafe code*.
-    ///
-    /// For a const-compatible reference, see the [`Allocation`] type.
+    /// The storage symbol places the value at `T`'s alignment and the byte-aligned header
+    /// immediately afterwards. This function reads the symbol's relative offset with an
+    /// unaligned load before locating that storage. It returns a raw pointer and does not
+    /// establish that the value has been initialized.
     #[inline]
     #[must_use]
     pub fn address_in<D>() -> NonNull<Self>
@@ -325,26 +302,15 @@ where
     }
 }
 
-/// A `fn item` that reserves inline space for a single value of `T` at
-/// compile-time.
+/// Emit the offset word and zeroed storage for a value type.
 ///
-/// # Implementation
-///
-/// This symbol does the following, in mention order:
-///
-/// - Reserve enough space to accomodate a `T` inline.
-/// - Emit a single *initialization byte* to lazily initialize `T` in a concurrent and lock-free
-///   manner.
-/// - Emit a pc-relative relocation to a specific per-`T` symbol: [`TypeId::of<T>`] to ensure
-///   uniqueness of monomorphized [`storage`] symbols (particularly when different `T`s
-///   coincidentally have the same size) against agressive optimization, both compiler-wise and
-///   linker-wise.
+/// The symbol starts with a relative offset to separately aligned value bytes followed by
+/// an initialization byte. A relocation to [`any::TypeId::of`] distinguishes monomorphized
+/// storage symbols even when their value types have identical sizes.
 ///
 /// # Safety
 ///
-/// - This function must never be called.
-///
-/// [`TypeId::of<T>`]: any::TypeId::of
+/// This symbol contains data and must never be called as a function.
 #[unsafe(link_section = concat!(env!("KERNEL_DOMAIN_STORAGE_SECTION"), ".offset"))]
 #[unsafe(naked)]
 // NOTE(rationale): The architecture storage symbol is shared with its parent module.
@@ -391,7 +357,7 @@ where
 pub(in crate::lowlevel) mod miri {
     //! Specialization for Miri support.
     //!
-    //! Miri is unable to interpret code uses inline assembly.
+    //! Miri uses interpreter allocations because it cannot execute the inline storage assembly.
 
     use core::{
         any::TypeId,
@@ -405,46 +371,16 @@ pub(in crate::lowlevel) mod miri {
 
     use crate::{lowlevel::Container, store::Store};
 
-    /// A slab allocator for specializing Miri support into the `nekor-domain`
-    /// subsystem.
+    /// A permanent linked list of typed storage allocations used under Miri.
     ///
-    /// This stores types by their respective [`TypeId`] only once.
+    /// Lookup compares [`TypeId`] values while traversing the list. Insertion initializes a
+    /// candidate and publishes it by changing a null next pointer with compare-and-exchange.
+    /// Readers acquire that pointer before reading the candidate. A losing candidate is
+    /// dropped unless a different type was inserted, in which case insertion continues from
+    /// the newly published node. Published nodes are never removed.
     ///
-    /// Lookup performs an `O(n)` search. This affects only Miri execution, provided
-    /// that regular execution and Miri follow the same logic outside this module.
-    ///
-    /// # Lock-free
-    ///
-    /// Due to the fact that this slab allocator does not require freeing any
-    /// used up slabs, one can force it to be lock-free.
-    ///
-    /// Particulary, this is done through the following algorithm:
-    ///
-    /// ## Traversal
-    ///
-    /// The first allocated [`Slab`] will be for a globally-inaccessible
-    /// uninhabited type (a.k.a `PhantomRestricted`), to retrieve the next
-    /// [`Slab`], one must perform an `atomic load` with at least
-    /// [`Ordering::Acquire`] to synchronize with threads that are adding
-    /// additional slabs.
-    ///
-    /// This can be performed in a loop until the next slab pointer *is null*.
-    ///
-    /// ## Insertion
-    ///
-    /// Insertion is done through a fallible CAS loop, where a thread traverses
-    /// to the last [`Slab`] in the allocator and attempts to perform an `atomic
-    /// compare-and-exchange` operation with the:
-    ///
-    /// - [`Ordering::AcqRel`]: For a *successful operation*.
-    /// - [`Ordering::Acquire`]: For a *failed operation*.
-    ///
-    /// In the case of a *failed operation* the retrying thread must again find
-    /// the latest [`Slab`] that was allocated and attempt the operation again.
-    ///
-    /// This presents a very tiny contention footprint (as an [`AtomicPtr`] does
-    /// not present any further changes in time after it is initialized to a
-    /// [`Slab`]), which can allow finding internal concurrency problems.
+    /// Lookup takes linear time in the number of stored types. This path replaces assembly
+    /// storage symbols only under Miri and does not change ordinary runtime lookup.
     pub struct Slab {
         /// The pointer to next slab in the list.
         next_slab: AtomicPtr<Self>,
@@ -666,7 +602,7 @@ pub(in crate::lowlevel) mod miri {
     /// A type-erased analog to [`Allocation`] that encodes a position-dependent
     /// offset to an [`Storage`] instance.
     ///
-    /// [`Allocation`]: crate::store::Allocation
+    /// [`Allocation`]: crate::lowlevel::Allocation
     #[repr(transparent)]
     pub struct TypelessAllocation(usize);
 

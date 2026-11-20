@@ -1,8 +1,15 @@
-//! An Application Programming Interface (API) to instantiate generic static
-//! values in a sound manner.
+//! Initialize shared static storage once for each value type and domain.
 //!
-//! The type of utmost importance in this module is the [`Static`] type. Defer
-//! to its documentation for further guidance.
+//! [`Static`] coordinates access through the storage header. The thread that changes
+//! `Uninitialized` to `Pending` owns initialization. It writes the value before publishing
+//! `Initialized` with release ordering, and readers use acquire ordering before borrowing it.
+//! If initialization unwinds, a guard resets the header so another attempt can proceed.
+//!
+//! ```text
+//! Uninitialized --claim--> Pending --write and publish--> Initialized
+//!       ^                    |
+//!       +------unwind--------+
+//! ```
 
 use core::{cell::UnsafeCell, hint, mem::MaybeUninit, ptr::NonNull};
 
@@ -12,13 +19,10 @@ use crate::{
     prelude::Preset,
 };
 
-/// A trait that expresses the bare minimum a static variable (be it `non-mut`
-/// or `mut`) must implement for it being sound to store it statically.
+/// Values that can be shared through static storage.
 ///
-/// This is implemented automatically, therefore, if your type is both `'static`
-/// and [`Send`], it should be good to go.
-///
-/// Note that this denotes an implicit [`Sized`] requirement.
+/// The blanket implementation accepts sized, `'static` types implementing [`Sync`].
+/// [`Send`] is not required because the stored value is accessed through shared references.
 pub trait Store: 'static + Sync {}
 
 impl<T> Store for T where T: 'static + Sync {}
@@ -55,13 +59,12 @@ where
     }
 }
 
-/// An uninhabited umbrella type for static intialization.
+/// Access static storage selected by a value type and [`Domain`].
 ///
-/// A brief description of the associated functions present in this type are the
-/// following:
-///
-/// - [`Static::value<T>`]: Retrieve a [`Default`]-initialized `&'static T` stored in the default
-///   ([`Preset`]) domain.
+/// [`Self::value`] uses a supplied value, [`Self::value_with`] runs a constructor on demand,
+/// and [`Self::value_default`] uses [`Default`]. The `_in` forms select a domain explicitly.
+/// Calls for the same type and domain share the initialized value, so the first successful
+/// constructor determines its contents.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Static {}
 
@@ -271,15 +274,16 @@ impl Static {
     /// This method will initialize the static as needed using the provided
     /// closure.
     ///
-    /// # Behavior
+    /// # Panics
     ///
-    /// This function will only panic if the provided closure `F` panics.
+    /// A constructor panic propagates to the caller. If it unwinds, the initialization guard
+    /// resets the header to `Uninitialized`, allowing another thread to try again.
     ///
-    /// If a panic is encountered during initialization, the state machine will
-    /// be reset to the uninitialized state.
+    /// # Notes
     ///
-    /// Additionally, there is risk of deadlock if the closure attempts to fetch
-    /// a `T` in the same [`Domain`].
+    /// Recursively requesting the same value type and domain waits for the current
+    /// initialization to finish, so such recursion deadlocks. A constructor must not depend
+    /// on its own pending static value.
     #[inline]
     pub fn value_with<T, F>(target_predicate: F) -> &'static T
     where
@@ -294,29 +298,24 @@ impl Static {
     /// This method will initialize the static as needed using the provided
     /// closure.
     ///
-    /// # Behavior
+    /// # Panics
     ///
-    /// This function will only panic if the provided closure `F` panics.
+    /// A constructor panic propagates to the caller. If it unwinds, the initialization guard
+    /// resets the header to `Uninitialized`, allowing another thread to try again.
     ///
-    /// If a panic is encountered during initialization, the state machine will
-    /// be reset to the uninitialized state.
+    /// # Notes
     ///
-    /// Additionally, there is risk of deadlock if the closure attempts to fetch
-    /// a `T` in the same [`Domain`].
+    /// Recursively requesting the same value type and domain waits for the current
+    /// initialization to finish, so such recursion deadlocks. A constructor must not depend
+    /// on its own pending static value.
     pub fn value_with_in<T, D, F>(target_predicate: F) -> &'static T
     where
         T: Store,
         D: Domain,
         F: FnOnce() -> T,
     {
-        /// A guard type to signal an initialization failure on panic.
-        ///
-        /// # Remarks
-        ///
-        /// Remember to [`forget`] this guard once the risk of failure has been
-        /// superceded.
-        ///
-        /// [`forget`]: core::mem::forget
+        /// Reset a pending initialization if the constructor unwinds.
+        /// Successful initialization disarms the guard before publishing the value.
         // NOTE(invariant): A false disarm flag means dropping the guard must restore the header to
         // the uninitialized stage.
         struct Guard<'a>(&'a Header, bool);

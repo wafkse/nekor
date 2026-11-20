@@ -21,8 +21,8 @@ use crate::{
 ///
 /// # Safety
 ///
-/// As aforementioned, the type must be able to initialize from raw zeroed
-/// bytes.
+/// An all-zero byte representation must be an initialized value of the implementing type.
+/// Any additional invariants of the type must also hold for that value.
 pub unsafe trait Zeroable: Store {}
 
 /// Automatically implement [`Zeroable`] for a list of compatible types.
@@ -45,20 +45,18 @@ zeroable!(AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicIsize);
 // can be, as any inter-element padding being zeroed out causes no harm.
 unsafe impl<Z, const N: usize> Zeroable for [Z; N] where Z: Zeroable {}
 
-/// An uninhabited umbrella type for static intialization that requires no
-/// type-specific initialization.
+/// Access static values whose all-zero representation is initialized.
 ///
-/// This is exposed as an alternative to regular [`Static`] usage when the
-/// static type is able to initialize from zeroed memory. However, since
-/// [`Store`] itself is a supertrait of [`Zeroable`], [`Static`] may as well be
-/// used for accessing the same `(T, D)` pair.
+/// [`Self::value`] and [`Self::value_in`] use the same storage and initialization header as
+/// [`Static`]. The `explicit` forms select separate storage through an internal domain, so
+/// their zeroed values cannot be replaced by a `Static` constructor for the original domain.
 pub enum Zeroed {}
 
 impl Zeroed {
     /// Retrieve the value of type `T` contained in the default ([`Preset`])
     /// [`Domain`].
     ///
-    /// This lazily initializes the value using the specified value.
+    /// Claim the initially zeroed storage and publish it through the shared initialization header.
     #[inline]
     #[must_use]
     pub fn value<T>() -> &'static T
@@ -70,7 +68,7 @@ impl Zeroed {
 
     /// Retrieve the value of type `T` contained in the [`Domain`] `D`.
     ///
-    /// This lazily initializes the value using the specified value.
+    /// Claim the initially zeroed storage and publish it through the shared initialization header.
     #[inline]
     #[must_use]
     pub fn value_in<T, D>() -> &'static T
@@ -137,29 +135,10 @@ impl Zeroed {
     }
 }
 
-/// A **super** [`Domain`] over `D` where the underlying static value is
-/// zero-cost to initialize.
+/// A separate storage identity for values initialized by their zero representation.
 ///
-/// In other words, all values stored under this [`Domain`] are always
-/// intrinsically initialized.
-///
-/// Albeit this may seem unsound at first, behavior can be:
-///
-/// - The value is zero-initialized at program start. As known, this is enforced by the [`Zeroable`]
-///   unsafe trait.
-/// - If the value is non-[`Freeze`], it can be mutated, but the value **always remains
-///   initialized** during the lifetime of the program.
-///
-/// Furthermore, all static values stored through this [`Domain`] will not be
-/// able to be accessed by the regular [`Static`] interface. Access to values is
-/// granted through [`Zeroed::explicit`] and [`Zeroed::explicit_in`].
-///
-/// # Internal Remarks
-///
-/// `explicit{,_in}` variants do not properly mark the header as initialized as
-/// a small optimization.
-///
-/// [`Freeze`]: marker::Freeze
+/// The explicit accessors use this private domain without updating an initialization header.
+/// `Static` calls for the original domain select different storage and cannot overwrite it.
 enum AlwaysZeroed<D>
 where
     D: Domain,

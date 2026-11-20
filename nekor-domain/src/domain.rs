@@ -1,16 +1,9 @@
-//! `static`-ness domains for multiple instantiation of statics of type `T`.
+//! Distinct static storage for the same value type.
 //!
-//! This module exposes the trait [`Domain`], which, in short terms, *is a way
-//! to constrict the domain a generic static value of `T` belongs to*.
-//!
-//! This distinction is quite neat, as it allows for types to have utmost
-//! control over their self-declared static variables.
-//!
-//! In the case where many crates may want to share a static variable, the
-//! [`Preset`] domain is the *default* if no other [`Domain`] is explicitly
-//! declared.
-//!
-//! [`Preset`]: preset::Preset
+//! A [`Domain`] supplies a transparent [`Adapter`] whose type selects the storage symbol.
+//! Two domains can therefore store independent instances of the same `T`. Calls without an
+//! explicit domain use [`preset::Preset`], while [`arbitrary::Arbitrary`] uses another type
+//! as the storage identity.
 
 use crate::store::Store;
 

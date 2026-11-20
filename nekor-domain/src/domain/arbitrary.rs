@@ -1,7 +1,6 @@
 //! A [`Domain`] that ties static storage to some arbitrary type.
 //!
-//! This happens to be useful when delaing with *unnameable types*, such as `fn
-//! items`.
+//! This also permits storage keyed by an inferred function-item type that cannot be named directly.
 
 use core::marker;
 

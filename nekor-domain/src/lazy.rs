@@ -17,8 +17,8 @@ use crate::{
 /// This will initialize the underlying reference automatically using `T`'s
 /// [`Default`] implementation.
 ///
-/// Even though this has a `'static` reference to `T`, the lifetime is erased in
-/// the [`Deref`] implementation.
+/// [`Deref`] borrows through the smart pointer's lifetime. [`Self::value`] exposes the
+/// static lifetime when callers need a reference independent of that borrow.
 ///
 /// To access the underlying value, see [`Lazy::value`].
 ///
@@ -93,16 +93,10 @@ where
         }
     }
 
-    /// Duplicate this [`Lazy`] smart pointer, effectively sharing the
-    /// downstream static value.
+    /// Copy the current cache while sharing the same static storage.
     ///
-    /// # Remarks
-    ///
-    /// This tries to load an already-existing reference to the target value.
-    ///
-    /// For a `const`-compatible alternative, simply instantiate another
-    /// [`Lazy`] through the use of [`Lazy::pointer`] for the same `(T, D)`
-    /// pair.
+    /// A null cache stays null and will be resolved on first access. Constructing another
+    /// pointer for the same type and domain also shares that storage.
     #[inline]
     #[must_use]
     pub fn duplicate(&self) -> Self {
@@ -226,16 +220,10 @@ where
         }
     }
 
-    /// Duplicate this [`Lazy`] smart pointer, effectively sharing the
-    /// downstream static value.
+    /// Copy the current cache while sharing the same static storage.
     ///
-    /// # Remarks
-    ///
-    /// This tries to load an already-existing reference to the target value.
-    ///
-    /// For a `const`-compatible alternative, simply instantiate another
-    /// [`Lazy`] through the use of [`Lazy::pointer`] for the same `(T, D)`
-    /// pair.
+    /// A null cache stays null and will be resolved on first access. Constructing another
+    /// pointer for the same type and domain also shares that storage.
     #[inline]
     #[must_use]
     pub fn duplicate(&self) -> Self {
