@@ -18,7 +18,10 @@ pub enum PublishX86 {
 }
 
 impl PublishX86 {
-    /// Perform a *CMC-Publish* operation in a coordinated fashion.
+    /// Serialize this processor with `serialize` when supported, or a self-return.
+    ///
+    /// The target iterator is unused. This operation does not publish changes to
+    /// other processors or wait for their instruction fetch to synchronize.
     #[inline]
     pub fn now(_: impl Iterator<Item = Target>) {
         let serialize_support_signal = &qualified::Serialize::supported();
