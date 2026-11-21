@@ -448,10 +448,10 @@ where
 type Word<const N: usize> = <Size as For<N>>::Target;
 
 /// The numeric tag field ending at bit `N`, with the selected storage type `O`.
-type Area<'value, const N: usize, O> = Field<'value, 0, N, usize, O>;
+type Area<'a, const N: usize, O> = Field<'a, 0, N, usize, O>;
 
 /// The mutable counterpart of [`Area`].
-type AreaMut<'value, const N: usize, O> = <Area<'value, N, O> as Counterpart>::Mut;
+type AreaMut<'a, const N: usize, O> = <Area<'a, N, O> as Counterpart>::Mut;
 
 /// A nonzero numeric tag occupying `N` low address bits.
 ///
@@ -629,10 +629,10 @@ mod tests {
     }
 
     /// The source field reserved for the sparse [`Mode`] codes.
-    type ModeField<'value> = Field<'value, 0, 2, usize>;
+    type ModeField<'a> = Field<'a, 0, 2, usize>;
 
     /// The mutable counterpart of [`ModeField`].
-    type ModeFieldMut<'value> = <ModeField<'value> as Counterpart>::Mut;
+    type ModeFieldMut<'a> = <ModeField<'a> as Counterpart>::Mut;
 
     // SAFETY: The distinct nonzero discriminants are their own codes. Decoding
     // accepts exactly those discriminants, so both inverse laws hold.
