@@ -28,34 +28,4 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cpuid<LEAF, SUBLEAF> {
 
         result
     }
-
-    /// Construct a synthetic record inside the x86 architecture implementation.
-    // NOTE(rationale): Sibling architecture tests need controlled records without exposing record
-    // forgery through the supported public API.
-    #[cfg(any(test, miri))]
-    pub(in crate::x86) const fn synthetic(result: CpuidResult) -> Self {
-        Self(result)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use core::arch::x86_64::CpuidResult;
-
-    use super::Cpuid;
-
-    #[test]
-    fn static_selector_identity_preserves_complete_register_domains() {
-        let registers = Cpuid::<{ u32::MAX }, { u32::MAX }>::synthetic(CpuidResult {
-            eax: 1,
-            ebx: 2,
-            ecx: 3,
-            edx: 4,
-        });
-
-        let result = registers.result();
-
-        assert_eq!((result.eax, result.ebx), (1, 2));
-        assert_eq!((result.ecx, result.edx), (3, 4));
-    }
 }
