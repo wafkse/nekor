@@ -8,7 +8,7 @@ use core::{
 
 use nekor_bitwise::prelude::Le;
 
-use crate::protocol::{BootRequest, Slug};
+use crate::protocol::{BootRequest, BootResponse, Slug};
 
 /// The head structure of a request-response structure.
 #[repr(transparent)]
@@ -25,7 +25,7 @@ where
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
-        Self(RawHead::new::<R>(), marker::PhantomData::<R>)
+        Self(RawHead::request::<R>(), marker::PhantomData::<R>)
     }
 }
 
@@ -58,9 +58,23 @@ impl RawHead {
     /// Construct a [`RawHead`] for the target bootloader request `R`.
     #[inline]
     #[must_use]
-    pub const fn new<R>() -> Self
+    pub const fn request<R>() -> Self
     where
         R: BootRequest,
+    {
+        let slug_id = R::ID;
+
+        let block_size = Le::<u64>::new(mem::size_of::<Block<R>>() as u64);
+
+        Self { slug_id, block_size }
+    }
+
+    /// Construct a [`RawHead`] for the target bootloader response `R`.
+    #[inline]
+    #[must_use]
+    pub const fn response<R>() -> Self
+    where
+        R: BootResponse,
     {
         let slug_id = R::ID;
 
@@ -97,6 +111,8 @@ where
 
 /// A storage union type for the request and response structures of a bootloader
 /// Request-Response block.
+#[repr(C)]
+// NOTE(invariant): None.
 pub union Storage<R>
 where
     R: BootRequest,
