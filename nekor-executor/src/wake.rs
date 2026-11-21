@@ -62,11 +62,6 @@ use nekor_bitwise::{
 
 use crate::task::Task;
 
-// Since the never type, Allocator, the Polonius solver and universally 8-byte-aligned
-// RawWakerVTable structures are coming soon, I'd say that Nekor could set its MSRV to 1.101.
-//
-// Now that Allocator is available, I'd restructure the allocator around the current Rust APIs.
-
 /// The address field reserved for a [`WakeClass`] code.
 type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
 
@@ -345,10 +340,10 @@ impl WakeTarget {
         let target_data = target_pointer.as_ptr().with_addr(target_address).cast::<WakeData>();
 
         // SAFETY: Clearing the reserved bits recovers the original `NonNull` data
-        // pointer guaranteed by `TaggedPtr` and retained by the caller's contract.
+        // pointer guaranteed by `TaggedPtr` and preserved by the caller's contract.
         let target_data = unsafe { NonNull::new_unchecked(target_data) };
 
-        // SAFETY: The pointer came from a validated target, so clearing its tag recovers
+        // SAFETY: The pointer came from a supported target, so clearing its tag recovers
         // the original aligned data address with its provenance intact.
         let tagged_target = unsafe { WakePointer::new(target_data, target_class) };
 
