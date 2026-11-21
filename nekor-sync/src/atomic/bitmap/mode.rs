@@ -11,7 +11,23 @@ pub mod cooperative;
 
 pub mod exclusive;
 
-/// An *engagement* mode for a particular bit in an [`crate::atomic::bitmap::AtomicBitmap`].
+mod detail {
+    //! Implementation details module for [`mode`].
+    //!
+    //! [`mode`]: super
+
+    /// A trait to act as a seal supertrait for the [`InMode`] trait.
+    ///
+    /// [`InMode`]: super::InMode
+    pub trait Sealed {}
+
+    use super::{cooperative::Cooperative, exclusive::Exclusive};
+
+    impl Sealed for Cooperative {}
+    impl Sealed for Exclusive {}
+}
+
+/// An *engagement* mode for a particular bit in an [`AtomicBitmap`].
 ///
 /// The associated functions in this trait mirror the behavior of the [`At`]
 /// associated functions.
@@ -28,7 +44,9 @@ pub mod exclusive;
 ///
 /// Furthermore, the implementation of this type must document exactly what
 /// guarantees it provides.
-pub unsafe trait Mode {
+///
+/// [`AtomicBitmap`]: crate::atomic::bitmap::AtomicBitmap
+pub unsafe trait Mode: detail::Sealed {
     /// The output signal type.
     ///
     /// This is used to determine the outcome of the operation in a way that it
