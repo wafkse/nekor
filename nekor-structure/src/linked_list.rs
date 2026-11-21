@@ -374,7 +374,7 @@ where
 /// elements is not managed by the list.
 #[derive(Debug)]
 // NOTE(invariant): The head has no predecessor, the tail has no successor, and the count matches
-// the linked nodes retained by their external owners.
+// the linked nodes kept alive by their external owners.
 pub struct IntrusiveList<T>
 where
     T: Bidirectional + ?Sized,

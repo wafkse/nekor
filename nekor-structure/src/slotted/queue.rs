@@ -370,20 +370,17 @@ where
             ref mut target_storage,
         } = self;
 
-        // Drop all initialized values by checking the initialization bitmap.
         let init_snapshot = slot_state.initialization().snapshot();
 
         for slot_index in 0..N {
             let slot_mask = 1_usize << slot_index;
 
-            // Check if this slot is initialized.
             if (init_snapshot & slot_mask) != 0 {
                 // SAFETY: The initialization bit guarantees this slot contains a valid value.
                 unsafe {
                     let target_slot = target_storage.get_unchecked_mut(slot_index).get_mut();
 
                     drop(target_slot.assume_init_read());
-                    // Value is dropped here automatically
                 }
             }
         }
@@ -443,12 +440,10 @@ mod tests {
     fn enqueue_until_full() {
         let queue: Queue<i32, 8> = Queue::new();
 
-        // Fill the queue
         for i in 0..8 {
             assert!(queue.enqueue(i).is_ok(), "Failed to enqueue at index {i}");
         }
 
-        // Next enqueue should fail
         assert!(queue.enqueue(999).is_err());
     }
 
@@ -456,12 +451,10 @@ mod tests {
     fn queue_fifo_ordering() {
         let queue: Queue<i32, 16> = Queue::new();
 
-        // Enqueue elements 0..10
         for i in 0..10 {
             assert!(queue.enqueue(i).is_ok());
         }
 
-        // Dequeue should return elements in FIFO order
         for i in 0..10 {
             assert_eq!(queue.dequeue(), Some(i));
         }
