@@ -337,6 +337,12 @@ pub unsafe trait Project {
 /// the same value without moving it and forward exactly once to
 /// [`PinnedDrop::drop`]. It must not access the value after forwarding in a way
 /// that moves a pinned field or replaces an active enum variant.
+///
+/// # Notes
+///
+/// This trait may cease existing or become an unsafe marker-trait, as ongoing work to stabilize the
+/// "pin_ergonomics" nightly-only experiment is complete. This depends on how the experiment
+/// progresses.
 pub unsafe trait PinnedDrop: Project {
     /// Run user-defined destructor logic through a pinned receiver.
     ///
