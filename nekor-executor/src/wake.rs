@@ -63,10 +63,10 @@ use nekor_bitwise::{
 use crate::task::Task;
 
 /// The address field reserved for a [`WakeClass`] code.
-type WakeClassField<'value> = multi::Field<'value, 0, 2, usize>;
+type WakeClassField<'a> = multi::Field<'a, 0, 2, usize>;
 
 /// The mutable counterpart of [`WakeClassField`].
-type WakeClassFieldMut<'value> = <WakeClassField<'value> as Counterpart>::Mut;
+type WakeClassFieldMut<'a> = <WakeClassField<'a> as Counterpart>::Mut;
 
 pub mod vtable {
     //! Holding module for the virtual pointer table functions.
