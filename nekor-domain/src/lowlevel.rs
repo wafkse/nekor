@@ -348,11 +348,6 @@ where
     )
 }
 
-// FIXME: This was written when the possibility of Miri being multi-threaded in
-// the Future could be possible.
-//
-// Revisit whether more lock-free machinery is actually benefitial in this case.
-
 #[cfg(miri)]
 pub(in crate::lowlevel) mod miri {
     //! Specialization for Miri support.
@@ -568,7 +563,10 @@ pub(in crate::lowlevel) mod miri {
         }
     }
 
-    // SAFETY: Synchronization is externally managed.
+    // SAFETY: A slab is initialized before its address is published through an atomic next
+    // pointer. Acquire traversal observes that publication, and the metadata is immutable
+    // afterwards. Published allocations stay rooted for the test process, so readers cannot
+    // encounter reclaimed nodes. Access to each value uses its separate initialization header.
     unsafe impl Sync for Slab {}
 
     /// Unpublished slab and storage, both owned until insertion succeeds.

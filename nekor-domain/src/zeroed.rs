@@ -29,7 +29,8 @@ pub unsafe trait Zeroable: Store {}
 macro_rules! zeroable {
     ($($target_type: ty),+) => {
         $(
-            // SAFETY: Not a concern, as the macro is private to this module.
+            // SAFETY: Every listed integer and atomic integer has an initialized zero value.
+            // Zeroing its storage therefore satisfies the `Zeroable` contract.
             unsafe impl Zeroable for $target_type {}
         )+
     };
@@ -210,14 +211,10 @@ impl Zeroed {
         T: Zeroable,
         D: Domain,
     {
-        // SAFETY:
-        //
-        // Both `UnsafeCell` and `MaybeUninit` are `repr(transparent)`.
-        // No aliasing issues occur due to the fact that the reference
-        // mutability is unchanged.
-        //
-        // Safe to wrap out of the `MaybeUninit` due to the fact that the
-        // underlying storage is zero-initialized and `T` implements `Zeroable`.
+        // SAFETY: This private domain selects storage that starts zeroed and is never
+        // initialized through the ordinary `Static` API. `Zeroable` makes those bytes an
+        // initialized `T`. `UnsafeCell` and `MaybeUninit` preserve its layout, and the cast
+        // creates only a shared reference, so mutable access still requires `T`'s own rules.
         unsafe {
             NonNull::<UnsafeCell<MaybeUninit<T>>>::from_ref(Static::raw_value_in::<T, AlwaysZeroed<D>>())
                 .cast::<T>()

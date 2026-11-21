@@ -98,8 +98,9 @@ impl Static {
         // derived from a valid reference.
         let value_ptr = unsafe { NonNull::new_unchecked(value_ptr.cast_mut()) };
 
-        // SAFETY: The struct layout has been proven correct. Therefore, this
-        // pointer to reference conversion is safe.
+        // SAFETY: The pointer identifies the live static `UnsafeCell` field obtained above.
+        // Its alignment and lifetime follow from the container's storage layout. Any mutable
+        // access to its contents still requires the exclusive-access contract of this API.
         unsafe {
             // FIXME: Use `as_uninit_ref` instead of casting directly to
             // `MaybeUninit` when its stable.
@@ -148,8 +149,9 @@ impl Static {
         // derived from a valid reference.
         let mut value_ptr = unsafe { NonNull::new_unchecked(value_ptr.cast_mut()) };
 
-        // SAFETY: The struct layout has been proven correct. Therefore, this
-        // pointer to reference conversion is safe.
+        // SAFETY: The pointer identifies the live static `UnsafeCell` field obtained above.
+        // Its alignment and lifetime follow from the container's storage layout. Any mutable
+        // access to its contents still requires the exclusive-access contract of this API.
         unsafe {
             // FIXME: Use `as_uninit_ref` instead of casting directly to
             // `MaybeUninit` when its stable.
@@ -253,10 +255,8 @@ impl Static {
         let mut target_value = Some(target_value);
 
         let target_closure = || {
-            // SAFETY:
-            //  The `Option` is always guaranteed to be `Some` at this point.
-            //  This won't be called multiple times, as `value_with_in` takes a
-            // `FnOnce`.
+            // SAFETY: The value starts in `Some`, and this closure is passed as `FnOnce`.
+            // It can therefore consume the value only once, so `take` cannot return `None`.
             unsafe { target_value.take().unwrap_unchecked() }
         };
 
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn testme() {
         let st: &'static usize = Static::value(1337).anyhow();
-        let st2: &'static usize = Initialized::anyhow(&Static::value(6767)); // haha funny, kms
+        let st2: &'static usize = Initialized::anyhow(&Static::value(6767));
 
         println!("{:?}, {:?}, {st2:?}", ptr::from_ref(st), ptr::from_ref(st2));
     }
