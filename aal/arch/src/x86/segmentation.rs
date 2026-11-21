@@ -33,38 +33,38 @@ pub enum TableIndicator {
 /// The bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type SegmentSelectorIndex<'value> = Field<'value, 3, 15, u16>;
+pub type SegmentSelectorIndex<'a> = Field<'a, 3, 15, u16>;
 
 /// The bit of the *TI* (*Table Indicator*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type SegmentSelectorTableIndicator<'value> = Bit<'value, u16, 2>;
+pub type SegmentSelectorTableIndicator<'a> = Bit<'a, u16, 2>;
 
 /// The bitwise field of the (*Requested Privilege Level*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines the requested [`PrivilegeLevel`] to use this selector.
-pub type SegmentSelectorRpl<'value> = Field<'value, 0, 1, u16>;
+pub type SegmentSelectorRpl<'a> = Field<'a, 0, 1, u16>;
 
 /// The mutable bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type SegmentSelectorIndexMut<'value> = <SegmentSelectorIndex<'value> as Counterpart>::Mut;
+pub type SegmentSelectorIndexMut<'a> = <SegmentSelectorIndex<'a> as Counterpart>::Mut;
 
 /// The mutable bit of the *TI* (*Table Indicator*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type SegmentSelectorTableIndicatorMut<'value> = <SegmentSelectorTableIndicator<'value> as Counterpart>::Mut;
+pub type SegmentSelectorTableIndicatorMut<'a> = <SegmentSelectorTableIndicator<'a> as Counterpart>::Mut;
 
 /// The mutable bitwise field of the (*Requested Privilege Level*) field of this
 /// [`RawSegmentSelector`].
 ///
 /// This determines the requested [`PrivilegeLevel`] to use this selector.
-pub type SegmentSelectorRplMut<'value> = <SegmentSelectorRpl<'value> as Counterpart>::Mut;
+pub type SegmentSelectorRplMut<'a> = <SegmentSelectorRpl<'a> as Counterpart>::Mut;
 
 /// A **raw** *Segment Selector* structure.
 ///
@@ -309,38 +309,38 @@ impl SegmentSelector {
 /// The bitwise field of the *Index* field of this [`CodeSegment`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type CodeSegmentSelectorIndex<'value> = SegmentSelectorIndex<'value>;
+pub type CodeSegmentSelectorIndex<'a> = SegmentSelectorIndex<'a>;
 
 /// The bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicator<'value> = SegmentSelectorTableIndicator<'value>;
+pub type CodeSegmentSelectorTableIndicator<'a> = SegmentSelectorTableIndicator<'a>;
 
 /// The bitwise field of the (*Current Privilege Level*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines the current [`PrivilegeLevel`] to use this selector.
-pub type CodeSegmentSelectorCpl<'value> = Field<'value, 0, 1, u16>;
+pub type CodeSegmentSelectorCpl<'a> = Field<'a, 0, 1, u16>;
 
 /// The mutable bitwise field of the *Index* field of this [`SegmentSelector`].
 ///
 /// This is the index used in the selected descriptor table.
-pub type CodeSegmentSelectorIndexMut<'value> = SegmentSelectorIndexMut<'value>;
+pub type CodeSegmentSelectorIndexMut<'a> = SegmentSelectorIndexMut<'a>;
 
 /// The mutable bit of the *TI* (*Table Indicator*) field of this
 /// [`SegmentSelector`].
 ///
 /// This determines whether the target *Descriptor Table* is the *GDT* or
 /// the *LDT*.
-pub type CodeSegmentSelectorTableIndicatorMut<'value> = SegmentSelectorTableIndicatorMut<'value>;
+pub type CodeSegmentSelectorTableIndicatorMut<'a> = SegmentSelectorTableIndicatorMut<'a>;
 
 /// The mutable bitwise field of the (*Current Privilege Level*) field of this
 /// [`RawCodeSegment`].
 ///
 /// This determines the current [`PrivilegeLevel`] to use this selector.
-pub type CodeSegmentSelectorCplMut<'value> = <CodeSegmentSelectorCpl<'value> as Counterpart>::Mut;
+pub type CodeSegmentSelectorCplMut<'a> = <CodeSegmentSelectorCpl<'a> as Counterpart>::Mut;
 
 /// A raw selector image intended for a *Code Segment Descriptor*.
 ///
