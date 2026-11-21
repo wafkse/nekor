@@ -10,64 +10,64 @@ use crate::{
 };
 
 /// Low 4-bit field of one 8-bit word.
-pub type U8Low4<'value> = Field<'value, 0, 3, u8>;
+pub type U8Low4<'a> = Field<'a, 0, 3, u8>;
 
 /// Mutable low 4-bit field of one 8-bit word.
-pub type U8Low4Mut<'value> = <U8Low4<'value> as Counterpart>::Mut;
+pub type U8Low4Mut<'a> = <U8Low4<'a> as Counterpart>::Mut;
 
 /// High 4-bit field of one 8-bit word.
-pub type U8High4<'value> = Field<'value, 4, 7, u8>;
+pub type U8High4<'a> = Field<'a, 4, 7, u8>;
 
 /// Mutable high 4-bit field of one 8-bit word.
-pub type U8High4Mut<'value> = <U8High4<'value> as Counterpart>::Mut;
+pub type U8High4Mut<'a> = <U8High4<'a> as Counterpart>::Mut;
 
 /// Low 8-bit field of one 16-bit word.
-pub type U16Low8<'value> = Field<'value, 0, 7, u16>;
+pub type U16Low8<'a> = Field<'a, 0, 7, u16>;
 
 /// Mutable low 8-bit field of one 16-bit word.
-pub type U16Low8Mut<'value> = <U16Low8<'value> as Counterpart>::Mut;
+pub type U16Low8Mut<'a> = <U16Low8<'a> as Counterpart>::Mut;
 
 /// High 8-bit field of one 16-bit word.
-pub type U16High8<'value> = Field<'value, 8, 15, u16>;
+pub type U16High8<'a> = Field<'a, 8, 15, u16>;
 
 /// Mutable high 8-bit field of one 16-bit word.
-pub type U16High8Mut<'value> = <U16High8<'value> as Counterpart>::Mut;
+pub type U16High8Mut<'a> = <U16High8<'a> as Counterpart>::Mut;
 
 /// Low 16-bit field of one 32-bit word.
-pub type U32Low16<'value> = Field<'value, 0, 15, u32>;
+pub type U32Low16<'a> = Field<'a, 0, 15, u32>;
 
 /// Mutable low 16-bit field of one 32-bit word.
-pub type U32Low16Mut<'value> = <U32Low16<'value> as Counterpart>::Mut;
+pub type U32Low16Mut<'a> = <U32Low16<'a> as Counterpart>::Mut;
 
 /// High 16-bit field of one 32-bit word.
-pub type U32High16<'value> = Field<'value, 16, 31, u32>;
+pub type U32High16<'a> = Field<'a, 16, 31, u32>;
 
 /// Mutable high 16-bit field of one 32-bit word.
-pub type U32High16Mut<'value> = <U32High16<'value> as Counterpart>::Mut;
+pub type U32High16Mut<'a> = <U32High16<'a> as Counterpart>::Mut;
 
 /// Low 32-bit field of one 64-bit word.
-pub type U64Low32<'value> = Field<'value, 0, 31, u64>;
+pub type U64Low32<'a> = Field<'a, 0, 31, u64>;
 
 /// Mutable low 32-bit field of one 64-bit word.
-pub type U64Low32Mut<'value> = <U64Low32<'value> as Counterpart>::Mut;
+pub type U64Low32Mut<'a> = <U64Low32<'a> as Counterpart>::Mut;
 
 /// High 32-bit field of one 64-bit word.
-pub type U64High32<'value> = Field<'value, 32, 63, u64>;
+pub type U64High32<'a> = Field<'a, 32, 63, u64>;
 
 /// Mutable high 32-bit field of one 64-bit word.
-pub type U64High32Mut<'value> = <U64High32<'value> as Counterpart>::Mut;
+pub type U64High32Mut<'a> = <U64High32<'a> as Counterpart>::Mut;
 
 /// Low 64-bit field of one 128-bit word.
-pub type U128Low64<'value> = Field<'value, 0, 63, u128>;
+pub type U128Low64<'a> = Field<'a, 0, 63, u128>;
 
 /// Mutable low 64-bit field of one 128-bit word.
-pub type U128Low64Mut<'value> = <U128Low64<'value> as Counterpart>::Mut;
+pub type U128Low64Mut<'a> = <U128Low64<'a> as Counterpart>::Mut;
 
 /// High 64-bit field of one 128-bit word.
-pub type U128High64<'value> = Field<'value, 64, 127, u128>;
+pub type U128High64<'a> = Field<'a, 64, 127, u128>;
 
 /// Mutable high 64-bit field of one 128-bit word.
-pub type U128High64Mut<'value> = <U128High64<'value> as Counterpart>::Mut;
+pub type U128High64Mut<'a> = <U128High64<'a> as Counterpart>::Mut;
 
 /// A field new-type to interact with a contiguous segment of bits in an `E`.
 ///
@@ -552,8 +552,8 @@ mod tests {
     /// Verify that comparisons and hashes depend only on the projection.
     #[test]
     fn projected_comparisons_and_hashes() {
-        type Low<'value> = Field<'value, 0, 7, u16>;
-        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+        type Low<'a> = Field<'a, 0, 7, u16>;
+        type LowMut<'a> = <Low<'a> as Counterpart>::Mut;
 
         let left = 0x0101_u16;
         let right = 0x0201_u16;
@@ -597,8 +597,8 @@ mod tests {
 
     #[test]
     fn pointer_fields_extract_and_merge_without_touching_outside_bits() {
-        type Tag<'value> = Field<'value, 4, 7, usize>;
-        type TagMut<'value> = <Tag<'value> as Counterpart>::Mut;
+        type Tag<'a> = Field<'a, 4, 7, usize>;
+        type TagMut<'a> = <Tag<'a> as Counterpart>::Mut;
 
         const MASK: usize = Tag::mask();
         const VALUE: u8 = Tag::wrap(&0xa5_usize).const_value();
@@ -636,10 +636,10 @@ mod tests {
         const HIGH: usize = usize::BITS as usize - 1;
         const START: usize = usize::BITS as usize - 8;
 
-        type High<'value> = Field<'value, START, HIGH, usize>;
-        type HighMut<'value> = <High<'value> as Counterpart>::Mut;
-        type Full<'value> = Field<'value, 0, HIGH, usize>;
-        type FullMut<'value> = <Full<'value> as Counterpart>::Mut;
+        type High<'a> = Field<'a, START, HIGH, usize>;
+        type HighMut<'a> = <High<'a> as Counterpart>::Mut;
+        type Full<'a> = Field<'a, 0, HIGH, usize>;
+        type FullMut<'a> = <Full<'a> as Counterpart>::Mut;
 
         const HIGH_MASK: usize = High::mask();
         const HIGH_VALUE: u8 = High::wrap(&usize::MAX).const_value();
@@ -691,8 +691,8 @@ mod tests {
 
     #[test]
     fn pointer_fields_support_u16_const_output() {
-        type Low<'value> = Field<'value, 0, 15, usize>;
-        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+        type Low<'a> = Field<'a, 0, 15, usize>;
+        type LowMut<'a> = <Low<'a> as Counterpart>::Mut;
 
         const VALUE: u16 = Low::wrap(&usize::MAX).const_value();
         const MERGED: (usize, u16, u16) = {
@@ -713,8 +713,8 @@ mod tests {
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     #[test]
     fn pointer_fields_support_u32_const_output() {
-        type Low<'value> = Field<'value, 0, 31, usize>;
-        type LowMut<'value> = <Low<'value> as Counterpart>::Mut;
+        type Low<'a> = Field<'a, 0, 31, usize>;
+        type LowMut<'a> = <Low<'a> as Counterpart>::Mut;
 
         const VALUE: u32 = Low::wrap(&usize::MAX).const_value();
         const MERGED: (usize, u32, u32) = {
