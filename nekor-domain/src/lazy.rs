@@ -29,7 +29,7 @@ use crate::{
 // NOTE(invariant): The cached pointer is null or addresses the static `T` storage selected by `D`.
 pub struct Lazy<T, D = Preset>(
     AtomicPtr<T>,
-    // NOTE(variance): This is explicitly invariant for `D`.
+    // NOTE(variance): The marker is covariant over `D` and does not own a domain value.
     marker::PhantomData<fn() -> D>,
 )
 where
@@ -146,7 +146,9 @@ where
     }
 }
 
-// SAFETY: Access to `T` is thread-safe, therefore, access to `Erased` is too.
+// SAFETY: The cache is an atomic pointer to shared static storage. A release publication
+// follows initialization, and readers use acquire ordering before dereferencing it.
+// `Store` requires `T: Sync`, so concurrent shared references to that value are permitted.
 unsafe impl<T, D> Sync for Lazy<T, D>
 where
     T: Store + Default,
@@ -269,5 +271,7 @@ where
     }
 }
 
-// SAFETY: Access to `T` is thread-safe, therefore, access to `Erased` is too.
+// SAFETY: The constructor selects shared static storage and the atomic cache publishes its
+// address with release ordering. Readers acquire that address before dereferencing it, and
+// `Store` requires `T: Sync` for the shared references they obtain.
 unsafe impl<T> Sync for Erased<T> where T: Store + Default {}
