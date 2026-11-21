@@ -174,111 +174,97 @@ impl DescriptorIndex {
 }
 
 /// Low part of a reconstructed thirty-two-bit segment base.
-pub type SegmentBaseValueLow<'value> = Field<'value, 0, 15, u32>;
+pub type SegmentBaseValueLow<'a> = Field<'a, 0, 15, u32>;
 
 /// Mutable counterpart to [`SegmentBaseValueLow`].
-pub type SegmentBaseValueLowMut<'value> = <SegmentBaseValueLow<'value> as Counterpart>::Mut;
+pub type SegmentBaseValueLowMut<'a> = <SegmentBaseValueLow<'a> as Counterpart>::Mut;
 
 /// Middle part of a reconstructed thirty-two-bit segment base.
-pub type SegmentBaseValueMiddle<'value> = Field<'value, 16, 23, u32>;
+pub type SegmentBaseValueMiddle<'a> = Field<'a, 16, 23, u32>;
 
 /// Mutable counterpart to [`SegmentBaseValueMiddle`].
-pub type SegmentBaseValueMiddleMut<'value> = <SegmentBaseValueMiddle<'value> as Counterpart>::Mut;
+pub type SegmentBaseValueMiddleMut<'a> = <SegmentBaseValueMiddle<'a> as Counterpart>::Mut;
 
 /// High part of a reconstructed thirty-two-bit segment base.
-pub type SegmentBaseValueHigh<'value> = Field<'value, 24, 31, u32>;
+pub type SegmentBaseValueHigh<'a> = Field<'a, 24, 31, u32>;
 
 /// Mutable counterpart to [`SegmentBaseValueHigh`].
-pub type SegmentBaseValueHighMut<'value> = <SegmentBaseValueHigh<'value> as Counterpart>::Mut;
+pub type SegmentBaseValueHighMut<'a> = <SegmentBaseValueHigh<'a> as Counterpart>::Mut;
 
 /// Low part of a reconstructed twenty-bit segment limit.
-pub type SegmentLimitValueLow<'value> = Field<'value, 0, 15, u32>;
+pub type SegmentLimitValueLow<'a> = Field<'a, 0, 15, u32>;
 
 /// Mutable counterpart to [`SegmentLimitValueLow`].
-pub type SegmentLimitValueLowMut<'value> = <SegmentLimitValueLow<'value> as Counterpart>::Mut;
+pub type SegmentLimitValueLowMut<'a> = <SegmentLimitValueLow<'a> as Counterpart>::Mut;
 
 /// High part of a reconstructed twenty-bit segment limit.
-pub type SegmentLimitValueHigh<'value> = Field<'value, 16, 19, u32>;
+pub type SegmentLimitValueHigh<'a> = Field<'a, 16, 19, u32>;
 
 /// Mutable counterpart to [`SegmentLimitValueHigh`].
-pub type SegmentLimitValueHighMut<'value> = <SegmentLimitValueHigh<'value> as Counterpart>::Mut;
+pub type SegmentLimitValueHighMut<'a> = <SegmentLimitValueHigh<'a> as Counterpart>::Mut;
 
 /// The *Limit* field (low part, bits 0-15) in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentLimitLow<'value> = Field<'value, 0, 15, u64>;
+pub type SegmentLimitLow<'a> = Field<'a, 0, 15, u64>;
 
 /// The *Limit* field (high part, bits 16-19) in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentLimitHigh<'value> = Field<'value, 48, 51, u64>;
+pub type SegmentLimitHigh<'a> = Field<'a, 48, 51, u64>;
 
 /// The *Base* field (low part, bits 16-31) in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentBaseLow<'value> = Field<'value, 16, 31, u64>;
+pub type SegmentBaseLow<'a> = Field<'a, 16, 31, u64>;
 
 /// The *Base* field (middle part, bits 32-39) in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentBaseMiddle<'value> = Field<'value, 32, 39, u64>;
+pub type SegmentBaseMiddle<'a> = Field<'a, 32, 39, u64>;
 
 /// The *Base* field (high part, bits 56-63) in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentBaseHigh<'value> = Field<'value, 56, 63, u64>;
+pub type SegmentBaseHigh<'a> = Field<'a, 56, 63, u64>;
 
 /// The *Flags* field in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentFlags<'value> = Field<'value, 52, 55, u64>;
+pub type SegmentFlags<'a> = Field<'a, 52, 55, u64>;
 
 /// The available-for-system-software flag in a segment descriptor.
-pub type SegmentAvailable<'value> = Bit<'value, u64, 52>;
+pub type SegmentAvailable<'a> = Bit<'a, u64, 52>;
 
 /// The 64-bit code-segment flag in a segment descriptor.
-pub type SegmentLongMode<'value> = Bit<'value, u64, 53>;
+pub type SegmentLongMode<'a> = Bit<'a, u64, 53>;
 
 /// Mutable counterpart to [`SegmentLongMode`].
-pub type SegmentLongModeMut<'value> = <SegmentLongMode<'value> as Counterpart>::Mut;
+pub type SegmentLongModeMut<'a> = <SegmentLongMode<'a> as Counterpart>::Mut;
 
 /// The default operand-size flag in a segment descriptor.
-pub type SegmentDefaultSize<'value> = Bit<'value, u64, 54>;
+pub type SegmentDefaultSize<'a> = Bit<'a, u64, 54>;
 
 /// Mutable counterpart to [`SegmentDefaultSize`].
-pub type SegmentDefaultSizeMut<'value> = <SegmentDefaultSize<'value> as Counterpart>::Mut;
+pub type SegmentDefaultSizeMut<'a> = <SegmentDefaultSize<'a> as Counterpart>::Mut;
 
 /// The limit-granularity flag in a segment descriptor.
-pub type SegmentGranularity<'value> = Bit<'value, u64, 55>;
+pub type SegmentGranularity<'a> = Bit<'a, u64, 55>;
 
 /// Mutable counterpart to [`SegmentGranularity`].
-pub type SegmentGranularityMut<'value> = <SegmentGranularity<'value> as Counterpart>::Mut;
+pub type SegmentGranularityMut<'a> = <SegmentGranularity<'a> as Counterpart>::Mut;
 
 /// The *Access Byte* field in a *Segment Descriptor*.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type SegmentAccessByte<'value> = Field<'value, 40, 47, u64>;
+pub type SegmentAccessByte<'a> = Field<'a, 40, 47, u64>;
 
 /// Mutable counterpart of [`SegmentLimitLow`].
-pub type SegmentLimitLowMut<'value> = <SegmentLimitLow<'value> as Counterpart>::Mut;
+pub type SegmentLimitLowMut<'a> = <SegmentLimitLow<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentLimitHigh`].
-pub type SegmentLimitHighMut<'value> = <SegmentLimitHigh<'value> as Counterpart>::Mut;
+pub type SegmentLimitHighMut<'a> = <SegmentLimitHigh<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentBaseLow`].
-pub type SegmentBaseLowMut<'value> = <SegmentBaseLow<'value> as Counterpart>::Mut;
+pub type SegmentBaseLowMut<'a> = <SegmentBaseLow<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentBaseMiddle`].
-pub type SegmentBaseMiddleMut<'value> = <SegmentBaseMiddle<'value> as Counterpart>::Mut;
+pub type SegmentBaseMiddleMut<'a> = <SegmentBaseMiddle<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentBaseHigh`].
-pub type SegmentBaseHighMut<'value> = <SegmentBaseHigh<'value> as Counterpart>::Mut;
+pub type SegmentBaseHighMut<'a> = <SegmentBaseHigh<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentFlags`].
-pub type SegmentFlagsMut<'value> = <SegmentFlags<'value> as Counterpart>::Mut;
+pub type SegmentFlagsMut<'a> = <SegmentFlags<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`SegmentAccessByte`].
-pub type SegmentAccessByteMut<'value> = <SegmentAccessByte<'value> as Counterpart>::Mut;
+pub type SegmentAccessByteMut<'a> = <SegmentAccessByte<'a> as Counterpart>::Mut;
 
 /// A raw *Segment Descriptor* representation.
 ///
@@ -299,21 +285,21 @@ impl RawSegmentDescriptor {
     /// any segment or system-descriptor semantics.
     #[inline]
     #[must_use]
-    pub const fn new(value: u64) -> Self {
-        Self(value)
+    pub const fn new(target_value: u64) -> Self {
+        Self(target_value)
     }
 
     /// Constructs a flat readable long-mode code descriptor.
     #[inline]
     #[must_use]
-    pub const fn long_mode_code(privilege: PrivilegeLevel) -> Self {
+    pub const fn long_mode_code(privilege_level: PrivilegeLevel) -> Self {
         let target_limit = u32::MAX;
         let limit_low = SegmentLimitValueLow::wrap(&target_limit).const_value();
         let limit_high = SegmentLimitValueHigh::wrap(&target_limit).const_value();
         let mut access_byte = RawAccessByte::new(u8::MIN);
 
         access_byte.present_mut().const_set(State::Set);
-        access_byte.privilege_mut().const_merge(privilege.raw());
+        access_byte.privilege_mut().const_merge(privilege_level.raw());
         access_byte.system_mut().const_set(State::Set);
         access_byte.executable_mut().const_set(State::Set);
         access_byte.read_write_mut().const_set(State::Set);
@@ -335,14 +321,14 @@ impl RawSegmentDescriptor {
     /// Constructs a flat writable data descriptor.
     #[inline]
     #[must_use]
-    pub const fn flat_data(privilege: PrivilegeLevel) -> Self {
+    pub const fn flat_data(privilege_levev: PrivilegeLevel) -> Self {
         let target_limit = u32::MAX;
         let limit_low = SegmentLimitValueLow::wrap(&target_limit).const_value();
         let limit_high = SegmentLimitValueHigh::wrap(&target_limit).const_value();
         let mut access = RawAccessByte::new(u8::MIN);
 
         access.present_mut().const_set(State::Set);
-        access.privilege_mut().const_merge(privilege.raw());
+        access.privilege_mut().const_merge(privilege_levev.raw());
         access.system_mut().const_set(State::Set);
         access.read_write_mut().const_set(State::Set);
         access.accessed_mut().const_set(State::Set);
@@ -633,71 +619,59 @@ impl RawSegmentDescriptor {
 }
 
 /// The *Present* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Bit`] monomorphization.
-pub type AccessBytePresent<'value> = Bit<'value, u8, 7>;
+pub type AccessBytePresent<'a> = Bit<'a, u8, 7>;
 
 /// Descriptor privilege level in an access byte.
-pub type AccessByteDpl<'value> = Field<'value, 5, 6, u8>;
+pub type AccessByteDpl<'a> = Field<'a, 5, 6, u8>;
 
 /// Descriptor-class bit: set for code or data, clear for a system descriptor.
-pub type AccessByteSystem<'value> = Bit<'value, u8, 4>;
+pub type AccessByteSystem<'a> = Bit<'a, u8, 4>;
 
 /// The *Executable* bit in an *Access Byte*.
 ///
 /// Determines whether the descriptor is a *Code Segment* or *Data Segment*
 /// descriptor. This alters the behavior of [`AccessByteDc`] and
 /// [`AccessByteRw`].
-///
-/// This is an alias to a [`Bit`] monomorphization.
-pub type AccessByteExecutable<'value> = Bit<'value, u8, 3>;
+pub type AccessByteExecutable<'a> = Bit<'a, u8, 3>;
 
 /// The *Direction/Conforming* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Bit`] monomorphization.
-pub type AccessByteDc<'value> = Bit<'value, u8, 2>;
+pub type AccessByteDc<'a> = Bit<'a, u8, 2>;
 
 /// The *Read/Write* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Bit`] monomorphization.
-pub type AccessByteRw<'value> = Bit<'value, u8, 1>;
+pub type AccessByteRw<'a> = Bit<'a, u8, 1>;
 
 /// The *Accessed* bit in an *Access Byte*.
-///
-/// This is an alias to a [`Bit`] monomorphization.
-pub type AccessByteAccessed<'value> = Bit<'value, u8, 0>;
+pub type AccessByteAccessed<'a> = Bit<'a, u8, 0>;
 
 /// The *Type* field in an *Access Byte* (for system descriptors).
 ///
 /// This 4-bit field encodes the type of system descriptor (TSS, LDT, Gate,
 /// etc.). Only valid when the [`AccessByteSystem`] bitfield is `0`.
-///
-/// This is an alias to a [`Field`] monomorphization.
-pub type AccessByteDescriptorType<'value> = Field<'value, 0, 3, u8>;
+pub type AccessByteDescriptorType<'a> = Field<'a, 0, 3, u8>;
 
 /// Mutable counterpart of [`AccessBytePresent`].
-pub type AccessBytePresentMut<'value> = <AccessBytePresent<'value> as Counterpart>::Mut;
+pub type AccessBytePresentMut<'a> = <AccessBytePresent<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteDpl`].
-pub type AccessByteDplMut<'value> = <AccessByteDpl<'value> as Counterpart>::Mut;
+pub type AccessByteDplMut<'a> = <AccessByteDpl<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteSystem`].
-pub type AccessByteSystemMut<'value> = <AccessByteSystem<'value> as Counterpart>::Mut;
+pub type AccessByteSystemMut<'a> = <AccessByteSystem<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteExecutable`].
-pub type AccessByteExecutableMut<'value> = <AccessByteExecutable<'value> as Counterpart>::Mut;
+pub type AccessByteExecutableMut<'a> = <AccessByteExecutable<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteDc`].
-pub type AccessByteDcMut<'value> = <AccessByteDc<'value> as Counterpart>::Mut;
+pub type AccessByteDcMut<'a> = <AccessByteDc<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteRw`].
-pub type AccessByteRwMut<'value> = <AccessByteRw<'value> as Counterpart>::Mut;
+pub type AccessByteRwMut<'a> = <AccessByteRw<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteAccessed`].
-pub type AccessByteAccessedMut<'value> = <AccessByteAccessed<'value> as Counterpart>::Mut;
+pub type AccessByteAccessedMut<'a> = <AccessByteAccessed<'a> as Counterpart>::Mut;
 
 /// Mutable counterpart of [`AccessByteDescriptorType`].
-pub type AccessByteDescriptorTypeMut<'value> = <AccessByteDescriptorType<'value> as Counterpart>::Mut;
+pub type AccessByteDescriptorTypeMut<'a> = <AccessByteDescriptorType<'a> as Counterpart>::Mut;
 
 /// System Descriptor Type values for the *Type* field in an *Access Byte*.
 ///
