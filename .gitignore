@@ -7,7 +7,6 @@
 !**/.gitattributes
 !**/.clippy.toml
 !/.clang-format
-!/eustace/eustace-kvm-sys/.clangd
 !/.cargo/
 !/.cargo/**
 !/.github/
