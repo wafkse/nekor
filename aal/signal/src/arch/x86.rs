@@ -37,7 +37,7 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
     #[cfg(target_pointer_width = "32")]
     unsafe {
         arch::asm!(
-            // NOTE(ordering): Commit any pending writes that might trample with the monitor hardware.
+            // NOTE(ordering): Complete pending stores before arming the monitor.
             "sfence",
             "monitor",
             in("eax") target_address.as_ptr(),
@@ -48,11 +48,12 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
         )
     }
 
-    // SAFETY: [see above]
+    // SAFETY: The caller supplies a readable address and establishes instruction
+    // support and the privilege required to arm the monitor on this processor.
     #[cfg(target_pointer_width = "64")]
     unsafe {
         arch::asm!(
-            // NOTE(ordering): [see other block]
+            // NOTE(ordering): Complete pending stores before arming the monitor.
             "sfence",
             "monitor",
             in("rax") target_address.as_ptr(),
@@ -77,7 +78,7 @@ pub unsafe fn monitor<T>(target_address: NonNull<T>) {
 /// [`Monitor`]: nekor_aal_feature::arch::x86::qualified::Monitor
 #[inline]
 pub unsafe fn mwait() {
-    // SAFETY: Privilege level is guaranteed by caller.
+    // SAFETY: The caller establishes MONITOR/MWAIT support and CPL0 execution.
     unsafe {
         arch::asm!(
             "mwait",
@@ -103,7 +104,7 @@ pub unsafe fn mwait() {
 /// To guarantee the safety of this operation, the caller must ensure that all
 /// of the following are satisfied:
 ///
-/// - The condition (in AMD CPUID leaf-as-function notation) `CPUID Fn8000_0001_ECX[MONITORX](bit
+/// - The condition (in AMD's CPUID leaf-as-function notation) `CPUID Fn8000_0001_ECX[MONITORX](bit
 ///   29) = 1` to be true.
 /// - The specified address must be readable in the active processor context. Note that this is not
 ///   the same as Rust-specific guarantees, the processor simply performs access control, but does
@@ -124,7 +125,6 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
     #[cfg(target_pointer_width = "64")]
     unsafe {
         arch::asm!(
-            // NOTE(asm): Seems that no assembler in our toolchain supports the AMD-specific `monitorx` extension.
             "monitorx",
             // NOTE: AMD indicates that there are no existing extensions or hints for this instruction.
             //
@@ -158,7 +158,7 @@ pub unsafe fn monitorx<T>(target_address: NonNull<T>) {
 /// The current CPU must support MONITORX/MWAITX, and the caller must have
 /// executed `monitorx` on this CPU before waiting.
 #[inline]
-pub unsafe fn mwaitx(timeout: u32) {
+pub unsafe fn mwaitx(target_time: u32) {
     type MwaitxTimer<'a> = Bit<'a, u32, 1>;
     type MwaitxTimerMut<'a> = <MwaitxTimer<'a> as Counterpart>::Mut;
 
@@ -171,10 +171,10 @@ pub unsafe fn mwaitx(timeout: u32) {
         #[cfg(target_pointer_width = "64")]
         arch::asm!(
             "pushq %rbx",
-            "movl {timeout:e}, %ebx",
+            "movl {target_time:e}, %ebx",
             "mwaitx",
             "popq %rbx",
-            timeout = in(reg) timeout,
+            target_time = in(reg) target_time,
             in("eax") 0_u32,
             in("ecx") ecx,
             options(att_syntax)
@@ -183,10 +183,10 @@ pub unsafe fn mwaitx(timeout: u32) {
         #[cfg(target_pointer_width = "32")]
         arch::asm!(
             "pushl %ebx",
-            "movl {timeout:e}, %ebx",
+            "movl {target_time:e}, %ebx",
             "mwaitx",
             "popl %ebx",
-            timeout = in(reg) timeout,
+            target_time = in(reg) target_time,
             in("eax") 0_u32,
             in("ecx") ecx,
             options(att_syntax)
@@ -205,10 +205,18 @@ pub unsafe fn umonitor<T>(target_address: NonNull<T>) {
     // SAFETY: The caller establishes WAITPKG support and address accessibility.
     unsafe {
         #[cfg(target_pointer_width = "64")]
-        arch::asm!("umonitor %rax", in("rax") target_address.as_ptr(), options(nostack, att_syntax));
+        arch::asm!(
+            "umonitor %rax",
+            in("rax") target_address.as_ptr(),
+            options(nostack, att_syntax)
+        );
 
         #[cfg(target_pointer_width = "32")]
-        arch::asm!("umonitor %eax", in("eax") target_address.as_ptr(), options(nostack, att_syntax));
+        arch::asm!(
+            "umonitor %eax",
+            in("eax") target_address.as_ptr(),
+            options(nostack, att_syntax)
+        );
     }
 }
 
