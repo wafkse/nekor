@@ -73,7 +73,7 @@ pub enum StructureKind {
 
 /// A named semantic node in a typed configuration document.
 #[derive(Debug, Clone, PartialEq)]
-// NOTE(invariant): The annotation, structural value, and origin are retained together from
+// NOTE(invariant): The annotation, structural value, and origin are stored together from
 // construction.
 pub struct Node {
     /// The application-defined annotation attached to the node.
