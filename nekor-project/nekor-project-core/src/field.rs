@@ -22,8 +22,8 @@ use crate::attribute::{ProjectAttribute, UnsafeClauseTarget};
 /// positional order. Unit inputs remain unit projections.
 ///
 /// Empty named and empty unnamed field sets remain distinct from unit inputs.
-// NOTE: `Named` fields carry identifiers and `Unnamed` fields retain source
-// positional indices. The enum variants encode that field-shape distinction.
+// NOTE: Normal parsing assigns identifiers to named fields and source-order indices
+// to tuple fields. The explicit collection constructors store their input without that check.
 pub enum ProjectFields {
     /// Named fields.
     Named(ProjectFieldsNamed),
@@ -55,6 +55,7 @@ impl ProjectFields {
                 .collect::<syn::Result<Vec<_>>>()
                 .map(ProjectFieldsNamed::new)
                 .map(Self::Named),
+
             Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => unnamed
                 .into_iter()
                 .enumerate()
@@ -62,6 +63,7 @@ impl ProjectFields {
                 .collect::<syn::Result<Vec<_>>>()
                 .map(ProjectFieldsUnnamed::new)
                 .map(Self::Unnamed),
+
             Fields::Unit => Ok(Self::Unit),
         }
     }
@@ -93,7 +95,7 @@ impl ProjectFields {
 ///
 /// Normal parsing supplies identifier members. The explicit constructor stores the supplied
 /// list without checking member kinds. Expansion reports a missing name when necessary.
-// NOTE(invariant): Every stored field has an identifier and source declaration order is preserved.
+// NOTE(invariant): None.
 pub struct ProjectFieldsNamed {
     /// Fields in source order.
     field_list: Vec<ProjectField>,
@@ -119,7 +121,7 @@ impl ProjectFieldsNamed {
 ///
 /// Normal parsing assigns positional indices in declaration order. The explicit constructor
 /// stores the supplied list without checking those indices.
-// NOTE(invariant): Every stored field carries the positional index matching its place in the list.
+// NOTE(invariant): None.
 pub struct ProjectFieldsUnnamed {
     /// Fields in source order.
     field_list: Vec<ProjectField>,
@@ -146,7 +148,7 @@ impl ProjectFieldsUnnamed {
 /// The private representation prevents later stages from changing the source
 /// type, visibility, member identity, or structural pinning decision.
 // NOTE(invariant): The stored member identity matches the source field, and `pinned` is the
-// validated structural pinning decision for that same field.
+// structural pinning option parsed for that same field.
 pub struct ProjectField {
     /// Source field visibility.
     visibility: Visibility,

@@ -176,7 +176,7 @@ impl ProjectItem {
 /// The model owns source visibility, identity, generics, type options, and the
 /// exact field shape consumed by expansion.
 // NOTE(invariant): `struct_data` was parsed from the same derive input as the
-// stored identity and generics. All helper attributes were validated before
+// stored identity and generics. Helper attributes were checked before
 // construction and the private fields prevent replacement afterward.
 pub struct ProjectStruct {
     /// Type-level project helper attributes.
@@ -227,7 +227,7 @@ impl ProjectStruct {
 ///
 /// The contained [`ProjectFields`] distinguishes named, unnamed, empty, and
 /// unit structures.
-// NOTE(invariant): `field_list` matches the validated source structure shape and field order.
+// NOTE(invariant): `field_list` matches the parsed source structure shape and field order.
 pub struct ProjectStructData {
     /// Source structure fields.
     field_list: ProjectFields,
@@ -239,7 +239,7 @@ pub struct ProjectStructData {
 /// remain metadata only and are not assigned to projection variants.
 // NOTE(invariant): `enum_data` belongs to the stored source identity and
 // generic signature. Variant helper placement and every field option were
-// validated before construction.
+// checked before construction.
 pub struct ProjectEnum {
     /// Type-level project helper attributes.
     attribute_list: Vec<ProjectAttribute>,
@@ -289,7 +289,7 @@ impl ProjectEnum {
 /// Source variants used to expand an enum projection.
 ///
 /// Variant order matches source declaration order.
-// NOTE(invariant): `variant_list` preserves validated source variant declaration order.
+// NOTE(invariant): `variant_list` follows source variant declaration order.
 pub struct ProjectEnumData {
     /// Source variants in declaration order.
     variant_list: Vec<ProjectEnumVariant>,
@@ -300,7 +300,7 @@ pub struct ProjectEnumData {
 /// The stored source discriminant lets generated documentation
 /// explain why it is omitted from the projection enum.
 // NOTE(invariant): The identifier, fields, and optional discriminant all belong to the same
-// validated source variant.
+// parsed source variant.
 pub struct ProjectEnumVariant {
     /// Source variant identifier.
     variant_ident: Ident,
@@ -372,7 +372,7 @@ impl ExpansionData {
 
 /// Source identity, generics and fields used by a derive expansion.
 // NOTE(invariant): Identity, generics, visibility, attributes, and source shape all belong to the
-// same validated derive input.
+// same parsed derive input.
 struct Expansion {
     /// Type-level project helper attributes.
     attribute_list: Vec<ProjectAttribute>,
