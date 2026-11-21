@@ -9,9 +9,7 @@ use crate::address::Address;
 
 /// A register description with compile-time read and write permissions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// NOTE(invariant): `address` is the typed address associated with value type `T`
-// while `READ` and `WRITE` remain compile-time access policy. Construction
-// cannot change those type-level facts or attach runtime permission state.
+// NOTE(invariant): None.
 pub struct Gated<T, A, const READ: bool, const WRITE: bool>
 where
     A: Address,
