@@ -14,7 +14,7 @@ rustflags = [
 {% endif -%}
 ]
 
-# NOTE: Per-target compiler flags for the bootloder target triple.
+# NOTE: Per-target compiler flags for the bootloader target triple.
 [target.'nekor-x86_64-bootloader']
 
 {% else %}
@@ -30,12 +30,12 @@ rustflags = [
 # NOTE: Usermode builds require an explicit `panic=abort`.
     "-C", "panic=abort",
     {% if debug.test %}
-# NOTE: Test harness requires this for tests to be ran per-process.
+# NOTE: Test harness requires this for tests to run in separate processes.
     "-Z", "panic_abort_tests",
     {% endif %}
 
 {% if debug.verbose %}
-# NOTE: Emit a linker input section map and pass the `--verbose` flag to the linker.
+# NOTE: Request verbose linker diagnostics.
     "-C", "link-arg=--verbose",
 {% endif %}
 ]

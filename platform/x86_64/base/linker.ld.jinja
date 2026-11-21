@@ -215,7 +215,7 @@ SECTIONS {
     {{ kernel.hot.data.symbol.end }} = .;
   } :data-readwrite
 
-  /* NOTE: This is regular kernel data, it is page-alinged to isolate TLB entries. */
+  /* NOTE: This is regular kernel data, it is page-aligned so its mapping can be protected independently. */
   {{ kernel.data["section-name"] }}
   ALIGN({{ arch.page.size.normal }}) :
   AT(ADDR({{ kernel.data["section-name"] }}) - {{ layout.base - layout["physical-base"] }}) {
