@@ -1,5 +1,4 @@
 #![cfg_attr(not(any(test, miri, usermode)), no_std)]
-
 //! The umbrella crate for the *Architecture Abstraction Layer* (*AAL*) in
 //! *Nekor*.
 
@@ -8,5 +7,6 @@ pub use nekor_aal_cache as cache;
 pub use nekor_aal_critical as critical;
 pub use nekor_aal_feature as feature;
 pub use nekor_aal_hotpatch as hotpatch;
+pub use nekor_aal_isolate as isolate;
 pub use nekor_aal_local as local;
 pub use nekor_aal_signal as signal;
