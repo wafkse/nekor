@@ -112,8 +112,9 @@ unsafe impl Delegator for Relaxation {
     }
 }
 
-// SAFETY: `Pause` and `Tpause` retain no caller state. Calls through earlier
-// diversions can finish alongside new calls while their code remains resident.
+// SAFETY: Each relaxation call uses only its input and local registers. Calls through
+// an earlier diversion can therefore finish alongside calls through the new diversion,
+// provided both implementations remain resident as required by `Eventual`.
 unsafe impl Eventual for Relaxation {}
 
 /// Execute a single `pause`, or poll the TSC after configured chains of `pause` hints.
@@ -147,21 +148,21 @@ impl Pause {
 
     /// Poll the supplied counter after full batches, then execute any remaining chains.
     #[inline]
-    fn wait<const PAUSE_COUNT: usize, const CHAIN_COUNT: usize>(
+    fn wait<const P: usize, const C: usize>(
         target_quanta: NonZero<usize>,
         target_desire: u64,
         mut target_count: impl FnMut() -> u64,
     ) {
-        if CHAIN_COUNT == 0 {
+        if C == 0 {
             return;
         }
 
-        let batch_count = target_quanta.get() / CHAIN_COUNT;
-        let remainder_count = target_quanta.get() % CHAIN_COUNT;
+        let batch_count = target_quanta.get() / C;
+        let remainder_count = target_quanta.get() % C;
         let start_time = target_count();
 
         for _ in 0..batch_count {
-            relax::chain::<PAUSE_COUNT, CHAIN_COUNT>();
+            relax::chain::<P, C>();
 
             // NOTE: `abs_diff` treats backward TSC movement as progress.
             let target_elapsed = target_count().abs_diff(start_time);
@@ -173,7 +174,7 @@ impl Pause {
 
         // NOTE: Exhausting the chain budget needs no further TSC read.
         for _ in 0..remainder_count {
-            relax::chain::<PAUSE_COUNT, 1>();
+            relax::chain::<P, 1>();
         }
     }
 }
