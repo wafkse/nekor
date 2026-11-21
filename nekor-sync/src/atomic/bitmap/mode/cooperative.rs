@@ -38,9 +38,8 @@ impl fmt::Debug for Snapshot {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Cooperative {}
 
-// SAFETY: The (cooperative) guarantees of this engagement mode are known and
-// well-documented, furthermore, the implementation of each finalizer is atomic
-// and thread-safe.
+// SAFETY: The selected index is in bounds. Each finalizer changes only that bit with an
+// acquire-release atomic fetch operation and returns the word from before its update.
 unsafe impl Mode for Cooperative {
     type Signal = Snapshot;
     type State = ();
@@ -119,11 +118,11 @@ mod tests {
     fn operations_on_already_targeted_state() {
         let bitmap = AtomicBitmap::zeroed();
 
-        // Setting an already-clear bit
+        // Clearing an already-clear bit
         let _: Snapshot = bitmap.at(2).zero::<Cooperative>();
         assert_eq!(bitmap.snapshot() & (1 << 2), 0, "bit should remain clear");
 
-        // Clearing an already-set bit
+        // Setting an already-set bit
         let _: Snapshot = bitmap.at(4).one::<Cooperative>();
         let _: Snapshot = bitmap.at(4).one::<Cooperative>();
         assert_eq!(bitmap.snapshot() & (1 << 4), 1 << 4, "bit should remain set");

@@ -83,7 +83,8 @@ impl<T> Mutex<T> {
         // SAFETY: The `Waited` token is used with the same `LockState`.
         let waited_state = unsafe { Waiting::wait(LockState::acquire(lock_state)) };
 
-        // SAFETY: The `Occupied` was acquired from the same `Mutex`.
+        // SAFETY: This `Waited` token was acquired from this mutex's lock state and has
+        // reached its turn, so the raw guard receives exclusive access to the same value.
         unsafe {
             let target_value = RawMutexGuard::new(self, waited_state);
 

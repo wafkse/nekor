@@ -5,7 +5,7 @@ use core::{fmt, marker};
 /// A predicate evaluated against a bitmap snapshot.
 pub trait Condition {
     /// Determine the status of this condition.
-    fn determine(self, target_value: usize) -> Status;
+    fn determine(self, target_snapshot: usize) -> Status;
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]

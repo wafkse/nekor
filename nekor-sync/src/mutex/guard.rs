@@ -47,9 +47,9 @@ impl<'a, T> RawMutexGuard<'a, T> {
     pub const fn value(&self) -> &T {
         let &Self(_, target_value, ..) = self;
 
-        // SAFETY:
-        //  Pointer has originally been sourced from a reference, therefore,
-        // this is safe.
+        // SAFETY: The pointer comes from this guard's live mutex, and its acquired turn
+        // excludes other guards from the value. The returned reference borrows the guard,
+        // so it cannot outlive that exclusive turn.
         unsafe { target_value.as_ref() }
     }
 
@@ -59,9 +59,9 @@ impl<'a, T> RawMutexGuard<'a, T> {
     pub const fn value_mut(&mut self) -> &mut T {
         let &mut Self(_, mut target_value, ..) = self;
 
-        // SAFETY:
-        //  Pointer has originally been sourced from a reference, therefore,
-        // this is safe.
+        // SAFETY: The pointer comes from this guard's live mutex, and its acquired turn
+        // excludes other guards from the value. The mutable borrow of this guard also
+        // prevents overlapping references through it until the returned borrow ends.
         unsafe { target_value.as_mut() }
     }
 
