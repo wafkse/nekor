@@ -24,7 +24,7 @@ pub struct Included<T>(T)
 where
     T: Store;
 
-/// SAFETY: [`Included`] is `repr(transparent)` over [`Adapter::Target`].
+// SAFETY: `Included<T>` is transparent over `T`, as required by `Adapter::Target`.
 unsafe impl<T> Adapter for Included<T>
 where
     T: Store,
