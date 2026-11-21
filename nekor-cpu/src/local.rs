@@ -16,7 +16,7 @@ use crate::{limit::Cores, prelude::CoreId};
 /// migration, so the surrounding API must establish any processor-local access rules.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private marker keeps the wrapped value tied to its CPU-local context.
+// NOTE(invariant): None.
 pub struct Local<T>(T, marker::PhantomData<fn() -> *mut T>);
 
 impl<T> Deref for Local<T> {
