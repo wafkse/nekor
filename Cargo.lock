@@ -624,12 +624,9 @@ dependencies = [
  "fack",
  "nekor-aal-agnostic",
  "nekor-aal-arch",
- "nekor-aal-feature",
  "nekor-aal-hotpatch",
- "nekor-bitwise",
  "nekor-domain",
- "nekor-project",
- "zerocopy",
+ "tokel",
 ]
 
 [[package]]

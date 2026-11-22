@@ -871,7 +871,7 @@ pub type Cr4Vmxe<'a> = Bit<'a, u64, 13>;
 /// The SMX enable flag in [`Cr4`].
 pub type Cr4Smxe<'a> = Bit<'a, u64, 14>;
 
-/// The FSGSBASE enable flag in [`Cr4`].
+/// The `FSGSBASE` enable flag in [`Cr4`].
 pub type Cr4Fsgsbase<'a> = Bit<'a, u64, 16>;
 
 /// The PCID enable flag in [`Cr4`].

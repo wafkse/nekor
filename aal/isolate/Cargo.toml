@@ -9,27 +9,19 @@ readme.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-
 [features]
 default = ["arch-x86_64"]
 
-arch-x86_64 = ["arch-x86_64-xsave-4096"]
-arch-x86_64-xsave-512 = []
-arch-x86_64-xsave-1024 = []
-arch-x86_64-xsave-2048 = []
-arch-x86_64-xsave-4096 = []
-arch-x86_64-xsave-8192 = []
-arch-x86_64-xsave-16384 = []
+arch-x86_64 = []
 
 [dependencies]
 nekor-domain = { workspace = true }
-nekor-bitwise = { workspace = true }
 nekor-aal-arch = { workspace = true }
-nekor-aal-hotpatch = { workspace = true }
 nekor-aal-agnostic = { workspace = true }
-nekor-aal-feature = { workspace = true }
-
+nekor-aal-hotpatch = { workspace = true }
 tokel = { workspace = true }
+
+fack = { workspace = true }
 
 
 [lints]
