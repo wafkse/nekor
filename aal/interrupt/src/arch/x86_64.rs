@@ -218,52 +218,52 @@ pub type GateDescriptorLow = Partitioned<0, 63, u128>;
 pub type GateDescriptorHigh = Partitioned<64, 127, u128>;
 
 /// Low handler-offset field in a long-mode gate descriptor.
-pub type GateOffsetLow<'value> = Field<'value, 0, 15, u64>;
+pub type GateOffsetLow<'a> = Field<'a, 0, 15, u64>;
 
 /// Mutable counterpart to [`GateOffsetLow`].
-pub type GateOffsetLowMut<'value> = <GateOffsetLow<'value> as Counterpart>::Mut;
+pub type GateOffsetLowMut<'a> = <GateOffsetLow<'a> as Counterpart>::Mut;
 
 /// Code-segment selector field in a long-mode gate descriptor.
-pub type GateSegmentSelector<'value> = Field<'value, 16, 31, u64>;
+pub type GateSegmentSelector<'a> = Field<'a, 16, 31, u64>;
 
 /// Mutable counterpart to [`GateSegmentSelector`].
-pub type GateSegmentSelectorMut<'value> = <GateSegmentSelector<'value> as Counterpart>::Mut;
+pub type GateSegmentSelectorMut<'a> = <GateSegmentSelector<'a> as Counterpart>::Mut;
 
 /// Interrupt-stack-table field in a long-mode gate descriptor.
-pub type GateIst<'value> = Field<'value, 32, 34, u64>;
+pub type GateIst<'a> = Field<'a, 32, 34, u64>;
 
 /// Mutable counterpart to [`GateIst`].
-pub type GateIstMut<'value> = <GateIst<'value> as Counterpart>::Mut;
+pub type GateIstMut<'a> = <GateIst<'a> as Counterpart>::Mut;
 
 /// Reserved low-word field spanning descriptor bits 35 through 39.
-pub type GateReserved35_39<'value> = Field<'value, 35, 39, u64>;
+pub type GateReserved35_39<'a> = Field<'a, 35, 39, u64>;
 
 /// Mutable counterpart to [`GateReserved35_39`].
-pub type GateReserved35_39Mut<'value> = <GateReserved35_39<'value> as Counterpart>::Mut;
+pub type GateReserved35_39Mut<'a> = <GateReserved35_39<'a> as Counterpart>::Mut;
 
 /// Type-attribute byte in a long-mode gate descriptor.
-pub type GateTypeAttributes<'value> = Field<'value, 40, 47, u64>;
+pub type GateTypeAttributes<'a> = Field<'a, 40, 47, u64>;
 
 /// Mutable counterpart to [`GateTypeAttributes`].
-pub type GateTypeAttributesMut<'value> = <GateTypeAttributes<'value> as Counterpart>::Mut;
+pub type GateTypeAttributesMut<'a> = <GateTypeAttributes<'a> as Counterpart>::Mut;
 
 /// Middle handler-offset field in a long-mode gate descriptor.
-pub type GateOffsetMiddle<'value> = Field<'value, 48, 63, u64>;
+pub type GateOffsetMiddle<'a> = Field<'a, 48, 63, u64>;
 
 /// Mutable counterpart to [`GateOffsetMiddle`].
-pub type GateOffsetMiddleMut<'value> = <GateOffsetMiddle<'value> as Counterpart>::Mut;
+pub type GateOffsetMiddleMut<'a> = <GateOffsetMiddle<'a> as Counterpart>::Mut;
 
 /// High handler-offset field in a long-mode gate descriptor.
-pub type GateOffsetHigh<'value> = Field<'value, 0, 31, u64>;
+pub type GateOffsetHigh<'a> = Field<'a, 0, 31, u64>;
 
 /// Mutable counterpart to [`GateOffsetHigh`].
-pub type GateOffsetHighMut<'value> = <GateOffsetHigh<'value> as Counterpart>::Mut;
+pub type GateOffsetHighMut<'a> = <GateOffsetHigh<'a> as Counterpart>::Mut;
 
 /// Reserved high-word field spanning descriptor bits 96 through 127.
-pub type GateReserved96_127<'value> = Field<'value, 32, 63, u64>;
+pub type GateReserved96_127<'a> = Field<'a, 32, 63, u64>;
 
 /// Mutable counterpart to [`GateReserved96_127`].
-pub type GateReserved96_127Mut<'value> = <GateReserved96_127<'value> as Counterpart>::Mut;
+pub type GateReserved96_127Mut<'a> = <GateReserved96_127<'a> as Counterpart>::Mut;
 
 /// A 128-bit raw long-mode *Gate Descriptor* image.
 ///
@@ -566,7 +566,7 @@ impl Service {
 /// frames contain a zero error code. It therefore cannot represent every such frame.
 #[derive(Debug, Hash, PartialEq, PartialOrd, Ord, Eq)]
 #[repr(transparent)]
-// NOTE(invariant): The architectural error code is nonzero and remains a 32-bit value.
+// NOTE(invariant): The stored value is a nonzero 32-bit integer.
 pub struct ErrorCode(NonZeroU32);
 
 /// The *environmental constraint* imposed to a *Interrupt Service Routine*.
