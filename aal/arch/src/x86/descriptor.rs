@@ -380,20 +380,29 @@ impl RawSegmentDescriptor {
     #[inline]
     #[must_use]
     pub const fn effective_limit(&self) -> u32 {
+        /// The shift that converts the encoded 4-KiB page index into a byte offset.
+        const PAGE_SHIFT: u32 = 12;
+
+        /// The offset of the last byte in the page, making the byte limit inclusive.
+        const PAGE_OFFSET_MASK: u32 = (1 << PAGE_SHIFT) - 1;
+
         let low = self.limit_low().const_value();
         let high = self.limit_high().const_value();
-        let mut encoded = u32::MIN;
-        let mut low_field = SegmentLimitValueLowMut::wrap(&mut encoded);
+
+        let mut target_encoded = u32::MIN;
+
+        let mut low_field = SegmentLimitValueLowMut::wrap(&mut target_encoded);
 
         low_field.const_merge(low);
 
-        let mut high_field = SegmentLimitValueHighMut::wrap(&mut encoded);
+        let mut high_field = SegmentLimitValueHighMut::wrap(&mut target_encoded);
 
         high_field.const_merge(high);
 
-        match self.granularity().const_state() {
-            State::Cleared => encoded,
-            State::Set => (encoded << 12) | 0x0fff,
+        if let State::Cleared = self.granularity().const_state() {
+            target_encoded
+        } else {
+            (target_encoded << PAGE_SHIFT) | PAGE_OFFSET_MASK
         }
     }
 
@@ -727,6 +736,7 @@ pub enum SystemDescriptorType {
     /// 32-bit/64-bit Task State Segment (Busy).
     ///
     /// In Protected Mode, this is a 32-bit TSS.
+    ///
     /// In Long Mode, this is a 64-bit TSS.
     TssBusy32 = 0xB,
 
@@ -738,12 +748,14 @@ pub enum SystemDescriptorType {
     /// 32-bit/64-bit Interrupt Gate.
     ///
     /// In Protected Mode, this is a 32-bit Interrupt Gate.
+    ///
     /// In Long Mode, this is a 64-bit Interrupt Gate.
     InterruptGate32 = 0xE,
 
     /// 32-bit/64-bit Trap Gate.
     ///
     /// In Protected Mode, this is a 32-bit Trap Gate.
+    ///
     /// In Long Mode, this is a 64-bit Trap Gate.
     TrapGate32 = 0xF,
 }
