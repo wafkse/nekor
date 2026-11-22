@@ -146,37 +146,37 @@ pub enum Attempt<R> {
 /// Workloads may define their own [`Tier`].
 pub trait Tier {
     /// Optimistic retries after the immediate attempt.
-    const RETRIES: usize;
+    const RETRY: usize;
 }
 
 /// Engage the monitor after the immediate attempt fails.
 pub struct Immediate;
 
 impl Tier for Immediate {
-    const RETRIES: usize = 0;
+    const RETRY: usize = 0;
 }
 
 /// Poll briefly before engaging the monitor.
 pub struct Cruise;
 
 impl Tier for Cruise {
-    const RETRIES: usize = 4;
+    const RETRY: usize = 4;
 }
 
 /// Poll longer for operations expected to complete quickly.
 pub struct Fastlane;
 
 impl Tier for Fastlane {
-    const RETRIES: usize = 8;
+    const RETRY: usize = 8;
 }
 
 /// Bounded polling followed by monitored waiting.
 ///
 /// Wakeups do not restore the retry budget. Backoff progresses across waits.
-// NOTE(invariant): `remaining` only decreases and never exceeds `P::RETRIES`.
+// NOTE(invariant): `retry_count` <= `P::RETRY`.
 pub struct Polling<'a, T, P: Tier> {
     /// The borrowed monitor.
-    monitor: &'a Monitor<T>,
+    target_monitor: &'a Monitor<T>,
 
     /// Optimistic retries remaining.
     retry_count: usize,
@@ -191,16 +191,16 @@ pub struct Polling<'a, T, P: Tier> {
 impl<'a, T, P: Tier> Polling<'a, T, P> {
     /// Borrow a monitor with [`Backoff::minimal`] for timed waits.
     #[inline]
-    pub const fn of(monitor: &'a Monitor<T>) -> Self {
-        Self::with_backoff(monitor, Backoff::minimal())
+    pub const fn of(target_monitor: &'a Monitor<T>) -> Self {
+        Self::with_backoff(target_monitor, Backoff::minimal())
     }
 
     /// Borrow a monitor with the selected [`Backoff`] strategy.
     #[inline]
-    pub const fn with_backoff(monitor: &'a Monitor<T>, backoff: Backoff) -> Self {
+    pub const fn with_backoff(target_monitor: &'a Monitor<T>, backoff: Backoff) -> Self {
         Self {
-            monitor,
-            retry_count: P::RETRIES,
+            target_monitor,
+            retry_count: P::RETRY,
             backoff_state: backoff.state(),
             marker: marker::PhantomData,
         }
@@ -213,29 +213,29 @@ impl<'a, T, P: Tier> Polling<'a, T, P> {
     #[inline]
     pub fn until<R>(&mut self, mut target_closure: impl FnMut(&T) -> Attempt<R>) -> R {
         let &mut Self {
-            monitor: target_parent,
-            retry_count: ref mut remaining,
+            target_monitor,
+            ref mut retry_count,
             ref mut backoff_state,
             ..
         } = self;
 
         loop {
-            match target_closure(target_parent) {
+            match target_closure(target_monitor) {
                 Attempt::Ready(target_outcome) => break target_outcome,
                 Attempt::Pending => (),
             }
 
-            if *remaining != 0 {
-                *remaining -= 1;
+            if *retry_count != 0 {
+                *retry_count -= 1;
 
                 hint::spin_loop();
 
                 continue;
             }
 
-            let target_engaged = target_parent.engage();
+            let target_engaged = target_monitor.engage();
 
-            match target_closure(target_parent) {
+            match target_closure(target_monitor) {
                 Attempt::Ready(target_outcome) => break target_outcome,
                 Attempt::Pending => target_engaged.wait(backoff_state),
             }
@@ -336,7 +336,7 @@ mod tests {
         struct Burst;
 
         impl Tier for Burst {
-            const RETRIES: usize = 3;
+            const RETRY: usize = 3;
         }
 
         let target = Monitor::new(AtomicUsize::new(0));
