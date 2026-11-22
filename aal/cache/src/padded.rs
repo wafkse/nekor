@@ -52,7 +52,8 @@ impl<T> CachePadded<T> {
 
     /// Unwrap the target `T` from this [`CachePadded`] wrapper.
     #[inline]
-    pub const fn unwrap(self) -> T {
+    // FIXME(unstable): Make this a const-fn once it is properly possible for moved-out Ts.
+    pub fn unwrap(self) -> T {
         let Self(target_value) = self;
 
         target_value

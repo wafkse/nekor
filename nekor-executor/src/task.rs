@@ -140,9 +140,9 @@ impl DerefMut for Acquired {
     }
 }
 
-// TODO: Add API to access the task safely.
-
-// SAFETY: The thread-safe access to `Task` is managed by type invariants.
+// SAFETY: The atomic task state controls exclusive access to the UnsafeCell.
+// Shared queue references and waker construction do not borrow the future, and a
+// successful dormant-to-pending transition admits only one mutable task handle.
 unsafe impl Sync for Task {}
 
 /// A task pool of [`Future`]s of type `F` of size `N`.
