@@ -40,7 +40,7 @@ use core::{
     )),
     repr(align(64))
 )]
-// NOTE(invariant): The wrapped value starts at the target cache-line alignment selected above.
+// NOTE(invariant): None.
 pub struct CachePadded<T>(T);
 
 impl<T> CachePadded<T> {
@@ -52,9 +52,7 @@ impl<T> CachePadded<T> {
 
     /// Unwrap the target `T` from this [`CachePadded`] wrapper.
     #[inline]
-    // FIXME(const): Make this a const fn once destructors for generic types can
-    // be ran in const fn.
-    pub fn unwrap(self) -> T {
+    pub const fn unwrap(self) -> T {
         let Self(target_value) = self;
 
         target_value
