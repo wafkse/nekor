@@ -25,7 +25,10 @@ impl IRet {
     #[cfg(target_arch = "x86")]
     #[inline]
     pub fn x86() {
-        // SAFETY: This is both memory- and architecturally-safe.
+        // SAFETY: The return frame is built on the current stack from the active
+        // segment selectors and flags, and its destination is the local continuation.
+        //
+        // The respective stack adjustments restore the caller's stack at that continuation.
         unsafe {
             arch::asm!(
                 "pushfl",
@@ -50,7 +53,10 @@ impl IRet {
     #[cfg(target_arch = "x86_64")]
     #[inline]
     pub fn x86_64() {
-        // SAFETY: This is both memory- and architecturally-safe.
+        // SAFETY: The return frame is built on the current stack from the active
+        // segment selectors and flags, and its destination is the local continuation.
+        //
+        // The respective stack adjustments restore the caller's stack at that continuation.
         unsafe {
             arch::asm!(
                 "movw %ss, {0:x}",
