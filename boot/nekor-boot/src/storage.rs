@@ -8,7 +8,7 @@ use core::{
 
 use nekor_bitwise::prelude::Le;
 
-use crate::protocol::{BootRequest, BootResponse, Slug};
+use crate::protocol::{BootRequest, Slug};
 
 /// The head structure of a request-response structure.
 #[repr(transparent)]
@@ -61,20 +61,6 @@ impl RawHead {
     pub const fn request<R>() -> Self
     where
         R: BootRequest,
-    {
-        let slug_id = R::ID;
-
-        let block_size = Le::<u64>::new(mem::size_of::<Block<R>>() as u64);
-
-        Self { slug_id, block_size }
-    }
-
-    /// Construct a [`RawHead`] for the target bootloader response `R`.
-    #[inline]
-    #[must_use]
-    pub const fn response<R>() -> Self
-    where
-        R: BootResponse,
     {
         let slug_id = R::ID;
 
