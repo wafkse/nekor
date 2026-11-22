@@ -315,18 +315,18 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "fack"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85ed9bf262997b7b5609706804de7fbf702120232bde97c23a4f0f0d9baf6ed4"
+checksum = "b9e82428b99e908a5144c14b9d8d3d5a82e304e7cc07946bae79e61444f1c21a"
 dependencies = [
  "fack-macro",
 ]
 
 [[package]]
 name = "fack-codegen"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83503b54c171c0bcbc84ce84e8a27e20474014f5139e0b64f5513ae0159c17e7"
+checksum = "80f404017f4f8799e7b1698a25256389323ffdac63771298ab5677466c3298d4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -335,9 +335,9 @@ dependencies = [
 
 [[package]]
 name = "fack-macro"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47081e220f4163ebe9c283b0c85becadb5b2e836d3f0164a3d53ea8520ecda78"
+checksum = "d1b0fe20e561dba482af4925e2aa50062e05dafbaf63d4219d6a1ddf5164c077"
 dependencies = [
  "fack-codegen",
  "syn 3.0.10",
@@ -544,6 +544,7 @@ dependencies = [
  "nekor-aal-critical",
  "nekor-aal-feature",
  "nekor-aal-hotpatch",
+ "nekor-aal-isolate",
  "nekor-aal-local",
  "nekor-aal-signal",
 ]
@@ -620,13 +621,15 @@ dependencies = [
 name = "nekor-aal-isolate"
 version = "0.1.0"
 dependencies = [
+ "fack",
  "nekor-aal-agnostic",
  "nekor-aal-arch",
  "nekor-aal-feature",
  "nekor-aal-hotpatch",
  "nekor-bitwise",
  "nekor-domain",
- "tokel",
+ "nekor-project",
+ "zerocopy",
 ]
 
 [[package]]

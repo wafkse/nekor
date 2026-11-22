@@ -50,7 +50,7 @@ exclude = [
 version = "0.1.0"
 edition = "2024"
 # NOTE: CI uses this as the minimum supported Rust version for the workspace.
-rust-version = "1.98"
+rust-version = "1.100"
 description = "An async-first no-std, no-alloc unikernel written in Rust."
 license = "AGPL-3.0-only"
 repository = "https://github.com/wafkse/nekor"
@@ -60,17 +60,16 @@ categories = ["no-std"]
 
 [workspace.dependencies]
 proc-macro2 = "1.0.107"
-syn = "3.0.6"
+syn = "3.0.10"
 quote = "1.0.47"
 bitflags = "2.13.2"
 camino = "1.2.2"
-fack = "0.4.0"
+fack = "0.5.0"
 miette = { version = "7.6.0", features = ["derive"] }
 tokel = "0.4.1"
 criterion = "0.8.2"
 walkdir = "2.5"
 bindgen = "0.73.2"
-cc = "1.5"
 zerocopy = { version = "0.8.48", features = ["derive"] }
 nekor-build-kdl-config = { path = "nekor-build/nekor-build-kdl-config", package = "nekor-build-kdl-config" }
 nekor-aal = { path = "nekor-aal" }
