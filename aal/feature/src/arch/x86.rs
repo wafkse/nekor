@@ -87,7 +87,7 @@ impl<const LEAF: u32, const SUBLEAF: u32> Cached for Cpuid<LEAF, SUBLEAF> {
 /// Cached reads share the leaf result used by [`Cpuid`]. They do not establish a
 /// separate processor-local cache.
 #[derive(Debug, Clone, Copy)]
-// NOTE(invariant): The value comes from output register `R` for the selected leaf and subleaf.
+// NOTE(invariant): None.
 pub struct CpuidReg<R, const LEAF: u32, const SUBLEAF: u32 = 0>(pub u32, marker::PhantomData<R>)
 where
     R: Output;
