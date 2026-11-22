@@ -1,11 +1,27 @@
 //! Architectural x86 interrupt-vector values.
 //!
-//! The processor exception assignments and error-code stack shapes follow
+//! The processor exception assignments and IDT error-code rules follow
 //! [Intel SDM, Volume 3A, Table 6-1][intel-sdm] and
-//! [AMD64 APM, Volume 2, Section 8.2 and Table 8-1][amd-apm]. AMD assigns vectors 28 through
-//! 30 to exceptions that Intel reserves. [`ExceptionVector`] represents the full
-//! processor-reserved range so software can represent either architecture and
-//! future assignments without losing the raw vector.
+//! [AMD64 APM, Volume 2, Section 8.2 and Table 8-1][amd-apm].
+//!
+//! [`RawInterruptVector`] preserves every vector number in the eight-bit namespace.
+//! [`RawInterruptVector::normalize()`] maps the processor assignments modeled here to
+//! [`InterruptVector`] variants, including AMD's assignments for vectors 28 through 30.
+//!
+//! Use [`exception::ErrorCode`] to test whether hardware exception delivery through
+//! the IDT pushes an error-code slot for a vector.
+//!
+//! ```
+//! use nekor_aal_arch::x86::interrupt::{InterruptVector, RawInterruptVector, exception};
+//!
+//! let vector = RawInterruptVector::new(14);
+//! assert_eq!(vector.normalize(), Some(InterruptVector::PageFault));
+//! assert!(vector.test::<exception::ErrorCode>());
+//!
+//! let vector = RawInterruptVector::FIRST_USER_DEFINED;
+//! assert_eq!(vector.normalize(), None);
+//! assert!(!vector.test::<exception::ErrorCode>());
+//! ```
 //!
 //! [`StartupVector`] follows the start-up IPI vector definition in Intel SDM,
 //! Volume 3A, Sections 8.4.4 and 11.6.1.
@@ -13,208 +29,37 @@
 //! [intel-sdm]: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
 //! [amd-apm]: https://docs.amd.com/v/u/en-US/24593_3.44_APM_Vol2
 
-/// An x86 interrupt-vector number.
+/// A raw x86 interrupt-vector number.
 ///
-/// The architecture defines an eight-bit vector namespace. This type preserves
-/// the distinction between a vector and interrupt-controller pins or lines.
+/// The full eight-bit namespace includes reserved and user-defined vectors.
+/// A vector number is distinct from an interrupt-controller pin or line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar covers the architectural eight-bit vector domain.
-pub struct InterruptVector(u8);
+// NOTE(invariant): None.
+pub struct RawInterruptVector(u8);
 
-impl InterruptVector {
-    /// First vector available for user-defined interrupts.
+impl RawInterruptVector {
+    /// The first vector available for user-defined interrupts.
     pub const FIRST_USER_DEFINED: Self = Self(32);
 
-    /// Constructs a vector from its architectural number.
+    /// Tests whether this interrupt-vector number has the selected property.
     #[inline]
     #[must_use]
-    pub const fn new(vector: u8) -> Self {
-        Self(vector)
-    }
-
-    /// Returns the architectural vector number.
-    #[inline]
-    #[must_use]
-    pub const fn get(self) -> u8 {
-        let Self(vector) = self;
-
-        vector
+    pub fn test<N>(self) -> bool
+    where
+        N: Property,
+    {
+        <N as Property>::test(self)
     }
 }
 
-/// A vector in the processor-reserved exception range.
+/// A raw x86 exception error-code newtype.
 ///
-/// Values in this range do not all identify exceptions. Vector 2 is the NMI
-/// vector, while vectors 9, 15, 22 through 27, and 31 are currently reserved.
-/// Vectors 28 through 30 have AMD-defined meanings and remain reserved by
-/// Intel. The named constants identify every currently assigned meaning.
+/// [`exception::ErrorCode`] describes when the error-code slot is present.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar is always in the processor-reserved range 0..=31.
-pub struct ExceptionVector(u8);
-
-impl ExceptionVector {
-    /// Alignment Check (`#AC`).
-    pub const ALIGNMENT_CHECK: Self = Self(17);
-    /// Bound Range Exceeded (`#BR`).
-    pub const BOUND_RANGE_EXCEEDED: Self = Self(5);
-    /// Breakpoint (`#BP`).
-    pub const BREAKPOINT: Self = Self(3);
-    /// Control Protection Exception (`#CP`).
-    pub const CONTROL_PROTECTION: Self = Self(21);
-    /// Debug (`#DB`).
-    pub const DEBUG: Self = Self(1);
-    /// Device Not Available (`#NM`).
-    pub const DEVICE_NOT_AVAILABLE: Self = Self(7);
-    /// Divide Error (`#DE`).
-    pub const DIVIDE_ERROR: Self = Self(0);
-    /// Double Fault (`#DF`).
-    pub const DOUBLE_FAULT: Self = Self(8);
-    /// General Protection (`#GP`).
-    pub const GENERAL_PROTECTION: Self = Self(13);
-    /// AMD Hypervisor Injection Exception (`#HV`).
-    pub const HYPERVISOR_INJECTION: Self = Self(28);
-    /// Invalid Opcode (`#UD`).
-    pub const INVALID_OPCODE: Self = Self(6);
-    /// Invalid TSS (`#TS`).
-    pub const INVALID_TSS: Self = Self(10);
-    /// Machine Check (`#MC`).
-    pub const MACHINE_CHECK: Self = Self(18);
-    /// Highest processor-reserved vector.
-    pub const MAX: Self = Self(31);
-    /// Lowest processor-reserved vector.
-    pub const MIN: Self = Self(0);
-    /// Non-maskable interrupt (NMI).
-    pub const NON_MASKABLE_INTERRUPT: Self = Self(2);
-    /// Overflow (`#OF`).
-    pub const OVERFLOW: Self = Self(4);
-    /// Page Fault (`#PF`).
-    pub const PAGE_FAULT: Self = Self(14);
-    /// AMD Security Exception (`#SX`).
-    pub const SECURITY: Self = Self(30);
-    /// Segment Not Present (`#NP`).
-    pub const SEGMENT_NOT_PRESENT: Self = Self(11);
-    /// SIMD floating-point exception (`#XM` or `#XF`).
-    pub const SIMD_FLOATING_POINT: Self = Self(19);
-    /// Stack-Segment Fault (`#SS`).
-    pub const STACK_SEGMENT_FAULT: Self = Self(12);
-    /// Virtualization Exception (`#VE`).
-    pub const VIRTUALIZATION: Self = Self(20);
-    /// AMD VMM Communication Exception (`#VC`).
-    pub const VMM_COMMUNICATION: Self = Self(29);
-    /// Assigned exception vectors whose hardware delivery pushes an error code.
-    ///
-    /// Double Fault and Alignment Check push zero. Other entries carry an
-    /// exception-specific image described by the architecture manuals.
-    pub const WITH_ERROR_CODE: &'static [Self] = &[
-        Self::DOUBLE_FAULT,
-        Self::INVALID_TSS,
-        Self::SEGMENT_NOT_PRESENT,
-        Self::STACK_SEGMENT_FAULT,
-        Self::GENERAL_PROTECTION,
-        Self::PAGE_FAULT,
-        Self::ALIGNMENT_CHECK,
-        Self::CONTROL_PROTECTION,
-        Self::VMM_COMMUNICATION,
-        Self::SECURITY,
-    ];
-    /// x87 floating-point error (`#MF`).
-    pub const X87_FLOATING_POINT: Self = Self(16);
-
-    /// Constructs a vector in the processor-reserved range.
-    ///
-    /// Returns `None` for external and software-defined vectors.
-    #[inline]
-    #[must_use]
-    pub const fn new(vector: u8) -> Option<Self> {
-        if vector <= Self::MAX.get() {
-            Some(Self(vector))
-        } else {
-            None
-        }
-    }
-
-    /// Returns the architectural vector number.
-    #[inline]
-    #[must_use]
-    pub const fn get(self) -> u8 {
-        let Self(vector) = self;
-
-        vector
-    }
-
-    /// Returns whether hardware delivery pushes an architectural error-code slot.
-    ///
-    /// Software `INT n` delivery is a distinct event source and does not gain
-    /// this stack shape merely by targeting the same vector number.
-    #[inline]
-    #[must_use]
-    pub const fn pushes_error_code(self) -> bool {
-        let mut index = 0;
-
-        while index < Self::WITH_ERROR_CODE.len() {
-            if self.get() == Self::WITH_ERROR_CODE[index].get() {
-                return true;
-            }
-
-            index += 1;
-        }
-
-        false
-    }
-
-    /// Widens this processor-reserved vector into the full vector namespace.
-    #[inline]
-    #[must_use]
-    pub const fn interrupt(self) -> InterruptVector {
-        InterruptVector::new(self.get())
-    }
-}
-
-impl From<ExceptionVector> for InterruptVector {
-    #[inline]
-    fn from(vector: ExceptionVector) -> Self {
-        vector.interrupt()
-    }
-}
-
-impl TryFrom<InterruptVector> for ExceptionVector {
-    type Error = InterruptVector;
-
-    #[inline]
-    fn try_from(vector: InterruptVector) -> Result<Self, Self::Error> {
-        match Self::new(vector.get()) {
-            Some(vector) => Ok(vector),
-            None => Err(vector),
-        }
-    }
-}
-
-/// A raw x86 exception error-code image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-// NOTE(invariant): The private scalar preserves the architectural 32-bit exception error-code
-// image.
+// NOTE(invariant): None.
 pub struct ExceptionErrorCode(u32);
-
-impl ExceptionErrorCode {
-    /// Constructs an architectural exception error-code image.
-    #[inline]
-    #[must_use]
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-
-    /// Returns the architectural error-code image.
-    #[inline]
-    #[must_use]
-    pub const fn get(self) -> u32 {
-        let Self(value) = self;
-
-        value
-    }
-}
 
 /// An x86 start-up IPI vector.
 ///
@@ -222,55 +67,341 @@ impl ExceptionErrorCode {
 /// is the vector shifted left by 12 bits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): The private scalar preserves the architectural eight-bit SIPI vector domain.
+// NOTE(invariant): None.
 pub struct StartupVector(u8);
 
-impl StartupVector {
-    /// Constructs a start-up IPI vector.
+/// An architectural property of an x86 interrupt-vector number.
+///
+/// The architecture module defines the supported properties. Query them through
+/// [`RawInterruptVector::test()`] or [`InterruptVector::test()`].
+pub trait Property: detail::Sealed {
+    /// Tests whether the vector number has this property.
+    fn test(vector: RawInterruptVector) -> bool;
+}
+
+/// The properties of architectural exception vectors.
+pub mod exception {
+    /// The vector property for hardware exceptions that push an error-code slot
+    /// when delivered through the IDT.
+    ///
+    /// Double Fault and Alignment Check push zero. Other exceptions that push an
+    /// error code carry an exception-specific image described by the architecture manuals.
+    /// Software `INT n` delivery follows its own stack rules even when it uses the same
+    /// vector number.
+    pub struct ErrorCode;
+}
+
+impl detail::Sealed for exception::ErrorCode {}
+
+impl InterruptVector {
+    /// Tests whether this vector has the selected property.
     #[inline]
     #[must_use]
-    pub const fn new(vector: u8) -> Self {
-        Self(vector)
+    pub fn test<N>(self) -> bool
+    where
+        N: Property,
+    {
+        <N as Property>::test(Self::raw(self))
+    }
+}
+
+detail::vector!(
+    /// A named x86 processor interrupt vector.
+    ///
+    /// Use [`RawInterruptVector`] to preserve unassigned and user-defined vector numbers.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum InterruptVector {
+        /// Divide Error (`#DE`).
+        DivideError = 0,
+
+        /// Debug (`#DB`).
+        Debug = 1,
+
+        /// Non-maskable interrupt (NMI).
+        NonMaskableInterrupt = 2,
+
+        /// Breakpoint (`#BP`).
+        Breakpoint = 3,
+
+        /// Overflow (`#OF`).
+        Overflow = 4,
+
+        /// Bound Range Exceeded (`#BR`).
+        BoundRangeExceeded = 5,
+
+        /// Invalid Opcode (`#UD`).
+        InvalidOpcode = 6,
+
+        /// Device Not Available (`#NM`).
+        DeviceNotAvailable = 7,
+
+        /// Double Fault (`#DF`).
+        DoubleFault = 8,
+
+        /// Invalid TSS (`#TS`).
+        InvalidTss = 10,
+
+        /// Segment Not Present (`#NP`).
+        SegmentNotPresent = 11,
+
+        /// Stack-Segment Fault (`#SS`).
+        StackSegmentFault = 12,
+
+        /// General Protection (`#GP`).
+        GeneralProtection = 13,
+
+        /// Page Fault (`#PF`).
+        PageFault = 14,
+
+        /// x87 floating-point error (`#MF`).
+        X87FloatingPoint = 16,
+
+        /// Alignment Check (`#AC`).
+        AlignmentCheck = 17,
+
+        /// Machine Check (`#MC`).
+        MachineCheck = 18,
+
+        /// SIMD floating-point exception (`#XM` or `#XF`).
+        SimdFloatingPoint = 19,
+
+        /// Virtualization Exception (`#VE`).
+        Virtualization = 20,
+
+        /// Control Protection Exception (`#CP`).
+        ControlProtection = 21,
+
+        /// AMD-specific Hypervisor Injection Exception (`#HV`).
+        HypervisorInjection = 28,
+
+        /// AMD-specific VMM Communication Exception (`#VC`).
+        VmmCommunication = 29,
+
+        /// AMD-specific Security Exception (`#SX`).
+        Security = 30,
+    } as u8;
+
+    impl Property for exception::ErrorCode in InterruptVector {
+        DoubleFault | InvalidTss | SegmentNotPresent | StackSegmentFault | GeneralProtection
+            | PageFault | AlignmentCheck | ControlProtection | VmmCommunication | Security
     }
 
-    /// Returns the IPI vector field.
-    #[inline]
-    #[must_use]
-    pub const fn get(self) -> u8 {
-        let Self(vector) = self;
+    impl RawInterruptVector for u8;
+    impl ExceptionErrorCode for u32;
+    impl StartupVector for u8;
+);
 
-        vector
+/// The expansions and property seal for interrupt vectors.
+mod detail {
+    /// Restricts interrupt-vector properties to this module.
+    pub trait Sealed {}
+
+    /// Expand each declaration before processing the remaining input.
+    ///
+    /// An `impl Property` declaration lists the enum variants with that property.
+    /// A variant may have any number of properties.
+    macro_rules! vector {
+        () => {};
+        (
+            $(
+                #[$target_meta:meta]
+            )*
+
+            $target_vis:vis enum $target_name:ident { $($target_variants:tt)* } as $target_repr:ty;
+
+            $($target_rest:tt)*
+        ) => {
+            tokel::stream!(
+                detail::vector!(
+                    $(#[$target_meta])*
+                    $target_vis enum $target_name for [< Raw $target_name >]:concatenate {
+                        $($target_variants)*
+                    } as $target_repr;
+                );
+            );
+
+            detail::vector!($($target_rest)*);
+        };
+        (
+            $(
+                #[$target_meta:meta]
+            )*
+
+            $target_vis:vis enum $target_name:ident for $target_raw:ident {
+                $(
+                    $(#[$variant_meta:meta])*
+                    $variant_name:ident = $variant_number:literal
+                ),+ $(,)?
+            } as $target_repr:ty;
+        ) => {
+            $(#[$target_meta])*
+            #[repr($target_repr)]
+            $target_vis enum $target_name {
+                $(
+                    $(#[$variant_meta])*
+                    $variant_name = $variant_number,
+                )+
+            }
+
+            impl $target_raw {
+                /// Returns the named processor vector when this module models its assignment.
+                ///
+                /// Returns `None` for vector numbers with no corresponding enum variant,
+                /// including unassigned and user-defined vectors.
+                #[inline]
+                #[must_use]
+                $target_vis const fn normalize(self) -> Option<$target_name> {
+                    match <$target_raw>::get(self) {
+                        $($variant_number => Some($target_name::$variant_name),)+
+                        _ => None,
+                    }
+                }
+            }
+
+            impl $target_name {
+                /// Returns the raw interrupt-vector number.
+                #[inline]
+                #[must_use]
+                $target_vis const fn raw(self) -> $target_raw {
+                    <$target_raw>::new(self as $target_repr)
+                }
+            }
+
+            impl From<$target_name> for $target_raw {
+                #[inline]
+                fn from(vector: $target_name) -> Self {
+                    <$target_name>::raw(vector)
+                }
+            }
+
+            impl TryFrom<$target_raw> for $target_name {
+                type Error = $target_raw;
+
+                #[inline]
+                fn try_from(vector: $target_raw) -> Result<Self, Self::Error> {
+                    Option::<Self>::ok_or::<$target_raw>(<$target_raw>::normalize(vector), vector)
+                }
+            }
+
+        };
+        (
+            impl $target_name:ident for $target_repr:ty;
+
+            $($target_rest:tt)*
+        ) => {
+            impl $target_name {
+                /// Constructs an architectural value from its raw representation.
+                #[inline]
+                #[must_use]
+                pub const fn new(value: $target_repr) -> Self {
+                    Self(value)
+                }
+
+                /// Returns the underlying architectural value.
+                #[inline]
+                #[must_use]
+                pub const fn get(self) -> $target_repr {
+                    let Self(value) = self;
+
+                    value
+                }
+            }
+
+            detail::vector!($($target_rest)*);
+        };
+        (
+            impl Property for $($target_property:ident)::+ in $target_enum:ident {
+                $($target_variant:ident)|+
+            }
+
+            $($target_rest:tt)*
+        ) => {
+            tokel::stream!(
+                impl Property for $($target_property)::+ {
+                    #[inline]
+                    fn test(vector: [< Raw $target_enum >]:concatenate) -> bool {
+                        $(
+                            const [< $target_variant >]:case[[snake]]:case[[upper]]:push_right[[:]]
+                                [< Raw $target_enum >]:concatenate =
+                                <$target_enum>::raw($target_enum::$target_variant);
+                        )+
+
+                        match vector {
+                            $([< $target_variant >]:case[[snake]]:case[[upper]])|+ => true,
+                            _ => false,
+                        }
+                    }
+                }
+            );
+
+            detail::vector!($($target_rest)*);
+        };
     }
+
+    pub(in crate::x86::interrupt) use vector;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ExceptionVector, InterruptVector};
+    use super::{InterruptVector, Property, RawInterruptVector, detail, exception};
 
-    #[test]
-    fn exception_domain_ends_before_user_defined_vectors() {
-        assert_eq!(
-            ExceptionVector::new(ExceptionVector::MAX.get()),
-            Some(ExceptionVector::MAX)
-        );
-        assert_eq!(ExceptionVector::new(InterruptVector::FIRST_USER_DEFINED.get()), None);
-    }
+    /// A test namespace with members on either side of the error-code classification.
+    struct OverlappingNamespace;
+
+    impl detail::Sealed for OverlappingNamespace {}
+
+    detail::vector!(
+        impl Property for OverlappingNamespace in InterruptVector {
+            Debug | PageFault
+        }
+    );
 
     #[test]
     fn assigned_vector_names_match_the_manual_tables() {
-        assert_eq!(ExceptionVector::DOUBLE_FAULT.get(), 8);
-        assert_eq!(ExceptionVector::PAGE_FAULT.get(), 14);
-        assert_eq!(ExceptionVector::CONTROL_PROTECTION.get(), 21);
-        assert_eq!(ExceptionVector::VMM_COMMUNICATION.get(), 29);
+        assert_eq!(InterruptVector::DoubleFault.raw().get(), 8);
+        assert_eq!(InterruptVector::GeneralProtection.raw().get(), 13);
+        assert_eq!(InterruptVector::PageFault.raw().get(), 14);
+        assert_eq!(InterruptVector::ControlProtection.raw().get(), 21);
+        assert_eq!(InterruptVector::VmmCommunication.raw().get(), 29);
     }
 
     #[test]
-    fn error_code_shape_distinguishes_named_exceptions() {
-        assert!(ExceptionVector::DOUBLE_FAULT.pushes_error_code());
-        assert!(ExceptionVector::PAGE_FAULT.pushes_error_code());
-        assert!(ExceptionVector::VMM_COMMUNICATION.pushes_error_code());
-        assert!(!ExceptionVector::DEBUG.pushes_error_code());
-        assert!(!ExceptionVector::MACHINE_CHECK.pushes_error_code());
-        assert!(!ExceptionVector::HYPERVISOR_INJECTION.pushes_error_code());
+    fn normalization_preserves_assigned_values_and_rejects_unassigned_values() {
+        const GENERAL_PROTECTION: Option<InterruptVector> = RawInterruptVector::new(13).normalize();
+
+        assert_eq!(GENERAL_PROTECTION, Some(InterruptVector::GeneralProtection));
+        assert_eq!(RawInterruptVector::FIRST_USER_DEFINED.get(), 32);
+
+        let assigned = [
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 28, 29, 30,
+        ];
+
+        for number in u8::MIN..=u8::MAX {
+            let raw = RawInterruptVector::new(number);
+            let named = raw.normalize();
+
+            assert_eq!(named.is_some(), assigned.contains(&number), "vector {number}");
+            assert_eq!(named.map(RawInterruptVector::from).unwrap_or(raw), raw);
+            assert_eq!(InterruptVector::try_from(raw), named.ok_or(raw));
+        }
+    }
+
+    #[test]
+    fn error_code_shape_matches_the_architectural_vectors() {
+        for number in u8::MIN..=u8::MAX {
+            let raw = RawInterruptVector::new(number);
+            let expected = matches!(number, 8 | 10 | 11 | 12 | 13 | 14 | 17 | 21 | 29 | 30);
+
+            assert_eq!(raw.test::<exception::ErrorCode>(), expected, "vector {number}");
+            assert_eq!(
+                raw.test::<OverlappingNamespace>(),
+                matches!(number, 1 | 14),
+                "vector {number}"
+            );
+
+            if let Some(vector) = raw.normalize() {
+                assert_eq!(vector.test::<exception::ErrorCode>(), expected, "vector {number}");
+            }
+        }
     }
 }
