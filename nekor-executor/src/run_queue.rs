@@ -280,8 +280,8 @@ impl Run {
 
         let queue_storage = queue::<P> as *const usize;
 
-        // SAFETY: Safe, as the pointer is sourced from a *naked fn* with
-        // hand-written contents. (see note [1])
+        // SAFETY: The naked item emits a pointer-sized relative offset at this address,
+        // and `ptr::read_unaligned` accepts the template's initial unaligned location.
         let pointer_offset = unsafe { ptr::read_unaligned(queue_storage) };
 
         // SAFETY: The function pointer is non-null. The encoded offset reaches
@@ -299,7 +299,8 @@ impl Run {
     #[inline]
     #[must_use]
     pub const fn list() -> &'static [Self] {
-        // SAFETY: [see next comment]
+        // SAFETY: These declarations name storage boundaries emitted by the
+        // platform linker script, they are not foreign symbols.
         unsafe extern "C" {
             /// The start of the global runqueue list.
             static __nekor_queue_start: ffi::c_void;
@@ -311,8 +312,9 @@ impl Run {
             static __nekor_queue_end: ffi::c_void;
         }
 
-        // SAFETY: These are magic symbols that are defined by the linker
-        // script, which are statically guaranteed to define the runqueue list.
+        // SAFETY: The platform linker script places aligned Run handles contiguously
+        // between these resident boundary symbols, Furthermore, the end symbol is one element past
+        // the final handle, so their distance counts exactly the initialized elements.
         unsafe {
             let start = (&raw const __nekor_queue_start).cast::<Self>();
             let end = (&raw const __nekor_queue_end).cast::<Self>();
