@@ -43,7 +43,7 @@ bitflags! {
     /// XSTATE component bitmap, including reserved bits.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
-    pub struct XstateComponents: u64 {
+    pub struct XstateComponentBitmap: u64 {
         /// Legacy x87 state.
         const X87 = 1 << 0;
 
@@ -112,19 +112,18 @@ bitflags! {
 /// XCR0 component bitmap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-// NOTE(invariant): `XstateComponents` represents every XCR0 bit, including values
-// that require processor-specific validation before installation.
-pub struct Xcr0(XstateComponents);
+// NOTE(invariant): None.
+pub struct Xcr0(XstateComponentBitmap);
 
 impl Xcr0 {
     /// Empty component bitmap.
-    pub const EMPTY: Self = Self(XstateComponents::empty());
+    pub const EMPTY: Self = Self(XstateComponentBitmap::empty());
 
     /// Construct an `XCR0` image, preserving reserved bits.
     #[inline]
     #[must_use]
     pub const fn new(target_value: u64) -> Self {
-        Self(XstateComponents::from_bits_retain(target_value))
+        Self(XstateComponentBitmap::from_bits_retain(target_value))
     }
 
     /// Raw `XCR0` bits.
@@ -139,7 +138,7 @@ impl Xcr0 {
     /// Selected XSTATE components.
     #[inline]
     #[must_use]
-    pub const fn components(&self) -> &XstateComponents {
+    pub const fn components(&self) -> &XstateComponentBitmap {
         let &Self(ref state_component) = self;
 
         state_component
@@ -147,7 +146,7 @@ impl Xcr0 {
 
     /// Modify the selected-component bitmap.
     #[inline]
-    pub const fn components_mut(&mut self) -> &mut XstateComponents {
+    pub const fn components_mut(&mut self) -> &mut XstateComponentBitmap {
         let &mut Self(ref mut state_component) = self;
 
         state_component
@@ -200,33 +199,33 @@ impl Xcr0 {
 mod tests {
     use core::mem;
 
-    use super::{Xcr0, XstateComponents};
+    use crate::x86::xstate::{Xcr0, XstateComponentBitmap};
 
     #[test]
     fn component_bitmap_matches_the_architectural_word() {
-        assert_eq!(mem::size_of::<XstateComponents>(), mem::size_of::<u64>());
-        assert_eq!(mem::align_of::<XstateComponents>(), mem::align_of::<u64>());
+        assert_eq!(mem::size_of::<XstateComponentBitmap>(), mem::size_of::<u64>());
+        assert_eq!(mem::align_of::<XstateComponentBitmap>(), mem::align_of::<u64>());
         assert_eq!(mem::size_of::<Xcr0>(), mem::size_of::<u64>());
         assert_eq!(mem::align_of::<Xcr0>(), mem::align_of::<u64>());
     }
 
     #[test]
     fn component_operations_preserve_reserved_bits() {
-        let reserved = XstateComponents::from_bits_retain(1 << 63);
-        let selected = reserved | XstateComponents::X87 | XstateComponents::SSE;
+        let reserved = XstateComponentBitmap::from_bits_retain(1 << 63);
+        let selected = reserved | XstateComponentBitmap::X87 | XstateComponentBitmap::SSE;
 
-        assert!(selected.contains(XstateComponents::X87 | XstateComponents::SSE));
+        assert!(selected.contains(XstateComponentBitmap::X87 | XstateComponentBitmap::SSE));
         assert_eq!(selected.bits(), (1 << 63) | 0b11);
     }
 
     #[test]
     fn xcr0_preserves_register_identity_around_shared_components() {
         let mut provided = Xcr0::EMPTY;
-        let required = Xcr0::new((XstateComponents::X87 | XstateComponents::SSE).bits());
+        let required = Xcr0::new((XstateComponentBitmap::X87 | XstateComponentBitmap::SSE).bits());
 
         provided
             .components_mut()
-            .insert(XstateComponents::X87 | XstateComponents::SSE | XstateComponents::AVX);
+            .insert(XstateComponentBitmap::X87 | XstateComponentBitmap::SSE | XstateComponentBitmap::AVX);
 
         assert!(provided.contains(required));
         assert!(!required.contains(provided));

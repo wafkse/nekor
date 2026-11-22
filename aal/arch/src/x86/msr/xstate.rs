@@ -1,6 +1,6 @@
 //! XSTATE component bitmaps in `IA32_XFD`, `IA32_XFD_ERR` and `IA32_XSS`.
 
-use crate::x86::xstate::XstateComponents;
+use crate::x86::xstate::XstateComponentBitmap;
 
 /// The declarations shared by the XSTATE register snapshots.
 mod detail {
@@ -21,17 +21,17 @@ mod detail {
                 )*
                 #[repr(transparent)]
                 // NOTE(invariant): None.
-                $target_vis struct $target_name(XstateComponents);
+                $target_vis struct $target_name(XstateComponentBitmap);
 
                 impl $target_name {
                     /// An empty XSTATE component bitmap.
-                    $target_vis const EMPTY: Self = Self(XstateComponents::empty());
+                    $target_vis const EMPTY: Self = Self(XstateComponentBitmap::empty());
 
                     /// Construct a snapshot, preserving reserved bits.
                     #[inline]
                     #[must_use]
                     $target_vis const fn new(target_value: u64) -> Self {
-                        Self(XstateComponents::from_bits_retain(target_value))
+                        Self(XstateComponentBitmap::from_bits_retain(target_value))
                     }
 
                     /// The raw register bits.
@@ -46,7 +46,7 @@ mod detail {
                     /// Borrows the register's XSTATE component bitmap.
                     #[inline]
                     #[must_use]
-                    $target_vis const fn components(&self) -> &XstateComponents {
+                    $target_vis const fn components(&self) -> &XstateComponentBitmap {
                         let &Self(ref target_component) = self;
 
                         target_component
@@ -54,7 +54,7 @@ mod detail {
 
                     /// Mutably borrows the register's XSTATE component bitmap.
                     #[inline]
-                    $target_vis const fn components_mut(&mut self) -> &mut XstateComponents {
+                    $target_vis const fn components_mut(&mut self) -> &mut XstateComponentBitmap {
                         let &mut Self(ref mut target_component) = self;
 
                         target_component
@@ -118,7 +118,7 @@ mod tests {
             Msr,
             xstate::{MsrXfd, MsrXfdErr, MsrXss},
         },
-        xstate::XstateComponents,
+        xstate::XstateComponentBitmap,
     };
 
     #[test]
@@ -126,11 +126,11 @@ mod tests {
         let mut xfd = MsrXfd::EMPTY;
         let mut error = MsrXfdErr::EMPTY;
 
-        xfd.components_mut().insert(XstateComponents::TILE_DATA);
-        error.components_mut().insert(XstateComponents::TILE_DATA);
+        xfd.components_mut().insert(XstateComponentBitmap::TILE_DATA);
+        error.components_mut().insert(XstateComponentBitmap::TILE_DATA);
 
-        assert!(xfd.components().contains(XstateComponents::TILE_DATA));
-        assert!(error.components().contains(XstateComponents::TILE_DATA));
+        assert!(xfd.components().contains(XstateComponentBitmap::TILE_DATA));
+        assert!(error.components().contains(XstateComponentBitmap::TILE_DATA));
         assert_eq!(xfd.raw(), 1 << 18);
         assert_eq!(error.raw(), 1 << 18);
     }
@@ -140,11 +140,11 @@ mod tests {
         let mut xss = MsrXss::new(1 << 63);
 
         xss.components_mut()
-            .insert(XstateComponents::CET_SUPERVISOR | XstateComponents::LBR);
+            .insert(XstateComponentBitmap::CET_SUPERVISOR | XstateComponentBitmap::LBR);
 
-        assert!(xss.components().contains(XstateComponents::CET_SUPERVISOR));
-        assert!(xss.components().contains(XstateComponents::LBR));
-        assert!(!xss.components().contains(XstateComponents::HDC));
+        assert!(xss.components().contains(XstateComponentBitmap::CET_SUPERVISOR));
+        assert!(xss.components().contains(XstateComponentBitmap::LBR));
+        assert!(!xss.components().contains(XstateComponentBitmap::HDC));
         assert_eq!(xss.raw(), (1 << 63) | (1 << 12) | (1 << 15));
     }
 
