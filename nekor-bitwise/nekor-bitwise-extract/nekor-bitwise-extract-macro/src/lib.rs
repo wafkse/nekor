@@ -31,6 +31,10 @@ use proc_macro::TokenStream;
 /// ```text
 /// metadata!([become] for input_type -> output_type as TraitName)
 /// ```
+///
+/// # Example
+///
+/// ```rust
 /// use nekor_bitwise_extract_macro::{metadata, implement};
 ///
 /// metadata!(become for u16 -> u8 as ByteField);
