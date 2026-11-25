@@ -4,14 +4,23 @@ use core::{convert, marker};
 
 use crate::patch::{choose::Chosen, pod::Pod};
 
-/// A callable implementation with a System V entry for assembly diversions.
+/// A trait that describes a *delegated implementation* for an input-to-output
+/// transformation.
 ///
 /// # Safety
 ///
-/// Implementations must document any architectural prerequisites shared by their Rust
-/// implementation and trampoline. A delegator must establish those prerequisites on
-/// every processor that can execute the selected entry. Generic code cannot infer
-/// instruction support or execution context from the input and output types.
+/// The implementor of this trait may require further safety constraints to be
+/// upheld before usage.
+///
+/// See each respective implementation for the safety contract.
+///
+/// <div class="warning">
+///
+/// ## Generic [`Delegated`] Implications
+///
+/// Due to each individual implementation having delegate safety requirements,
+/// it must be guarded against when this trait is used in generic code.
+/// </div>
 pub unsafe trait Delegated: Pod {
     /// The input type to this [`Delegated`].
     type Input;
@@ -28,9 +37,6 @@ pub unsafe trait Delegated: Pod {
     /// This is to be used for callers that cannot
     /// directly make a call to an `extern "Rust"` (native) ABI function, such
     /// as low-level architectural entry to high-level Rust code.
-    ///
-    /// Patch diversions target this trampoline so the ABI and unwind contract
-    /// match the patch entry.
     ///
     /// [`implementation`]: Delegated::implementation
     #[inline]
