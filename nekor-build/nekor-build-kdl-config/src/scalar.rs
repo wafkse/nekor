@@ -193,7 +193,7 @@ impl Scalar {
     #[inline]
     // NOTE(rationale): Parsing constructs interpreted scalar values from a sibling module in this
     // crate.
-    pub(crate) const fn from_parts(annotation: Option<TypeAnnotation>, value: ScalarValue, origin: Origin) -> Self {
+    pub const fn from_parts(annotation: Option<TypeAnnotation>, value: ScalarValue, origin: Origin) -> Self {
         Self {
             annotation,
             value,

@@ -114,8 +114,7 @@ impl Node {
 
     /// Construct a node after parsing and type interpretation have succeeded.
     #[inline]
-    // NOTE(rationale): Parsing constructs semantic nodes from a sibling module in this crate.
-    pub(crate) const fn from_parts(annotation: Option<NodeAnnotation>, kind: NodeKind, origin: Origin) -> Self {
+    pub const fn from_parts(annotation: Option<NodeAnnotation>, kind: NodeKind, origin: Origin) -> Self {
         Self {
             annotation,
             kind,

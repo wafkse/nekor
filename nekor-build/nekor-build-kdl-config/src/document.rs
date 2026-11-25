@@ -52,15 +52,13 @@ impl Document {
 
     /// Construct a document from a map whose semantic paths are unique.
     #[inline]
-    // NOTE(rationale): Parsing constructs complete documents across sibling modules in this crate.
-    pub(crate) const fn from_fields(fields: IndexMap<Name, Node>) -> Self {
+    pub const fn from_fields(fields: IndexMap<Name, Node>) -> Self {
         Self { fields }
     }
 
     /// Determine the backing map for Serde projection.
     #[inline]
-    // NOTE(rationale): Serialization projects the document map from a sibling module in this crate.
-    pub(crate) const fn fields(&self) -> &IndexMap<Name, Node> {
+    pub const fn fields(&self) -> &IndexMap<Name, Node> {
         let &Self { ref fields } = self;
 
         fields
