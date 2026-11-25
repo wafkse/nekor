@@ -1,15 +1,6 @@
-//! Initialize shared static storage once for each value type and domain.
+//! Modeling and interface for domain-stored static types.
 //!
-//! [`Static`] coordinates access through the storage header. The thread that changes
-//! `Uninitialized` to `Pending` owns initialization. It writes the value before publishing
-//! `Initialized` with release ordering, and readers use acquire ordering before borrowing it.
-//! If initialization unwinds, a guard resets the header so another attempt can proceed.
-//!
-//! ```text
-//! Uninitialized --claim--> Pending --write and publish--> Initialized
-//!       ^                    |
-//!       +------unwind--------+
-//! ```
+//! See the [`Static`] type for further information.
 
 use core::{cell::UnsafeCell, hint, mem::MaybeUninit, ptr::NonNull};
 
