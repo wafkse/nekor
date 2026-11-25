@@ -13,10 +13,6 @@
 //! `pin` belongs on a field. Every `unsafe = Trait` clause belongs on the
 //! source struct or enum. The item and field models enforce placement after
 //! this module parses the syntax.
-//!
-//! Parsing is strict. Unknown names, unknown unsafe targets, trailing tokens,
-//! and malformed assignments return `syn::Error`. Callers never receive a
-//! partially parsed option.
 
 use alloc::{string::ToString, vec::Vec};
 
@@ -68,8 +64,11 @@ impl Parse for ProjectAttribute {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         if input.peek(Token![unsafe]) {
             let _: Token![unsafe] = input.parse()?;
+
             let _: Token![=] = input.parse()?;
+
             let trait_name: Ident = input.parse()?;
+
             let _: Nothing = input.parse()?;
 
             let clause_target = match trait_name.to_string().as_str() {
