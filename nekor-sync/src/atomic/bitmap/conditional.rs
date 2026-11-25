@@ -101,6 +101,7 @@ impl Condition for Wildcard<Unset> {
 
 /// An ad-hoc trait to be used for the [`Wildcard`] [`Condition`].
 pub trait Compare {
+    /// Determine whether the downstream comparison holds.
     fn determine(self, target_value: usize) -> Status;
 }
 
