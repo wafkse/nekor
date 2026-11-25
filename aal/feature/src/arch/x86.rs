@@ -7,11 +7,8 @@ use core::arch::x86_64::{__cpuid_count, CpuidResult};
 use core::marker;
 
 use nekor_bitwise::prelude::{Extract, Field, For2, Size};
-use nekor_domain::{
-    lowlevel::InitializationStage,
-    store::{Static, Store},
-};
-use nekor_primitive::scalar::Scalar;
+use nekor_domain::prelude::{InitializationStage, Static, Store};
+use nekor_primitive::prelude::Scalar;
 
 pub mod qualified;
 
