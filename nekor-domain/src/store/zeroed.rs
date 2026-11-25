@@ -12,9 +12,11 @@ use core::{
 
 use crate::{
     domain::{Adapter, Domain},
-    lowlevel::{Container, InitializationStage},
     prelude::Preset,
-    store::{Static, Store},
+    store::{
+        Static, Store,
+        lowlevel::{Container, InitializationStage},
+    },
 };
 
 /// A marker trait that indicates that a type is zero-initializable.

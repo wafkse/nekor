@@ -6,9 +6,13 @@ use core::{cell::UnsafeCell, hint, mem::MaybeUninit, ptr::NonNull};
 
 use crate::{
     domain::Domain,
-    lowlevel::{Container, Header, InitializationStage},
     prelude::Preset,
+    store::lowlevel::{Container, Header, InitializationStage},
 };
+
+pub mod lowlevel;
+
+pub mod zeroed;
 
 /// Values that can be shared through static storage.
 ///

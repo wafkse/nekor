@@ -239,11 +239,11 @@ where
 {
     /// Value storage at the start of the aligned allocation.
     // NOTE(rationale): Static and zeroed storage paths require crate-wide access to this field.
-    pub(crate) value_storage: UnsafeCell<MaybeUninit<T>>,
+    pub(in crate::store) value_storage: UnsafeCell<MaybeUninit<T>>,
 
     /// The initialization header of the storage.
     // NOTE(rationale): Static and zeroed storage paths require crate-wide access to this field.
-    pub(crate) value_header: Header,
+    pub(in crate::store) value_header: Header,
 }
 
 impl<T> Container<T>
