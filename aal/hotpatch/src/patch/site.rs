@@ -8,7 +8,7 @@ use nekor_bitwise::prelude::{Counterpart, Field};
 
 use crate::patch::{
     choose::Chosen,
-    delegate::{Delegated, Delegator, Eventual},
+    delegate::{self, Delegated, Delegator, Eventual},
     pod::Pod,
 };
 
@@ -100,9 +100,9 @@ type JmpRel32Mut<'a> = <JmpRel32<'a> as Counterpart>::Mut;
 // `D`.
 pub struct Template<D>(
     // NOTE(rationale): The sibling selection module builds templates for this patch module.
-    pub(crate) extern "sysv64-unwind" fn(DelegatedInput<D>) -> DelegatedOutput<D>,
+    pub(in crate::patch) extern "sysv64-unwind" fn(DelegatedInput<D>) -> DelegatedOutput<D>,
     // NOTE(rationale): The sibling selection module constructs the typed template marker.
-    pub(crate) marker::PhantomData<fn() -> D>,
+    pub(in crate::patch) marker::PhantomData<fn() -> D>,
 )
 where
     D: Delegator;
@@ -251,8 +251,7 @@ where
     T: Delegator,
     P: Pod,
 {
-    /// Trampoline directly into the target [`Delegated::trampoline`] for
-    /// this [`Patch`].
+    /// The System V entry point that jumps through the patchsite to the installed delegate.
     ///
     /// # Safety
     ///
@@ -357,7 +356,7 @@ where
 
                 patchsite_symbol = sym Self::patchsite,
 
-                default_symbol = sym <T::Target as Delegated>::trampoline,
+                default_symbol = sym delegate::trampoline::<T::Target>,
 
                 X86_OPCODE_JMP_REL32 = const X86::OPCODE_JMP_REL32,
                 X86_MNEMONIC_JMP_REL32_SIZE = const X86::MNEMONIC_JMP_REL32_SIZE,
@@ -406,26 +405,6 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Unwind;
 
-    /// A delegate whose adapter differs observably from its Rust implementation.
-    #[derive(Clone, Copy)]
-    struct Specialized;
-
-    // SAFETY: Both entry points operate on an owned integer without architectural prerequisites.
-    unsafe impl Delegated for Specialized {
-        type Input = u64;
-        type Output = u64;
-
-        #[inline]
-        fn implementation(target_value: Self::Input) -> Self::Output {
-            target_value
-        }
-
-        #[inline]
-        extern "sysv64-unwind" fn trampoline(target_value: Self::Input) -> Self::Output {
-            target_value.wrapping_add(1)
-        }
-    }
-
     /// Records whether unwinding runs the caller's destructor.
     struct Cleanup<'state>(pub &'state AtomicBool);
 
@@ -451,27 +430,27 @@ mod tests {
 
     #[test]
     fn sysv_trampoline_preserves_aggregate_call_state() {
+        type AggregateChoice = Chosen<Single<Aggregate, ()>, [u64; 9], [u64; 9]>;
+
         let target_value = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let result = Patch::<Single<Aggregate, ()>, ()>::run(target_value);
+        let expected = [9, 8, 7, 6, 5, 4, 3, 2, 1];
 
-        assert_eq!(result, [9, 8, 7, 6, 5, 4, 3, 2, 1]);
+        let initial = Patch::<Single<Aggregate, ()>, ()>::run(target_value);
 
-        let patchsite = Chosen::<Single<Aggregate, ()>, [u64; 9], [u64; 9]>::patchsite();
+        let Template(adapter, ..) = AggregateChoice::delegated::<Aggregate>().template();
+
+        let selected = adapter(target_value);
+
+        assert_eq!(initial, expected);
+        assert_eq!(selected, expected);
+
+        let patchsite = AggregateChoice::patchsite();
+
         let super::Patchsite(diversion, ..) = patchsite.get_ref();
+
         let bytes = diversion.load(core::sync::atomic::Ordering::Relaxed).to_ne_bytes();
 
         assert_eq!(bytes[0], X86::OPCODE_JMP_REL32);
-    }
-
-    #[test]
-    fn initial_and_selected_diversions_use_the_adapter() {
-        let initial = Patch::<Single<Specialized, ()>, ()>::run(41);
-        let chosen = Chosen::<Single<Specialized, ()>, u64, u64>::delegated::<Specialized>();
-        let Template(adapter, ..) = chosen.template();
-        let selected = adapter(41);
-
-        assert_eq!(initial, 42);
-        assert_eq!(selected, 42);
     }
 
     #[test]

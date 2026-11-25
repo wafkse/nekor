@@ -5,7 +5,7 @@ use core::{ffi, fmt, marker, mem, pin::Pin, ptr::NonNull};
 use nekor_aal_agnostic::rel_ptr::RelPtrMut;
 
 use crate::patch::{
-    delegate::{Delegated, Delegator},
+    delegate::{self, Delegated, Delegator},
     site::{Patch, Patchsite, Template},
 };
 
@@ -29,7 +29,7 @@ where
     where
         U: Delegated<Input = I, Output = O>,
     {
-        Self(U::trampoline, marker::PhantomData)
+        Self(delegate::trampoline::<U>, marker::PhantomData)
     }
 
     /// Construct a [`Template`] from this [`Chosen`].

@@ -7,6 +7,9 @@ use crate::patch::{choose::Chosen, pod::Pod};
 /// A trait that describes a *delegated implementation* for an input-to-output
 /// transformation.
 ///
+/// Patch diversions reach [`Delegated::implementation`] through a System V
+/// unwind adapter provided by this module.
+///
 /// # Safety
 ///
 /// The implementor of this trait may require further safety constraints to be
@@ -30,19 +33,21 @@ pub unsafe trait Delegated: Pod {
 
     /// The implementation that was actually delegated.
     fn implementation(target_param: Self::Input) -> Self::Output;
+}
 
-    /// A trampoline to the [`implementation`] of this [`Delegated`] that uses
-    /// the `extern "sysv64-unwind"` (System V ABI) calling convention.
-    ///
-    /// This is to be used for callers that cannot
-    /// directly make a call to an `extern "Rust"` (native) ABI function, such
-    /// as low-level architectural entry to high-level Rust code.
-    ///
-    /// [`implementation`]: Delegated::implementation
-    #[inline]
-    extern "sysv64-unwind" fn trampoline(target_param: Self::Input) -> Self::Output {
-        Self::implementation(target_param)
-    }
+/// The System V unwind entry point for a [`Delegated`] implementation.
+///
+/// The initial patchsite and selected diversion templates both target this adapter.
+/// It forwards the input to [`Delegated::implementation`] using the Rust ABI and
+/// returns its result. An unwind can propagate back to the original caller.
+/// Each CPU that can enter the adapter must satisfy the delegate's architectural
+/// prerequisites.
+#[inline]
+pub(in crate::patch) extern "sysv64-unwind" fn trampoline<D>(target_param: D::Input) -> D::Output
+where
+    D: Delegated,
+{
+    D::implementation(target_param)
 }
 
 /// A trait that describes a mapping between a specific plain-old-data type and
@@ -76,18 +81,31 @@ pub unsafe trait Delegator: Pod {
     ) -> Chosen<Self, <Self::Target as Delegated>::Input, <Self::Target as Delegated>::Output>;
 }
 
-/// Delegation that tolerates concurrent calls to old and new implementations.
+/// A trait that describes a [`Delegator`] whose implementations remain safe
+/// under eventual instruction-stream coherence.
 ///
-/// Updating a patchsite changes its data word atomically. Instruction fetch has separate
-/// publication requirements, so [`crate::patch::site::Patchsite::stale`] still requires
-/// the caller to establish the architecture's cross-modifying-code protocol.
+/// Each [`Delegator`] has a patchsite that diverts calls to a selected [`Delegated`]
+/// implementation. Updating the patchsite atomically guarantees that execution
+/// observes either the previous or the new implementation.
+///
+/// A CPU may keep executing the previous one from its I-cache until the new diversion becomes
+/// visible.
+///
+/// Since both implementations have the same input and output types,
+/// the interface remains valid even when CPUs observe different delegates.
+/// This permits patching without first quiescing every caller.
 ///
 /// # Safety
 ///
-/// Every selectable implementation must remain callable while an earlier diversion can
-/// still be executed. Concurrent calls through different diversions must preserve shared
-/// state invariants, including relationships with other patchsites. Matching input and
-/// output types does not establish these properties.
+/// For an eventual delegator to be deemed safe, it must satisfy all of the
+/// following requirements:
+///
+/// * Every selectable [`Delegated`] implementation must remain safe to call while earlier
+///   implementations may still be observed.
+/// * Concurrent execution of different implementations must preserve the delegator's safety
+///   invariants, including those involving shared state or related patchsites.
+///
+/// Note that matching input and output types alone does not guarantee these properties.
 pub unsafe trait Eventual: Delegator {}
 
 /// A [`Delegator`] that encompasses a single [`Delegated`] and a target value.
