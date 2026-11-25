@@ -1010,7 +1010,7 @@ mod detail {
 }
 
 #[cfg(test)]
-#[cfg(all(usermode, target_feature = "fsgsbase"))]
+#[cfg(usermode)]
 mod tests {
     use core::{mem, ptr::NonNull};
 
