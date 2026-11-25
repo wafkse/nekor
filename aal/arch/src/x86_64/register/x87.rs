@@ -125,17 +125,6 @@ mod tests {
 
     use crate::x86_64::register::x87::{ExponentMut, SignExponent, SignMut, Significand, Sti};
 
-    /// Place a ten-byte architectural value at an address unaligned for either word.
-    #[repr(C, align(8))]
-    // NOTE(invariant): None.
-    struct Misaligned {
-        /// Sentinel preceding the register image.
-        prefix: u8,
-
-        /// Byte-aligned architectural image.
-        register: Sti,
-    }
-
     #[test]
     fn architectural_register_has_no_save_slot_padding() {
         let significand = Significand::raw(0x0123_4567_89ab_cdef);
